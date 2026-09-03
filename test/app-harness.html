@@ -268,6 +268,25 @@ const TESTS = [
     },
   },
   {
+    name: 'the deck file controls the theme',
+    async fn() {
+      await clearState();
+      const source = deckOf(1).replace('title: Harness', 'title: Harness\ntheme: dark');
+      const fh = await writeOpfs('themed.md', source);
+      const f = await loadApp();
+      await openViaPicker(f, fh);
+      assert(
+        f.contentDocument.documentElement.getAttribute('data-theme') === 'dark',
+        'the document theme was not applied',
+      );
+      assert(
+        f.contentDocument.documentElement.dataset.deckTheme === 'dark',
+        'the document theme was not retained as deck state',
+      );
+      return 'dark theme read from document metadata';
+    },
+  },
+  {
     name: 'the handle is persisted and reopens with no interaction',
     async fn() {
       await clearState();

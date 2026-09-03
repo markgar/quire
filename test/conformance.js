@@ -134,12 +134,15 @@ const shellPath = join(here, '..', 'src', 'shell.html');
 if (existsSync(shellPath)) {
   const shell = readFileSync(shellPath, 'utf8');
   const html = page(
-    { title: 'Ampersand & <em>markup</em>', slides: [{ layout: 'blank', title: 'One' }] },
+    { title: 'Ampersand & <em>markup</em>', theme: 'dark', slides: [{ layout: 'blank', title: 'One' }] },
     shell,
   );
   const problems = [];
-  if (/\{title\}|\{slides\}|\{n\}|\{source\}/.test(html)) problems.push('unsubstituted placeholder left in output');
+  if (/\{title\}|\{theme\}|\{slides\}|\{n\}|\{source\}/.test(html)) {
+    problems.push('unsubstituted placeholder left in output');
+  }
   if (!html.includes('<title>Ampersand &amp; <em>markup</em></title>')) problems.push('title not escaped as expected');
+  if (!html.includes('data-deck-theme="dark"')) problems.push('deck theme not stored in page');
   if (!html.includes('1 / 1')) problems.push('slide count not substituted');
   if (html.includes('id="quire-source"')) problems.push('source element left behind when no source was supplied');
   if (problems.length) {
@@ -147,7 +150,16 @@ if (existsSync(shellPath)) {
     console.log('FAIL  page assembly');
     for (const p of problems) console.log(`   ${p}`);
   } else {
-    console.log('PASS  page assembly  placeholders, title escaping, slide count, no stray source');
+    console.log('PASS  page assembly  theme, placeholders, title escaping, slide count, no stray source');
+  }
+
+  const themed = parseQuire('---\ntitle: Themed\ntheme: DARK\n---\n\n# One');
+  const invalidTheme = parseQuire('---\ntheme: sepia\n---\n\n# One');
+  if (themed.theme !== 'dark' || invalidTheme.theme !== undefined) {
+    failed += 1;
+    console.log('FAIL  document theme  light/dark parsing or invalid-value handling');
+  } else {
+    console.log('PASS  document theme  stored light/dark value, rejected invalid value');
   }
 
   // A self-describing deck must give back the exact Markdown it was built from

@@ -130,6 +130,13 @@ function render(markdown, opts = {}) {
     return false;
   }
 
+  const paramTheme = new URLSearchParams(location.search).get('theme');
+  const theme =
+    paramTheme === 'light' || paramTheme === 'dark'
+      ? paramTheme
+      : spec.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.deckTheme = spec.theme || '';
+  document.documentElement.setAttribute('data-theme', theme);
   scaler.innerHTML = slidesHtml;
   showingFailure = false;
   document.title = spec.title || 'quire';

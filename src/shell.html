@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-deck-theme="{theme}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,8 +7,11 @@
 <script>
   (() => {
     const param = new URLSearchParams(window.location.search).get("theme");
+    const deck = document.documentElement.dataset.deckTheme;
     const theme =
-      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      (param === "light" || param === "dark" ? param : null) ||
+      deck ||
+      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     document.documentElement.setAttribute("data-theme", theme);
   })();
 </script>

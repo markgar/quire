@@ -501,7 +501,7 @@ export function unescapeSource(escaped) {
 const SOURCE_TAG = /^[ \t]*<script type="text\/plain" id="quire-source">\{source\}<\/script>[ \t]*\r?\n?/m;
 
 /** The placeholders the shell defines, matched in one pass. */
-const PLACEHOLDER = /\{(title|slides|n|source)\}/g;
+const PLACEHOLDER = /\{(title|theme|slides|n|source)\}/g;
 
 /**
  * Fill the shell with a rendered deck.
@@ -535,6 +535,7 @@ export function page(spec, shell, markdown) {
   /** @type {Record<string, string>} */
   const values = {
     title: h(or(spec.title, 'Presentation')),
+    theme: spec.theme || '',
     slides: renderSlides(spec) + '\n',
     n: String((spec.slides || []).length),
     source: embed ? escapeSource(/** @type {string} */ (markdown)) : '',

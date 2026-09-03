@@ -47,7 +47,7 @@ import { mapOutsideHtml } from './html.js';
  * @property {string} [align]
  */
 
-/** @typedef {{title: string, slides: Slide[]}} Deck */
+/** @typedef {{title: string, theme?: 'light' | 'dark', slides: Slide[]}} Deck */
 /** @typedef {{assetBase?: string}} ParseOptions */
 
 const SEP = /^-{3,}\s*$/;
@@ -94,6 +94,7 @@ const QA_BOLD = /^\*\*([\s\S]+?)\*\*[\s:.\u2014-]*([\s\S]*)$/;
 const KICKER_ALERTS = new Set(['aside', 'kicker']);
 
 const TRUTHY = new Set(['true', 'yes', '1']);
+const THEMES = new Set(['light', 'dark']);
 
 /** @param {string | undefined} v */
 const isTrue = (v) => TRUTHY.has(String(v ?? '').toLowerCase());
@@ -524,5 +525,10 @@ export function buildSlide(chunk, first, opts = {}) {
 export function parseQuire(text, opts = {}) {
   const { docMeta, chunks } = splitSlides(text);
   const slides = chunks.map((c, i) => buildSlide(c, i === 0, opts));
-  return { title: docMeta.title || 'Presentation', slides };
+  const theme = String(docMeta.theme || '').toLowerCase();
+  return {
+    title: docMeta.title || 'Presentation',
+    ...(THEMES.has(theme) ? { theme: /** @type {'light' | 'dark'} */ (theme) } : {}),
+    slides,
+  };
 }

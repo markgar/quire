@@ -22,6 +22,7 @@ must be the first non-blank content.
 ```
 ---
 title: Trusting the Test Suite
+theme: dark
 evidence: flaky-test-notes.md
 ---
 ```
@@ -31,6 +32,7 @@ Recognised document keys:
 | Key | Meaning |
 |---|---|
 | `title` | Document title. Defaults to `Presentation`. |
+| `theme` | Deck theme: `light` or `dark`. The viewer’s **T** shortcut is a temporary preview and does not edit this value. |
 
 Unrecognised keys are retained but unused. They are a place to hang provenance
 — `evidence:`, `sources:` — that tooling may read later.
