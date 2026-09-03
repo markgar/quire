@@ -225,10 +225,8 @@ const TESTS = [
         'the blank app does not capitalize the product name',
       );
       assert(
-        $(f, 'dropHint').textContent.includes(
-          '100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.',
-        ),
-        'the blank app does not foreground local operation',
+        $(f, 'dropHint').querySelectorAll('.drop-support').length === 3,
+        'the blank app does not structure the three local proofs',
       );
       assert(
         /gh skill install markgar\/quire quire --scope user/.test(dialog.textContent),
