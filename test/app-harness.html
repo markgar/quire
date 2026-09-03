@@ -211,7 +211,11 @@ const TESTS = [
       const dialog = $(f, 'introDialog');
       assert(dialog.open, 'the first-run explanation did not open');
       assert(
-        /agent-native presentation builder/.test(dialog.textContent),
+        $(f, 'introTitle').textContent.trim() === 'Agent-created presentations.',
+        'the explanation does not lead with agent-created presentations',
+      );
+      assert(
+        /100% local presentation builder/.test(dialog.textContent),
         'the explanation does not state the product purpose',
       );
       assert(/stays on your machine/.test(dialog.textContent), 'the explanation omits local operation');

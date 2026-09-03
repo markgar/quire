@@ -204,41 +204,16 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   font-size: 24px;
   line-height: 1;
 }
-.intro-hero {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(28px, 6vw, 72px);
-  align-items: center;
-  padding-right: 44px;
-}
 .intro h1 {
-  max-width: 10ch;
-  margin: 0;
+  max-width: 16ch;
+  margin: 0 44px 14px 0;
   font-size: clamp(2rem, 6vw, 3.25rem);
   line-height: 0.98;
   letter-spacing: -0.035em;
   text-wrap: balance;
 }
-.intro-local {
-  padding-bottom: 2px;
-}
-.intro-local strong {
-  display: block;
-  font-size: clamp(1.65rem, 4vw, 2.35rem);
-  line-height: 1;
-  letter-spacing: -0.025em;
-}
-.intro-local span {
-  display: block;
-  max-width: 28ch;
-  margin-top: 8px;
-  color: var(--q-text-muted);
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
 .intro-lede {
   max-width: 68ch;
-  margin-top: 18px;
   color: var(--q-text-muted);
   font-size: 1.05rem;
   line-height: 1.6;
@@ -463,8 +438,6 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
 }
 @media (max-width: 560px) {
-  .intro-hero { grid-template-columns: 1fr; gap: 18px; padding-right: 34px; }
-  .intro-local { padding-top: 0; }
   .intro-demo { grid-template-columns: 1fr; }
   .intro-code-pane { border-radius: 14px 14px 0 0; }
   .intro-slide-pane { border-radius: 0 0 14px 14px; }
@@ -552,17 +525,12 @@ ${chrome}
 <dialog class="intro" id="introDialog" aria-labelledby="introTitle">
   <div class="intro-inner">
     <button class="intro-close" id="introClose" type="button" aria-label="Close">&times;</button>
-    <div class="intro-hero">
-      <h1 id="introTitle">Present from the source.</h1>
-      <div class="intro-local">
-        <strong>100% local.</strong>
-        <span>The app runs in your browser. Your deck stays on your machine.</span>
-      </div>
-    </div>
+    <h1 id="introTitle">Agent-created presentations.</h1>
     <p class="intro-lede">
-      Quire is an agent-native presentation builder. Your agent writes Quire
-      source—a focused, Markdown-shaped presentation dialect—and your browser
-      opens it directly and presents it with plain, inspectable JavaScript.
+      Quire is a 100% local presentation builder. Your agent writes Quire
+      source—a focused, Markdown-shaped presentation dialect stored on your
+      machine—and your browser opens it directly and presents it with plain,
+      inspectable JavaScript.
     </p>
     <div class="intro-demo" aria-label="Quire source becomes a rendered slide">
       <section class="intro-pane intro-code-pane">
