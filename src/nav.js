@@ -25,6 +25,42 @@
   const isShown = n => !hidden[n];
   const shownIndexes = () => slides.map((_, n) => n).filter(isShown);
 
+  // Metric values vary wildly in width ("4 KB", "953,054", explicit <br>
+  // breaks). Measure the real rendered glyphs in each card and shrink only
+  // values that do not fit; character-count estimates fail for proportional
+  // type and change across platforms.
+  function fitMetricValues() {
+    slides.forEach(slide => {
+      const wasActive = slide.classList.contains("active");
+      if (!wasActive) {
+        slide.style.display = "flex";
+        slide.style.visibility = "hidden";
+      }
+      slide.querySelectorAll(".metric-value").forEach(value => {
+        value.style.fontSize = "76px";
+        const available = value.clientWidth * 0.8;
+        const range = document.createRange();
+        range.selectNodeContents(value);
+        const scale = scaler.getBoundingClientRect().width / scaler.offsetWidth || 1;
+        const textWidth = () => range.getBoundingClientRect().width / scale;
+        if (available > 0 && textWidth() > available) {
+          let low = 24, high = 76;
+          while (high - low > 0.5) {
+            const size = (low + high) / 2;
+            value.style.fontSize = size + "px";
+            if (textWidth() <= available) low = size;
+            else high = size;
+          }
+          value.style.fontSize = low.toFixed(1) + "px";
+        }
+      });
+      if (!wasActive) {
+        slide.style.removeProperty("display");
+        slide.style.removeProperty("visibility");
+      }
+    });
+  }
+
   function fit() {
     const cs = getComputedStyle(stage);
     const availW = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
@@ -237,6 +273,7 @@
   function refresh(keepIndex) {
     readSlides();
     if (!slides.length) return;
+    fitMetricValues();
     buildPanel();
     const target = keepIndex === undefined ? fromHash() : Math.min(keepIndex, slides.length - 1);
     go(target);

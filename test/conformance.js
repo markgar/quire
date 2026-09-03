@@ -439,6 +439,9 @@ if (existsSync(appPath)) {
       if (!module[1].includes(symbol)) problems.push(`module is missing ${symbol} — likely truncated`);
     }
   }
+  if (!/function fitMetricValues\b/.test(app)) {
+    problems.push('app does not fit metric values to their individual cards');
+  }
 
   {
     checked += 1;
@@ -492,6 +495,9 @@ if (existsSync(appPath)) {
       const source = readFileSync(join(here, '..', 'src', 'shell.html'), 'utf8');
       if (shellText !== source) {
         problems.push('embedded shell does not match src/shell.html — an export would differ from a CLI build');
+      }
+      if (!/function fitMetricValues\b/.test(source)) {
+        problems.push('exported decks do not fit metric values to their individual cards');
       }
       // Escaping `</script` is what keeps the embedded template from closing
       // its own element. Losing it truncates the app with a syntax error whose

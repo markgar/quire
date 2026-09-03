@@ -158,7 +158,8 @@ Charts use the first two columns of a pipe table as labels and values. Diagrams
 use one ordered or unordered list as a single multi-node visual: row questions
 become node headings, answers become descriptions, and Quire equalizes process
 node heights automatically. Metric slides use each `###` heading as the value
-and its body as the label.
+and its body as the label; Quire automatically scales each value to fit its own
+metric card.
 
 Images can accompany title, card, metric, table, row, chart, diagram, and
 pull-quote layouts; they do not replace the layout content. Use
