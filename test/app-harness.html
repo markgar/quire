@@ -560,6 +560,77 @@ const TESTS = [
     },
   },
   {
+    name: 'image aspect ratio does not create false overflow',
+    async fn() {
+      await clearState();
+      const source = [
+        '---',
+        'title: Image fit',
+        '---',
+        '',
+        '# Image fit',
+        '',
+        '---',
+        '',
+        'image: /quire-icon-512.png',
+        'image-position: full',
+        'image-fit: contain',
+        '',
+        '## A short slide',
+        'The square image should fit its frame without changing slide height.',
+      ].join('\n');
+      const fh = await writeOpfs('image-fit.md', source);
+      const f = await loadApp();
+      await openViaPicker(f, fh);
+      const image = f.contentDocument.querySelector('#scaler .slide:nth-child(2) img');
+      assert(image, 'the image slide did not render an image');
+      assert(await until(() => image.complete && image.naturalWidth > 0, 4000), 'the image did not load');
+      const report = f.contentWindow.quireFit.remeasure();
+      assert(report[1].over <= 0, `a constrained square image was reported ${report[1].over}px over`);
+      assert($(f, 'fitBtn').hidden, 'the image aspect ratio raised the overflow badge');
+      return 'intrinsic image dimensions ignored by overflow measurement';
+    },
+  },
+  {
+    name: 'image settlement refreshes overflow annotations',
+    async fn() {
+      await clearState();
+      const source = [
+        '---',
+        'title: Image settlement',
+        '---',
+        '',
+        '# Image settlement',
+        '',
+        '---',
+        '',
+        'image: /quire-icon-512.png',
+        'image-position: right',
+        '',
+        '## Starts short',
+        'Image load events must trigger Quire\\'s own measurement.',
+      ].join('\n');
+      const fh = await writeOpfs('image-settlement.md', source);
+      const f = await loadApp();
+      await openViaPicker(f, fh);
+      assert(f.contentWindow.quireFit.overflowing().length === 0, 'the starting fixture already overflowed');
+      const slide = f.contentDocument.querySelectorAll('#scaler .slide')[1];
+      const image = slide.querySelector('img');
+      const tall = f.contentDocument.createElement('div');
+      tall.style.height = '900px';
+      tall.style.flex = '0 0 auto';
+      slide.querySelector('.mixed-content, .media-copy')?.appendChild(tall);
+      image.dispatchEvent(new f.contentWindow.Event('load'));
+      assert(
+        await until(() => f.contentWindow.quireFit.overflowing().length === 1, 4000),
+        'an image load did not refresh the overflow report',
+      );
+      assert(slide.dataset.over, 'the refreshed report did not annotate the slide');
+      assert(!$(f, 'fitBtn').hidden, 'the refreshed report did not show the badge');
+      return 'load event refreshed badge, data-over, and panel state';
+    },
+  },
+  {
     name: 'a remeasure clears a slide that no longer overflows',
     async fn() {
       // quireFit.remeasure() re-annotates the DOM in place, which is the only

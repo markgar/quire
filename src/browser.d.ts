@@ -49,6 +49,7 @@ interface Window {
    */
   quireNav: {
     refresh(keepIndex?: number): void;
+    sync(): void;
     current(): number;
     go(index: number): void;
   };

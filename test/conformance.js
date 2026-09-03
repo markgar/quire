@@ -442,6 +442,9 @@ if (existsSync(appPath)) {
   if (!/function fitMetricValues\b/.test(app)) {
     problems.push('app does not fit metric values to their individual cards');
   }
+  if (!/function remeasureAfterAssets\b/.test(app) || !/\.addEventListener\('load', settle\)/.test(app)) {
+    problems.push('app does not remeasure overflow after images settle');
+  }
 
   {
     checked += 1;
@@ -454,6 +457,8 @@ if (existsSync(appPath)) {
       'general-purpose Quire deck access tool',
       'Wait for an explicit answer',
       'representative Quire fixture with known results',
+      'quireFit.overflowing()',
+      'Do not toggle `.active`',
     ];
     const guideText = AUTHORING_GUIDE.replace(/\s+/g, ' ');
     const missing = required.filter((text) => !guideText.includes(text));
@@ -475,6 +480,9 @@ if (existsSync(appPath)) {
   if (!/quire:intro:v1/.test(app)) problems.push('first-run explanation is not remembered locally');
   if (!/\.diagram-process\s*\{[^}]*align-content:\s*center;[^}]*align-items:\s*stretch;/s.test(app)) {
     problems.push('process diagram nodes are not equalized as one multi-node visual');
+  }
+  if (!/\.media-figure img\s*\{[^}]*height:\s*0;[^}]*flex:\s*1 1 0;/s.test(app)) {
+    problems.push('image intrinsic height can distort slide overflow measurement');
   }
 
   // The shell is embedded so the app can export offline through the same

@@ -164,11 +164,28 @@ metric card.
 Images can accompany title, card, metric, table, row, chart, diagram, and
 pull-quote layouts; they do not replace the layout content. Use
 `image-fit: contain` when faces, labels, or other edge content must not be
-cropped.
+cropped. Prefer `image-position: left` or `right` for portraits and other
+subject-focused images. Reserve `image-position: full` for genuinely wide
+images that benefit from a panoramic band.
 
 Relative image paths work only when the deck directory is served beside Quire.
 If the user will choose the `.md` file directly in quiredeck.com, embed raster
 images as data URLs so the browser does not try to load them from the site.
+
+## Verify the rendered deck
+
+Use Quire's own browser measurements after every meaningful revision:
+
+```text
+quireFit.report()       Return every slide's measured height and overflow.
+quireFit.overflowing()  Return only slides that overflow.
+quireFit.remeasure()    Measure again after changing the live DOM.
+```
+
+The viewer also records overflow on affected slides as `data-over` and exposes
+the same result through its overflow badge. Do not toggle `.active`, clone
+slides, or calculate slide heights independently. Those actions change the
+layout being measured and can return a false clean result.
 
 ## Quotes and closers
 

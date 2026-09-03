@@ -227,7 +227,9 @@ pull-quote layouts. It does not replace those layouts or their content.
 places a wide image band below the native content. `image-fit:` defaults to
 `cover`; use `contain` when cropping would remove important content.
 `image-alt:` is required for meaningful images; `caption:` and `credit:` are
-optional.
+optional. An image's intrinsic aspect ratio never contributes to slide height;
+the selected frame constrains it, and `cover` or `contain` controls how it fits
+inside that frame.
 
 When the browser opens a local `.md` through a file picker, it cannot read
 sibling image files. Use embedded raster data URLs for that workflow. Relative
