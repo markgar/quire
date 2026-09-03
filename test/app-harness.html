@@ -225,6 +225,11 @@ const TESTS = [
       assert(/Rendered presentation/.test(dialog.textContent), 'the explanation omits the rendered result');
       assert(/Teach your agent/.test(dialog.textContent), 'the explanation omits the agent handoff');
       assert(
+        dialog.textContent.indexOf('Create your first deck') <
+          dialog.textContent.indexOf('QUIRE SOURCE'),
+        'the getting-started instructions are buried below the demo',
+      );
+      assert(
         $(f, 'dropHint').querySelector('h1').textContent.trim() === 'Quire',
         'the blank app does not capitalize the product name',
       );

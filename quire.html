@@ -1050,6 +1050,30 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
       machine—and your browser opens it directly and presents it with plain,
       inspectable JavaScript.
     </p>
+    <section class="intro-start" aria-labelledby="introStartTitle">
+      <div class="intro-start-header">
+        <h2 id="introStartTitle">Create your first deck</h2>
+        <span>Three steps. No marketplace required.</span>
+      </div>
+      <div class="intro-steps">
+        <div class="intro-step">
+          <span class="intro-step-number">1</span>
+          <strong>Teach your agent</strong>
+          <p>Tell your agent:</p>
+          <code class="intro-agent-prompt">Run gh skill install markgar/quire quire --scope user, reload your skills, then use /quire to create my presentation.</code>
+        </div>
+        <div class="intro-step">
+          <span class="intro-step-number">2</span>
+          <strong>Ask for a deck</strong>
+          <p>Your agent creates a local <code>.md</code> file using Quire source.</p>
+        </div>
+        <div class="intro-step">
+          <span class="intro-step-number">3</span>
+          <strong>Open and present</strong>
+          <p>Choose that file here. Quire watches it and refreshes as your agent edits.</p>
+        </div>
+      </div>
+    </section>
     <div class="intro-demo" aria-label="Quire source becomes a rendered slide">
       <section class="intro-pane intro-code-pane">
         <span class="intro-pane-label">Quire source</span>
@@ -1087,30 +1111,6 @@ Renders and presents it locally.
         </div>
       </section>
     </div>
-    <section class="intro-start" aria-labelledby="introStartTitle">
-      <div class="intro-start-header">
-        <h2 id="introStartTitle">How you’ll get going</h2>
-        <span>No marketplace required.</span>
-      </div>
-      <div class="intro-steps">
-        <div class="intro-step">
-          <span class="intro-step-number">1</span>
-          <strong>Teach your agent</strong>
-          <p>Tell your agent:</p>
-          <code class="intro-agent-prompt">Run gh skill install markgar/quire quire --scope user, reload your skills, then use /quire to create my presentation.</code>
-        </div>
-        <div class="intro-step">
-          <span class="intro-step-number">2</span>
-          <strong>Ask for a deck</strong>
-          <p>Your agent creates a local <code>.md</code> file using Quire source.</p>
-        </div>
-        <div class="intro-step">
-          <span class="intro-step-number">3</span>
-          <strong>Open and present</strong>
-          <p>Choose that file here. Quire watches it and refreshes as your agent edits.</p>
-        </div>
-      </div>
-    </section>
     <dl class="intro-points">
       <div class="intro-point">
         <dt>Local by design</dt>
