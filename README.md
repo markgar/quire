@@ -109,17 +109,12 @@ the runtime and exact source for someone who does not have the app:
 
 ### Deploy
 
-The public viewer runs on Azure Static Web Apps. After signing in with the Azure
-CLI and selecting the subscription that contains `rg-quire/quire-markgar`:
+The public viewer runs on Azure Static Web Apps. Every push to `main` runs the
+checks in `.github/workflows/check.yml`; production deploys only after they pass.
 
-    az login
-    az account set --subscription <subscription>
-    npm run deploy:azure
-
-The command runs all checks, stages only the deployable app as `index.html`,
-retrieves the deployment credential through `az`, and passes it to the deployer
-through the process environment. No Azure credential is stored in the
-repository or exposed as a command-line argument.
+The workflow stages only the deployable app as `index.html` and authenticates
+with the repository secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. The deployment
+credential is not stored in the repository.
 
 ### Types, without a build step
 

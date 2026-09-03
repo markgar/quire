@@ -21,7 +21,6 @@
     "build:deploy": "npm run build:app && node tools/build-deploy.js",
     "update:goldens": "node tools/update-goldens.js",
     "check": "npm run typecheck && npm run build:app && npm test",
-    "deploy:azure": "npm run check && npm run build:deploy && node tools/deploy-azure.js",
     "serve": "node tools/serve.js"
   },
   "devDependencies": {
