@@ -376,11 +376,37 @@ tr:last-child td { border-bottom: none; }
 .chart-track span { display: block; height: 100%; background: var(--q-accent); }
 .chart-value { text-align: right; font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .chart-line { display: flex; flex-direction: column; justify-content: center; }
-.chart-line svg { width: 100%; max-height: 320px; overflow: visible; }
-.chart-line polyline { fill: none; stroke: var(--q-accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
-.chart-line circle { fill: var(--q-surface); stroke: var(--q-accent); stroke-width: 4; }
-.chart-line text { fill: var(--q-text); font-size: 15px; font-weight: 750; text-anchor: middle; }
-.chart-axis { display: flex; justify-content: space-between; margin-top: 8px; color: var(--q-text-soft); font-size: 12px; }
+.chart-line-plot { position: relative; height: 320px; margin: 0 10px; }
+.chart-line svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.chart-line polyline {
+  fill: none;
+  stroke: var(--q-accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.chart-line-point {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 4px solid var(--q-accent);
+  border-radius: 50%;
+  background: var(--q-surface);
+  transform: translate(-50%, -50%);
+}
+.chart-line-point span {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  color: var(--q-text);
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+}
+.chart-axis { position: relative; height: 18px; margin: 12px 10px 0; color: var(--q-text-soft); font-size: 12px; }
+.chart-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .chart-donut { display: grid; grid-template-columns: 0.85fr 1.15fr; align-items: center; gap: 52px; }
 .donut {
   width: 300px;
@@ -474,8 +500,8 @@ tr:last-child td { border-bottom: none; }
 .tone-accent .chart-track { background: color-mix(in srgb, var(--q-accent-fg) 18%, transparent); }
 .tone-accent .chart-track span { background: var(--q-accent-fg); }
 .tone-accent .chart-line polyline { stroke: var(--q-accent-fg); }
-.tone-accent .chart-line circle { fill: var(--q-accent); stroke: var(--q-accent-fg); }
-.tone-accent .chart-line text,
+.tone-accent .chart-line-point { background: var(--q-accent); border-color: var(--q-accent-fg); }
+.tone-accent .chart-line-point span,
 .tone-accent .chart-axis { fill: var(--q-accent-fg); color: var(--q-accent-fg); }
 .tone-contrast { background: #171717; color: #f7f4ef; border-color: #171717; }
 .tone-contrast .eyebrow { color: #fd8ea1; }

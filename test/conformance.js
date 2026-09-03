@@ -347,6 +347,24 @@ if (existsSync(shellPath)) {
       });
       if (!donut.includes('<span>0</span>')) problems.push('zero-valued donut displays a nonzero total');
 
+      const line = renderSlides({
+        title: 'Visual edges',
+        slides: [{
+          layout: 'chart',
+          title: 'Aligned',
+          chart: 'line',
+          columns: ['Week', 'Authors'],
+          rows: [['Week 1', '12'], ['Week 2', '19'], ['Week 3', '31'], ['Week 4', '48']],
+        }],
+      });
+      const markerPositions = [...line.matchAll(/chart-line-point" style="left:([\d.]+)%;top:([\d.]+)%"/g)]
+        .map((match) => match[1]);
+      const labelPositions = [...line.matchAll(/<span style="left:([\d.]+)%">Week/g)]
+        .map((match) => match[1]);
+      if (markerPositions.length !== 4 || markerPositions.join() !== labelPositions.join()) {
+        problems.push('line chart markers and labels use different coordinates');
+      }
+
       try {
         renderSlides({
           title: 'Visual edges',
