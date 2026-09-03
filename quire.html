@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#b11f4b">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/quire-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <!--
   A deck may contain raw HTML by design, and the app puts it in the DOM, so a
   deck is executable content. script-src therefore cannot be tightened without
@@ -633,6 +637,35 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
 #status[data-kind="live"]  { color: var(--q-accent); }
 #status[data-kind="warn"]  { color: var(--q-text); }
 #status[data-kind="error"] { color: var(--q-accent); font-weight: 600; }
+.update-notice {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(430px, calc(100vw - 36px));
+  padding: 12px 14px 12px 16px;
+  color: var(--q-text);
+  background: var(--q-panel-strong);
+  border: 1px solid var(--q-border-strong);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+}
+.update-notice[hidden] { display: none; }
+.update-notice span { line-height: 1.4; }
+.update-notice button {
+  flex: none;
+  font: inherit;
+  font-weight: 700;
+  padding: 7px 11px;
+  color: var(--q-accent-fg);
+  background: var(--q-accent);
+  border: 1px solid var(--q-accent);
+  border-radius: 8px;
+  cursor: pointer;
+}
 
 /* Overflow badge. Hidden unless something is actually over, so a deck that
    fits shows no editing chrome at all. */
@@ -723,9 +756,9 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
 }
 .intro-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.72fr);
-  gap: 36px;
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(28px, 6vw, 72px);
+  align-items: center;
   padding-right: 44px;
 }
 .intro h1 {
@@ -737,12 +770,12 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   text-wrap: balance;
 }
 .intro-local {
-  padding-top: 3px;
+  padding-bottom: 2px;
 }
 .intro-local strong {
   display: block;
-  font-size: clamp(1.25rem, 3vw, 1.7rem);
-  line-height: 1.05;
+  font-size: clamp(1.65rem, 4vw, 2.35rem);
+  line-height: 1;
   letter-spacing: -0.025em;
 }
 .intro-local span {
@@ -972,6 +1005,10 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   font-weight: 650;
   text-underline-offset: 3px;
 }
+.intro-update {
+  color: var(--q-text);
+  background: transparent;
+}
 @keyframes intro-in {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
 }
@@ -1020,8 +1057,14 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   <span id="status">Starting…</span>
   <button id="fitBtn" type="button" hidden>—</button>
   <button id="exportBtn" type="button" hidden>Export</button>
+  <button id="installBtn" type="button" hidden>Install Quire</button>
   <button id="aboutBtn" type="button">About</button>
   <button id="openBtn" type="button">Open deck…</button>
+</div>
+
+<div class="update-notice" id="updateNotice" role="status" hidden>
+  <span>A new version of Quire is ready.</span>
+  <button id="applyUpdateBtn" type="button">Restart to update</button>
 </div>
 
 <dialog class="intro" id="introDialog" aria-labelledby="introTitle">
@@ -1111,12 +1154,13 @@ Renders and presents it locally.
       </div>
       <div class="intro-point">
         <dt>Open source</dt>
-        <dd>The app is one HTML file. Read the code and verify exactly what runs in your browser.</dd>
+        <dd>The viewer is plain HTML and JavaScript. Read the code and verify exactly what runs in your browser.</dd>
       </div>
     </dl>
     <div class="intro-actions">
       <button class="intro-primary" id="introOpenBtn" type="button">Choose a Quire deck</button>
       <button id="introDismiss" type="button">Explore first</button>
+      <button class="intro-update" id="checkUpdateBtn" type="button">Check for updates</button>
       <a class="intro-source" href="https://github.com/markgar/quire" target="_blank" rel="noopener noreferrer">
         View source on GitHub
       </a>
@@ -2951,11 +2995,15 @@ const openBtn = /** @type {HTMLButtonElement} */ (document.getElementById('openB
 const dropHint = /** @type {HTMLElement} */ (document.getElementById('dropHint'));
 const fitBtn = /** @type {HTMLButtonElement} */ (document.getElementById('fitBtn'));
 const exportBtn = /** @type {HTMLButtonElement} */ (document.getElementById('exportBtn'));
+const installBtn = /** @type {HTMLButtonElement} */ (document.getElementById('installBtn'));
 const aboutBtn = /** @type {HTMLButtonElement} */ (document.getElementById('aboutBtn'));
 const introDialog = /** @type {HTMLDialogElement} */ (document.getElementById('introDialog'));
 const introClose = /** @type {HTMLButtonElement} */ (document.getElementById('introClose'));
 const introOpenBtn = /** @type {HTMLButtonElement} */ (document.getElementById('introOpenBtn'));
 const introDismiss = /** @type {HTMLButtonElement} */ (document.getElementById('introDismiss'));
+const checkUpdateBtn = /** @type {HTMLButtonElement} */ (document.getElementById('checkUpdateBtn'));
+const updateNotice = /** @type {HTMLElement} */ (document.getElementById('updateNotice'));
+const applyUpdateBtn = /** @type {HTMLButtonElement} */ (document.getElementById('applyUpdateBtn'));
 
 /** @type {string} name of the open deck, for naming an export */
 let deckName = '';
@@ -2981,6 +3029,11 @@ let rereading = false;
 let showingFailure = false;
 /** Whether the active watcher most recently failed to read its source. */
 let watchFailed = false;
+/** @type {BeforeInstallPromptEvent | null} */
+let installPrompt = null;
+/** @type {ServiceWorkerRegistration | null} */
+let workerRegistration = null;
+let reloadingForUpdate = false;
 
 // ---------------------------------------------------------------------------
 // status line
@@ -3020,6 +3073,55 @@ function showIntroOnce() {
   }
   rememberIntro();
   showIntro();
+}
+
+function showUpdateReady() {
+  updateNotice.hidden = false;
+}
+
+async function checkForUpdates() {
+  if (!workerRegistration) {
+    setStatus('Update checks are available in the installed or hosted app', 'warn');
+    return;
+  }
+  setStatus('Checking for a Quire update…');
+  try {
+    await workerRegistration.update();
+    if (workerRegistration.waiting) {
+      showUpdateReady();
+      setStatus('A new Quire version is ready', 'live');
+    } else {
+      setStatus('Quire is up to date', 'live');
+    }
+  } catch (err) {
+    setStatus(err instanceof Error ? `Could not check for updates — ${err.message}` : 'Could not check for updates', 'error');
+  }
+}
+
+async function setupPwa() {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') {
+    checkUpdateBtn.hidden = true;
+    return;
+  }
+
+  try {
+    workerRegistration = await navigator.serviceWorker.register('/service-worker.js');
+    if (workerRegistration.waiting && navigator.serviceWorker.controller) showUpdateReady();
+    workerRegistration.addEventListener('updatefound', () => {
+      const installing = workerRegistration?.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) showUpdateReady();
+      });
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadingForUpdate) return;
+      reloadingForUpdate = true;
+      location.reload();
+    });
+  } catch (err) {
+    setStatus(err instanceof Error ? `Offline app setup failed — ${err.message}` : 'Offline app setup failed', 'warn');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -3593,8 +3695,31 @@ async function main() {
     closeIntro();
     if (hasFSA) void pickFile();
   };
+  checkUpdateBtn.onclick = () => void checkForUpdates();
+  applyUpdateBtn.onclick = () => {
+    const waiting = workerRegistration?.waiting;
+    if (waiting) waiting.postMessage('SKIP_WAITING');
+  };
+  installBtn.onclick = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    installBtn.hidden = true;
+  };
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    installPrompt = /** @type {BeforeInstallPromptEvent} */ (event);
+    installBtn.hidden = false;
+  });
+  window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    installBtn.hidden = true;
+    setStatus('Quire installed', 'live');
+  });
   if (!hasFSA) introOpenBtn.textContent = 'Start exploring';
   showIntroOnce();
+  await setupPwa();
 
   // Jumping to the worst offender is the action an author wants next; the
   // full per-slide table is on the tooltip and in the console.

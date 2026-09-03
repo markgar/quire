@@ -16,6 +16,17 @@ disk, watches it, and re-renders when it changes.
 The app is plain HTML and JavaScript. Read the source if you want to verify
 exactly what it does.
 
+## Install Quire
+
+On Chromium browsers, Quire can be installed as a standalone app from the
+**Install Quire** button when the browser makes installation available. The
+installed app caches its viewer shell and opens without a network connection;
+deck files still stay on your machine and are opened only with your permission.
+
+Quire checks its service worker when the browser is online. A new version waits
+until you choose **Restart to update**, so an update never interrupts a
+presentation. **Check for updates** in About requests a check immediately.
+
 ## Why not PowerPoint
 
 PowerPoint is built for direct manipulation. You drag a box, you nudge it, you

@@ -13,6 +13,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -86,6 +87,35 @@ const appCss = `
 #status[data-kind="live"]  { color: var(--q-accent); }
 #status[data-kind="warn"]  { color: var(--q-text); }
 #status[data-kind="error"] { color: var(--q-accent); font-weight: 600; }
+.update-notice {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(430px, calc(100vw - 36px));
+  padding: 12px 14px 12px 16px;
+  color: var(--q-text);
+  background: var(--q-panel-strong);
+  border: 1px solid var(--q-border-strong);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+}
+.update-notice[hidden] { display: none; }
+.update-notice span { line-height: 1.4; }
+.update-notice button {
+  flex: none;
+  font: inherit;
+  font-weight: 700;
+  padding: 7px 11px;
+  color: var(--q-accent-fg);
+  background: var(--q-accent);
+  border: 1px solid var(--q-accent);
+  border-radius: 8px;
+  cursor: pointer;
+}
 
 /* Overflow badge. Hidden unless something is actually over, so a deck that
    fits shows no editing chrome at all. */
@@ -176,9 +206,9 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
 }
 .intro-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.72fr);
-  gap: 36px;
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(28px, 6vw, 72px);
+  align-items: center;
   padding-right: 44px;
 }
 .intro h1 {
@@ -190,12 +220,12 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   text-wrap: balance;
 }
 .intro-local {
-  padding-top: 3px;
+  padding-bottom: 2px;
 }
 .intro-local strong {
   display: block;
-  font-size: clamp(1.25rem, 3vw, 1.7rem);
-  line-height: 1.05;
+  font-size: clamp(1.65rem, 4vw, 2.35rem);
+  line-height: 1;
   letter-spacing: -0.025em;
 }
 .intro-local span {
@@ -425,6 +455,10 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   font-weight: 650;
   text-underline-offset: 3px;
 }
+.intro-update {
+  color: var(--q-text);
+  background: transparent;
+}
 @keyframes intro-in {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
 }
@@ -472,6 +506,10 @@ const page = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#b11f4b">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/quire-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <!--
   A deck may contain raw HTML by design, and the app puts it in the DOM, so a
   deck is executable content. script-src therefore cannot be tightened without
@@ -501,8 +539,14 @@ ${chrome}
   <span id="status">Starting…</span>
   <button id="fitBtn" type="button" hidden>—</button>
   <button id="exportBtn" type="button" hidden>Export</button>
+  <button id="installBtn" type="button" hidden>Install Quire</button>
   <button id="aboutBtn" type="button">About</button>
   <button id="openBtn" type="button">Open deck…</button>
+</div>
+
+<div class="update-notice" id="updateNotice" role="status" hidden>
+  <span>A new version of Quire is ready.</span>
+  <button id="applyUpdateBtn" type="button">Restart to update</button>
 </div>
 
 <dialog class="intro" id="introDialog" aria-labelledby="introTitle">
@@ -592,12 +636,13 @@ Renders and presents it locally.
       </div>
       <div class="intro-point">
         <dt>Open source</dt>
-        <dd>The app is one HTML file. Read the code and verify exactly what runs in your browser.</dd>
+        <dd>The viewer is plain HTML and JavaScript. Read the code and verify exactly what runs in your browser.</dd>
       </div>
     </dl>
     <div class="intro-actions">
       <button class="intro-primary" id="introOpenBtn" type="button">Choose a Quire deck</button>
       <button id="introDismiss" type="button">Explore first</button>
+      <button class="intro-update" id="checkUpdateBtn" type="button">Check for updates</button>
       <a class="intro-source" href="https://github.com/markgar/quire" target="_blank" rel="noopener noreferrer">
         View source on GitHub
       </a>
@@ -646,3 +691,18 @@ ${inline('app.js')}
 const out = resolve(process.argv[2] || join(here, '..', 'quire.html'));
 writeFileSync(out, page);
 console.log(`wrote ${out}  (${(page.length / 1024).toFixed(1)} KB)`);
+
+const root = join(here, '..');
+const version = createHash('sha256')
+  .update(page)
+  .update(readFileSync(join(root, 'manifest.webmanifest')))
+  .update(readFileSync(join(root, 'quire-icon.svg')))
+  .update(readFileSync(join(root, 'quire-icon-192.png')))
+  .update(readFileSync(join(root, 'quire-icon-512.png')))
+  .update(readFileSync(join(root, 'apple-touch-icon.png')))
+  .digest('hex')
+  .slice(0, 12);
+const worker = read('service-worker.js').replace('__QUIRE_VERSION__', version);
+const workerOut = join(root, 'service-worker.js');
+writeFileSync(workerOut, worker);
+console.log(`wrote ${workerOut}  (${version})`);

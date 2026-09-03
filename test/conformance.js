@@ -345,6 +345,10 @@ if (existsSync(appPath)) {
   if (!/id="scaler"/.test(app)) problems.push('no stage in quire.html');
   if (!/id="fitBtn"/.test(app)) problems.push('no overflow badge in quire.html');
   if (!/id="exportBtn"/.test(app)) problems.push('no export button in quire.html');
+  if (!/id="installBtn"/.test(app)) problems.push('no PWA install button in quire.html');
+  if (!/id="updateNotice"/.test(app)) problems.push('no PWA update notice in quire.html');
+  if (!/rel="manifest" href="\/manifest\.webmanifest"/.test(app)) problems.push('no web app manifest link');
+  if (!/serviceWorker\.register\('\/service-worker\.js'\)/.test(app)) problems.push('service worker is not registered');
   if (!/id="introDialog"/.test(app)) problems.push('no first-run explanation in quire.html');
   if (!/quire:intro:v1/.test(app)) problems.push('first-run explanation is not remembered locally');
 
@@ -373,6 +377,48 @@ if (existsSync(appPath)) {
       if (/<\/script/i.test(embedded[1])) {
         problems.push('embedded shell contains an unescaped closing script tag — the app is truncated');
       }
+    }
+
+    const manifestPath = join(here, '..', 'manifest.webmanifest');
+    const workerPath = join(here, '..', 'service-worker.js');
+    const iconPath = join(here, '..', 'quire-icon.svg');
+    if (existsSync(manifestPath) && existsSync(workerPath) && existsSync(iconPath)) {
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+      const worker = readFileSync(workerPath, 'utf8');
+      const problems = [];
+      if (manifest.display !== 'standalone') problems.push('manifest is not standalone');
+      if (manifest.start_url !== '/' || manifest.scope !== '/') problems.push('manifest start URL or scope is not root');
+      if (!Array.isArray(manifest.icons)) {
+        problems.push('manifest has no icons');
+      } else if (
+        !manifest.icons.some(
+          (/** @type {{sizes?: string, purpose?: string}} */ icon) =>
+            icon.sizes === '512x512' && String(icon.purpose).includes('maskable'),
+        )
+      ) {
+        problems.push('manifest has no maskable icon');
+      }
+      if (
+        Array.isArray(manifest.icons) &&
+        !manifest.icons.some((/** @type {{sizes?: string}} */ icon) => icon.sizes === '192x192')
+      ) {
+        problems.push('manifest has no 192px install icon');
+      }
+      if (worker.includes('__QUIRE_VERSION__')) problems.push('service worker version was not generated');
+      if (!worker.includes("'/manifest.webmanifest'") || !worker.includes("'/quire-icon-512.png'")) {
+        problems.push('service worker does not cache the PWA assets');
+      }
+      if (!worker.includes('SKIP_WAITING')) problems.push('service worker cannot activate an accepted update');
+      if (problems.length) {
+        failed += 1;
+        console.log('FAIL  progressive web app');
+        for (const problem of problems) console.log(`   ${problem}`);
+      } else {
+        console.log('PASS  progressive web app  install manifest, offline shell, and controlled updates');
+      }
+    } else {
+      failed += 1;
+      console.log('FAIL  progressive web app  manifest, worker, or icon is missing');
     }
   }
 
