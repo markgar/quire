@@ -22,21 +22,19 @@ exactly what it does.
 
 1. **Teach your agent**
 
-   ```text
-   Run gh skill install markgar/quire quire --scope user, then reload your skills.
-   ```
+   > Run `gh skill install markgar/quire quire --scope user`, then reload your
+   > skills.
 
 2. **Ask for a deck**
 
-   ```text
-   Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon. Research accurate facts, cite sources, and use a timeline, process diagram, metrics, and a chart. Save the deck and nearby image assets in an apollo-11 folder.
-   ```
+   > Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon.
+   > Research accurate facts, cite sources, and use a timeline, process diagram,
+   > metrics, and a chart. Save the deck and nearby image assets in an Apollo 11
+   > folder.
 
 3. **Open in Quire**
 
-   ```text
-   Open this deck with quiredeck.com.
-   ```
+   > Open this deck with quiredeck.com.
 
 ### Install the app
 
