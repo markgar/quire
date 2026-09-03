@@ -215,10 +215,19 @@ const TESTS = [
         'the explanation does not state the product purpose',
       );
       assert(/stays on your machine/.test(dialog.textContent), 'the explanation omits local operation');
+      assert(/100% local/.test(dialog.textContent), 'the explanation does not foreground local operation');
       assert(/Open source/.test(dialog.textContent), 'the explanation omits open source');
       assert(/Quire source/.test(dialog.textContent), 'the explanation omits a source example');
       assert(/Rendered presentation/.test(dialog.textContent), 'the explanation omits the rendered result');
       assert(/Teach your agent/.test(dialog.textContent), 'the explanation omits the agent handoff');
+      assert(
+        $(f, 'dropHint').querySelector('h1').textContent.trim() === 'Quire',
+        'the blank app does not capitalize the product name',
+      );
+      assert(
+        $(f, 'dropHint').textContent.includes('100% local. Agent-native presentations'),
+        'the blank app does not foreground local operation',
+      );
       assert(
         /gh skill install markgar\/quire quire --scope user/.test(dialog.textContent),
         'the agent handoff omits the repository skill install command',

@@ -718,16 +718,41 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   font-size: 24px;
   line-height: 1;
 }
+.intro-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.72fr);
+  gap: 36px;
+  align-items: start;
+  padding-right: 44px;
+}
 .intro h1 {
-  max-width: 14ch;
-  margin: 0 44px 14px 0;
+  max-width: 10ch;
+  margin: 0;
   font-size: clamp(2rem, 6vw, 3.25rem);
   line-height: 0.98;
   letter-spacing: -0.035em;
   text-wrap: balance;
 }
+.intro-local {
+  padding-top: 3px;
+}
+.intro-local strong {
+  display: block;
+  font-size: clamp(1.25rem, 3vw, 1.7rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+}
+.intro-local span {
+  display: block;
+  max-width: 28ch;
+  margin-top: 8px;
+  color: var(--q-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
 .intro-lede {
   max-width: 68ch;
+  margin-top: 18px;
   color: var(--q-text-muted);
   font-size: 1.05rem;
   line-height: 1.6;
@@ -948,6 +973,8 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
 }
 @media (max-width: 560px) {
+  .intro-hero { grid-template-columns: 1fr; gap: 18px; padding-right: 34px; }
+  .intro-local { padding-top: 0; }
   .intro-demo { grid-template-columns: 1fr; }
   .intro-code-pane { border-radius: 14px 14px 0 0; }
   .intro-slide-pane { border-radius: 0 0 14px 14px; }
@@ -997,7 +1024,13 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
 <dialog class="intro" id="introDialog" aria-labelledby="introTitle">
   <div class="intro-inner">
     <button class="intro-close" id="introClose" type="button" aria-label="Close">&times;</button>
-    <h1 id="introTitle">Present from the source.</h1>
+    <div class="intro-hero">
+      <h1 id="introTitle">Present from the source.</h1>
+      <div class="intro-local">
+        <strong>100% local.</strong>
+        <span>The app runs in your browser. Your deck stays on your machine.</span>
+      </div>
+    </div>
     <p class="intro-lede">
       Quire is an agent-native presentation builder. Your agent writes Quire
       source—a focused, Markdown-shaped presentation dialect—and your browser
@@ -1091,8 +1124,8 @@ Renders and presents it locally.
 <div class="stage" id="stage">
 <div class="scaler" id="scaler"></div>
 <div class="drop-hint" id="dropHint">
-  <h1>quire</h1>
-  <p class="drop-lede">Agent-native presentations, written in Quire source and rendered in your browser.</p>
+  <h1>Quire</h1>
+  <p class="drop-lede">100% local. Agent-native presentations, written in Quire source and rendered in your browser.</p>
   <p class="drop-detail">Open a deck, or drop a <code>.md</code> file here. Your file stays on this machine.</p>
   <p class="drop-proof">No upload. No account. Open-source HTML and JavaScript.</p>
 </div>
