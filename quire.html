@@ -3391,6 +3391,7 @@ let assetMap = {};
 
 const hasFSA = typeof window.showOpenFilePicker === 'function';
 const INTRO_KEY = 'quire:intro:v1';
+const UPDATE_STATE_KEY = 'quire:update-state:v1';
 
 /** @type {any} current file handle, when we have one */
 let handle = null;
@@ -3461,7 +3462,40 @@ function showIntroOnce() {
 }
 
 function showUpdateReady() {
+  applyUpdateBtn.disabled = false;
+  applyUpdateBtn.textContent = 'Restart to update';
+  updateNotice.removeAttribute('aria-busy');
   updateNotice.hidden = false;
+}
+
+function rememberUpdateState() {
+  if (!deckName || !lastText) return;
+  try {
+    sessionStorage.setItem(
+      UPDATE_STATE_KEY,
+      JSON.stringify({ deckName, slide: window.quireNav.current() }),
+    );
+  } catch {
+    /* reload still works when session storage is unavailable */
+  }
+}
+
+function restoreUpdateState() {
+  try {
+    const stored = sessionStorage.getItem(UPDATE_STATE_KEY);
+    if (!stored) return;
+    sessionStorage.removeItem(UPDATE_STATE_KEY);
+    const state = JSON.parse(stored);
+    if (state?.deckName === deckName && Number.isInteger(state.slide)) {
+      window.quireNav.go(state.slide);
+    }
+  } catch {
+    try {
+      sessionStorage.removeItem(UPDATE_STATE_KEY);
+    } catch {
+      /* storage is unavailable */
+    }
+  }
 }
 
 async function checkForUpdates() {
@@ -3854,7 +3888,10 @@ async function openHandle(h) {
   // Watch either way: a deck that failed to parse is one the author is most
   // likely about to fix, and it should recover without being reopened.
   startWatching();
-  if (ok) setStatus(`${h.name} · watching for changes`, 'live');
+  if (ok) {
+    restoreUpdateState();
+    setStatus(`${h.name} · watching for changes`, 'live');
+  }
   dropHint.hidden = true;
   void rememberHandle(h);
 }
@@ -3929,6 +3966,11 @@ async function rememberHandle(h) {
     const db = await openDb();
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).put(h, 'last');
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve(null);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
   } catch {
     /* remembering is a convenience, never a requirement */
   }
@@ -4012,7 +4054,10 @@ async function tryUrlDeck() {
     deckName = name;
     assetBase = new URL('.', url).href;
     const ok = render(await res.text());
-    if (ok) setStatus(`${name} · polling for changes`, 'live');
+    if (ok) {
+      restoreUpdateState();
+      setStatus(`${name} · polling for changes`, 'live');
+    }
     dropHint.hidden = true;
     watchUrl(url);
     return true;
@@ -4164,9 +4209,16 @@ async function main() {
     if (hasFSA) void pickDeck();
   };
   checkUpdateBtn.onclick = () => void checkForUpdates();
-  applyUpdateBtn.onclick = () => {
+  applyUpdateBtn.onclick = async () => {
     const waiting = workerRegistration?.waiting;
-    if (waiting) waiting.postMessage('SKIP_WAITING');
+    if (!waiting) return;
+    applyUpdateBtn.disabled = true;
+    applyUpdateBtn.textContent = 'Updating…';
+    updateNotice.setAttribute('aria-busy', 'true');
+    setStatus('Updating Quire…', 'live');
+    rememberUpdateState();
+    if (handle) await rememberHandle(handle);
+    waiting.postMessage('SKIP_WAITING');
   };
   installBtn.onclick = async () => {
     if (!installPrompt) return;
@@ -4215,13 +4267,13 @@ async function main() {
 
   if (!hasFSA) {
     openBtn.hidden = true;
-    setStatus('Drop a .md file to open it — this browser cannot watch files', 'warn');
+    setStatus('Drop a .quire or .md file to open it — this browser cannot watch files', 'warn');
   }
 
   if (await tryUrlDeck()) return;
   if (await tryStoredHandle()) return;
 
-  if (hasFSA) setStatus('Open a deck, or drop a .md file onto the window');
+  if (hasFSA) setStatus('Open a deck, or drop a .quire or .md file onto the window');
 }
 
 void main();

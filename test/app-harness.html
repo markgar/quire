@@ -206,6 +206,26 @@ async function openViaPicker(f, fh) {
   await until(() => slideCount(f) > 0, 4000);
 }
 
+/** @param {boolean} waiting */
+function serviceWorkerPreamble(waiting) {
+  return `
+    window.__skipWaiting = [];
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        controller: {},
+        register: async () => ({
+          waiting: ${waiting ? "{ postMessage: (message) => window.__skipWaiting.push(message) }" : 'null'},
+          installing: null,
+          addEventListener: () => {},
+          update: async () => {},
+        }),
+        addEventListener: () => {},
+      },
+    });
+  `;
+}
+
 // --- tests -----------------------------------------------------------------
 
 /** @type {{name: string, fn: () => Promise<string>}[]} */
@@ -392,6 +412,35 @@ const TESTS = [
       assert(f.contentWindow.__asked === 1, `requested permission ${f.contentWindow.__asked} times`);
       assert($(f, 'openBtn').textContent === 'Open deck…', 'button did not revert after reopening');
       return 'no dialog on load; one request on click; deck opened';
+    },
+  },
+  {
+    name: 'an accepted update responds immediately and restores the open deck',
+    async fn() {
+      await clearState();
+      const fh = await writeOpfs('update.quire', packQuire(deckOf(5, 'Update')));
+      const f = await loadApp(serviceWorkerPreamble(true));
+      await openViaPicker(f, fh);
+      f.contentWindow.quireNav.go(3);
+      assert(!$(f, 'updateNotice').hidden, 'the waiting update was not offered');
+
+      $(f, 'applyUpdateBtn').click();
+      assert($(f, 'applyUpdateBtn').disabled, 'the update button remained clickable');
+      assert($(f, 'applyUpdateBtn').textContent === 'Updating…', 'the button did not acknowledge the click');
+      assert(statusText(f) === 'Updating Quire…', `status was "${statusText(f)}"`);
+      assert($(f, 'updateNotice').getAttribute('aria-busy') === 'true', 'the update was not marked busy');
+      assert(
+        await until(() => f.contentWindow.__skipWaiting.includes('SKIP_WAITING'), 3000),
+        'the waiting worker was never activated',
+      );
+
+      const restored = await loadApp(serviceWorkerPreamble(false));
+      assert(await until(() => slideCount(restored) === 5, 4000), 'the deck did not reopen after update');
+      assert(
+        restored.contentWindow.quireNav.current() === 3,
+        `the deck reopened on slide ${restored.contentWindow.quireNav.current() + 1}`,
+      );
+      return 'acknowledged the click, reopened the deck, and restored slide 4';
     },
   },
   {

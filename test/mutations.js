@@ -32,8 +32,14 @@ export const MUTATIONS = [
     name: 'status-stomps-error',
     catchers: ['a broken deck says so in the status, and recovers'],
     why: 'the real bug: an unparseable deck drew an error slide, then the status line overwrote the explanation with "watching for changes"',
-    find: "if (ok) setStatus(`${h.name} · watching for changes`, 'live');",
-    replace: "setStatus(`${h.name} · watching for changes`, 'live');",
+    find:
+      "  if (ok) {\n" +
+      "    restoreUpdateState();\n" +
+      "    setStatus(`${h.name} · watching for changes`, 'live');\n" +
+      '  }',
+    replace:
+      "  restoreUpdateState();\n" +
+      "  setStatus(`${h.name} · watching for changes`, 'live');",
   },
   {
     name: 'no-backstop-poll',
@@ -81,8 +87,8 @@ export const MUTATIONS = [
     name: 'dropped-file-claims-watching',
     catchers: ['a dropped file renders and admits it cannot be watched'],
     why: 'a dropped File has no handle and cannot be watched; saying otherwise means the author waits for a reload that never comes',
-    find: "if (ok) setStatus(`${file.name} · drag it again to refresh`, 'warn');",
-    replace: "if (ok) setStatus(`${file.name} · watching for changes`, 'live');",
+    find: "if (render(deck.markdown)) setStatus(`${file.name} · drag it again to refresh`, 'warn');",
+    replace: "if (render(deck.markdown)) setStatus(`${file.name} · watching for changes`, 'live');",
   },
   {
     name: 'handle-not-persisted',
@@ -90,6 +96,24 @@ export const MUTATIONS = [
     why: 'reopening the app forgets the deck, so every visit starts with a file dialog',
     find: '  void rememberHandle(h);',
     replace: '  void 0;',
+  },
+  {
+    name: 'update-gives-no-feedback',
+    catchers: ['an accepted update responds immediately and restores the open deck'],
+    why: 'clicking Restart to update appears to do nothing while the service worker is activating',
+    find:
+      "    applyUpdateBtn.disabled = true;\n" +
+      "    applyUpdateBtn.textContent = 'Updating…';\n" +
+      "    updateNotice.setAttribute('aria-busy', 'true');\n" +
+      "    setStatus('Updating Quire…', 'live');",
+    replace: '',
+  },
+  {
+    name: 'update-loses-slide-position',
+    catchers: ['an accepted update responds immediately and restores the open deck'],
+    why: 'the deck reopens after an app update but throws the presenter back to slide 1',
+    find: '    restoreUpdateState();\n    setStatus(`${h.name} · watching for changes`, \'live\');',
+    replace: '    setStatus(`${h.name} · watching for changes`, \'live\');',
   },
   {
     name: 'blank-on-failed-read',
@@ -103,11 +127,11 @@ export const MUTATIONS = [
     catchers: ['an export opens on its own and gives its source back'],
     why: 'the embedded source is corrupted and the round-trip guard is gone, so the file claims to be self-describing while handing back something the author never wrote. Corrupting *and* disabling the guard together is deliberate: removing the guard alone breaks nothing observable, because the export is still correct — a check that never fires cannot be detected by a test on correct output.',
     find:
-      '  const html = page(parseQuire(markdown, { assetBase }), shell, markdown);\n' +
+      '  const html = page(parseQuire(markdown, { assetBase, assetMap }), shell, markdown);\n' +
       '  const recovered = readSource(html);\n' +
       '  if (recovered !== markdown) {',
     replace:
-      "  const html = page(parseQuire(markdown, { assetBase }), shell, markdown + '\\n');\n" +
+      "  const html = page(parseQuire(markdown, { assetBase, assetMap }), shell, markdown + '\\n');\n" +
       '  const recovered = markdown;\n' +
       '  if (false) {',
   },
@@ -115,8 +139,8 @@ export const MUTATIONS = [
     name: 'export-carries-app-chrome',
     catchers: ['an export opens on its own and gives its source back'],
     why: 'building an export from the live document instead of the shell hands the recipient the toolbar, the open button and whatever runtime state was on the slides',
-    find: '  const html = page(parseQuire(markdown, { assetBase }), shell, markdown);',
-    replace: '  const html = page(parseQuire(markdown, { assetBase }), shell, markdown).replace(\'</body>\', \'<div class="drop-hint"></div></body>\');',
+    find: '  const html = page(parseQuire(markdown, { assetBase, assetMap }), shell, markdown);',
+    replace: '  const html = page(parseQuire(markdown, { assetBase, assetMap }), shell, markdown).replace(\'</body>\', \'<div class="drop-hint"></div></body>\');',
   },
   {
     name: 'deck-url-not-origin-checked',
