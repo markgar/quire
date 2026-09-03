@@ -49,7 +49,7 @@ import { mapOutsideHtml } from './html.js';
  */
 
 /** @typedef {{title: string, theme?: 'light' | 'dark', slides: Slide[]}} Deck */
-/** @typedef {{assetBase?: string}} ParseOptions */
+/** @typedef {{assetBase?: string, assetMap?: Record<string, string>}} ParseOptions */
 
 const SEP = /^-{3,}\s*$/;
 const META = /^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)$/;
@@ -369,7 +369,9 @@ export function buildSlide(chunk, first, opts = {}) {
   if (isTrue(meta.hidden)) slide.hidden = true;
   if (meta.image) {
     slide.image = meta.image;
-    if (opts.assetBase && !/^data:/i.test(meta.image)) {
+    if (opts.assetMap?.[meta.image]) {
+      slide.image = opts.assetMap[meta.image];
+    } else if (opts.assetBase && !/^data:/i.test(meta.image)) {
       try {
         const base = new URL(opts.assetBase);
         const resolved = new URL(meta.image, base);

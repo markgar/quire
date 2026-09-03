@@ -18,7 +18,7 @@ interface FileSystemHandle {
 }
 
 interface DataTransferItem {
-  /** Chromium: yields a real handle from a drop, so a dropped file can be watched. */
+  /** Chromium: yields a real file handle from a drop, so it can be watched. */
   getAsFileSystemHandle?(): Promise<FileSystemHandle | null>;
 }
 
@@ -35,7 +35,6 @@ interface BeforeInstallPromptEvent extends Event {
 
 interface Window {
   showOpenFilePicker?(o?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
-  showDirectoryPicker?(o?: object): Promise<FileSystemDirectoryHandle>;
   /** Change notification without polling. Newer than File System Access itself. */
   FileSystemObserver?: {
     new (cb: (records: unknown[], observer: unknown) => void): {

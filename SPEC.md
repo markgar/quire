@@ -7,8 +7,24 @@ this and produces the same deck.
 Everything here is implemented in `src/deck.js` and pinned by the fixtures in
 `test/`.
 
-**Scope.** This describes the document format. Application behavior is defined
-by the current viewer implementation.
+**Scope.** This describes the source document inside a deck. The native
+`.quire` file is a ZIP package containing `deck.md`, `manifest.json`, and any
+relative assets. Application behavior is defined by the current viewer
+implementation.
+
+## Native package
+
+A `.quire` file is a ZIP archive whose root contains:
+
+- `deck.md` — the exact UTF-8 Quire source.
+- `manifest.json` — `{ "format": "quire", "version": 1, "entry": "deck.md",
+  "assets": { "images/example.jpg": "image/jpeg" } }`.
+- Any referenced assets at their normalized relative paths.
+
+Version 1 writers use ZIP's stored method. Images are normally compressed
+already; storing their original bytes avoids base64 expansion and keeps the
+package readable by standard ZIP tools. Readers reject unsafe entry paths,
+unsupported versions, corrupt checksums, and unsupported compression methods.
 
 ---
 
@@ -67,7 +83,7 @@ begins with `#`, `>`, `|`, `-`, or `*`.
 | `hidden` | `true`/`yes`/`1` | Omit from the running order and page count. |
 | `numbered` | `true`/`yes`/`1` | Number the cards. |
 | `badge` | text | Corner label on `rows` layouts. |
-| `image` | URL | Same-origin path or embedded raster data URL. |
+| `image` | URL | Path relative to the deck folder, same-origin URL, or embedded raster data URL. |
 | `image-alt` | text | Accessible description of the image. |
 | `image-position` | `left`/`right`/`full` | Place an image beside or below the slide’s native content. |
 | `image-fit` | `cover`/`contain` | Crop to fill the image frame, or preserve the complete image. |
@@ -81,6 +97,11 @@ begins with `#`, `>`, `|`, `-`, or `*`.
 
 Only these keys are absorbed. A leading line with any other key is body
 content.
+
+Within a `.quire` package, relative `image` paths resolve to ZIP entries with
+the same normalized path. Package writers must reject `..`, absolute paths, and
+URL-like paths as asset entries. A self-contained HTML build may replace those
+paths with embedded data URLs without changing `deck.md`.
 
 This restriction is load-bearing. Absorbing unknown keys deletes them
 silently: a slide opening with `group: FIRST BAND` lost the entire band, and
