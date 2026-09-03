@@ -365,6 +365,20 @@ if (existsSync(shellPath)) {
         problems.push('line chart markers and labels use different coordinates');
       }
 
+      const bar = renderSlides({
+        title: 'Visual edges',
+        slides: [{
+          layout: 'chart',
+          title: 'Inset values',
+          chart: 'bar',
+          columns: ['Workflow', 'Minutes'],
+          rows: [['Manual editing', '42'], ['Quire source', '9']],
+        }],
+      });
+      if (!/chart-bar-fill[^>]*><strong>42<\/strong>/.test(bar) || /chart-value/.test(bar)) {
+        problems.push('bar chart values are not inset inside their bars');
+      }
+
       try {
         renderSlides({
           title: 'Visual edges',

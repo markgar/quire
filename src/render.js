@@ -360,8 +360,7 @@ export function lChart(slide) {
       return [
         '<div class="chart-bar-row">',
         `  <div class="chart-label">${h(row[0])}</div>`,
-        `  <div class="chart-track"><span style="width:${width.toFixed(2)}%"></span></div>`,
-        `  <div class="chart-value">${h(row[1])}</div>`,
+        `  <div class="chart-track"><span class="chart-bar-fill" style="width:${width.toFixed(2)}%"><strong>${h(row[1])}</strong></span></div>`,
         '</div>',
       ].join('\n');
     });
