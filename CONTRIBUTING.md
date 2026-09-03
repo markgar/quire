@@ -26,8 +26,9 @@ When the format or renderer changes intentionally, update the snapshots with
 
 `test/app-harness.html` covers what the headless suite cannot reach — the file
 picker, handle persistence, permission re-grant, watching, drag-and-drop,
-overflow, and export. Those need a real file handle, and a handle needs a user
-gesture no automation can produce, so they run in a browser:
+native `.quire` package assets, overflow, and export. Those need a real file
+handle, and a handle needs a user gesture no automation can produce, so they
+run in a browser:
 
     npm run serve
     # open http://localhost:8931/test/app-harness.html

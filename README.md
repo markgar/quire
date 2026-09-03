@@ -10,8 +10,8 @@ familiar Markdown-shaped syntax, but its headings, lists, quotes, and metadata
 map to specific slide layouts rather than to a general-purpose document.
 
 Your deck content and rendering stay local. There is no upload, account,
-backend, or server-side processing. The viewer opens the Quire source from your own
-disk, watches it, and re-renders when it changes.
+backend, or server-side processing. The viewer opens the `.quire` package from
+your own disk, watches it, and re-renders when it changes.
 
 A `.quire` deck is a ZIP package containing `deck.md`, image files, and a small
 manifest. It remains one file to create, open, and share, while keeping images
@@ -34,8 +34,8 @@ exactly what it does.
 
    > Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon.
    > Research accurate facts, cite sources, and use a timeline, process diagram,
-   > metrics, and a chart. Save the deck and nearby image assets in an Apollo 11
-   > folder.
+   > metrics, and a chart. Save it as one `apollo-11.quire` file with its images
+   > packaged inside.
 
 3. **Open the deck**
 
@@ -86,8 +86,8 @@ The format allows raw HTML on purpose, because the built-in Quire constructs are
 the typography a real slide needs. The viewer puts that HTML in the DOM, and
 one consequence follows directly:
 
-**Opening someone else's `.md` runs their JavaScript.** Open decks the way you
-would open a script — only from someone you trust.
+**Opening someone else's `.quire` or `.md` deck runs its JavaScript.** Open
+decks the way you would open a script — only from someone you trust.
 
 The app limits quiet network channels rather than pretending deck script cannot
 run: a Content-Security-Policy blocks cross-origin requests, image beacons, and
