@@ -156,15 +156,10 @@ const appCss = `
 }
 .drop-hint p { margin: 0; max-width: 52ch; line-height: 1.55; }
 .drop-hint .drop-lede {
-  display: grid;
-  gap: 2px;
   color: var(--q-text);
   font-size: 1.05rem;
   font-weight: 650;
-  text-align: left;
-}
-.drop-hint .drop-support {
-  margin-left: 1.25rem;
+  text-wrap: balance;
 }
 .drop-hint .drop-detail { font-size: 0.92rem; }
 .drop-hint .drop-proof {
@@ -659,13 +654,7 @@ Renders and presents it locally.
 <div class="scaler" id="scaler"></div>
 <div class="drop-hint" id="dropHint">
   <h1>Quire</h1>
-  <p class="drop-lede">
-    <span>100% local.</span>
-    <span>Agent-native presentations.</span>
-    <span class="drop-support">Written in Quire source Markdown.</span>
-    <span class="drop-support">Stored on your machine.</span>
-    <span class="drop-support">Rendered locally in your browser.</span>
-  </p>
+  <p class="drop-lede">100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.</p>
   <p class="drop-detail">Open a deck, or drop a <code>.md</code> file here. Your file stays on this machine.</p>
   <p class="drop-proof">No upload. No account. Open-source HTML and JavaScript.</p>
 </div>
