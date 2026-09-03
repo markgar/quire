@@ -2,7 +2,23 @@
 
 *A quire is a gathering of folded leaves — the unit a book is bound from.*
 
-## Create your first deck
+Quire is an agent-native presentation builder: your agent writes Quire source,
+your browser reads that file directly, and browser JavaScript presents it.
+
+Quire source is a focused presentation dialect stored in a `.md` file. It uses
+familiar Markdown-shaped syntax, but its headings, lists, quotes, and metadata
+map to specific slide layouts rather than to a general-purpose document.
+
+Your deck content and rendering stay local. There is no upload, account,
+backend, or server-side processing. The viewer opens the Quire source from your own
+disk, watches it, and re-renders when it changes.
+
+The app is plain HTML and JavaScript. Read the source if you want to verify
+exactly what it does.
+
+## Install Quire
+
+### Create your first deck
 
 1. **Teach your agent**
 
@@ -22,21 +38,7 @@
    Open this deck with quiredeck.com.
    ```
 
-Quire is an agent-native presentation builder: your agent writes Quire source,
-your browser reads that file directly, and browser JavaScript presents it.
-
-Quire source is a focused presentation dialect stored in a `.md` file. It uses
-familiar Markdown-shaped syntax, but its headings, lists, quotes, and metadata
-map to specific slide layouts rather than to a general-purpose document.
-
-Your deck content and rendering stay local. There is no upload, account,
-backend, or server-side processing. The viewer opens the Quire source from your own
-disk, watches it, and re-renders when it changes.
-
-The app is plain HTML and JavaScript. Read the source if you want to verify
-exactly what it does.
-
-## Install Quire
+### Install the app
 
 On Chromium browsers, Quire can be installed as a standalone app from the
 **Install Quire** button when the browser makes installation available. The
