@@ -438,6 +438,9 @@ if (existsSync(appPath)) {
   if (!/serviceWorker\.register\('\/service-worker\.js'\)/.test(app)) problems.push('service worker is not registered');
   if (!/id="introDialog"/.test(app)) problems.push('no first-run explanation in quire.html');
   if (!/quire:intro:v1/.test(app)) problems.push('first-run explanation is not remembered locally');
+  if (!/\.diagram-process\s*\{[^}]*align-content:\s*center;[^}]*align-items:\s*stretch;/s.test(app)) {
+    problems.push('process diagram nodes are not equalized as one multi-node visual');
+  }
 
   // The shell is embedded so the app can export offline through the same
   // page() the CLI uses. If it drifts from src/shell.html, an export stops
