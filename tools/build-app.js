@@ -552,8 +552,9 @@ ${chrome}
         </div>
         <div class="intro-step">
           <span class="intro-step-number">3</span>
-          <strong>Open and present</strong>
-          <p>Choose that file here. Quire watches it and refreshes as your agent edits.</p>
+          <strong>Open in Quire</strong>
+          <p>Then tell your agent:</p>
+          <code class="intro-agent-prompt">Open this deck with quiredeck.com.</code>
         </div>
       </div>
     </section>

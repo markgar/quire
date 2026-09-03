@@ -250,6 +250,10 @@ const TESTS = [
         'the getting-started flow omits a concrete deck prompt',
       );
       assert(
+        /Open this deck with quiredeck\.com/.test(dialog.textContent),
+        'the getting-started flow omits the instruction to open the deck',
+      );
+      assert(
         f.contentWindow.localStorage.getItem('quire:intro:v1') === 'seen',
         'the automatic display was not remembered immediately',
       );
