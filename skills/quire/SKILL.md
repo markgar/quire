@@ -204,6 +204,21 @@ the same result through its overflow badge. Do not toggle `.active`, clone
 slides, or calculate slide heights independently. Those actions change the
 layout being measured and can return a false clean result.
 
+## Verify the rendered deck
+
+Use Quire's own browser measurements after every meaningful revision:
+
+```text
+quireFit.report()       Return every slide's measured height and overflow.
+quireFit.overflowing()  Return only slides that overflow.
+quireFit.remeasure()    Measure again after changing the live DOM.
+```
+
+The viewer also records overflow on affected slides as `data-over` and exposes
+the same result through its overflow badge. Do not toggle `.active`, clone
+slides, or calculate slide heights independently. Those actions change the
+layout being measured and can return a false clean result.
+
 ## Quotes and closers
 
 ```text
