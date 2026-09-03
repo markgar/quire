@@ -8,8 +8,34 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.deploy-scope.outputs.deploy }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: determine deployment scope
+        id: deploy-scope
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "push" ]]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet HEAD^ HEAD -- \
+            quire.html \
+            manifest.webmanifest \
+            quire-icon.svg \
+            quire-icon-192.png \
+            quire-icon-512.png \
+            apple-touch-icon.png \
+            service-worker.js \
+            staticwebapp.config.json \
+            tools/build-deploy.js; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -32,9 +58,11 @@ jobs:
           fi
 
       - name: stage production files
+        if: steps.deploy-scope.outputs.deploy == 'true'
         run: npm run build:deploy
 
       - name: save production files
+        if: steps.deploy-scope.outputs.deploy == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: production
@@ -42,7 +70,7 @@ jobs:
           if-no-files-found: error
 
   deploy:
-    if: github.event_name == 'push'
+    if: needs.check.outputs.deploy == 'true'
     needs: check
     runs-on: ubuntu-latest
     steps:
