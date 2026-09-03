@@ -42,61 +42,45 @@ Use data URLs in Markdown only when the raw source itself must be independently
 portable. Quire embeds packaged images automatically when standalone HTML is
 requested.
 
-## When direct editing becomes difficult
+## Editing native `.quire` decks
 
-While working with Quire source, watch for situations where ordinary text
-search and direct editing may be unreliable—for example, large decks, duplicate
-titles, repeated structures, slide reordering, or changes spanning several
-slides.
+Never edit ZIP bytes or base64 representations directly. The bundled
+`quire-package.mjs` helper is Quire's standard container-access tool, so using
+it does not require separate user approval.
 
-If one of these problems actually affects the requested work, explain the
-difficulty to the user and discuss possible approaches. Options might include
-continuing carefully with direct edits or creating a general-purpose Quire deck
-access tool that understands slides as structured units. Such a tool could help
-an agent identify, list, read, replace, insert, move, remove, or validate slides
-without depending on text search for each operation.
+For a new deck:
 
-### User decision required before structural tooling
+1. Create a temporary working directory containing `deck.md` and its relative
+   image files.
+2. Author and review those ordinary files.
+3. Pack them into the requested `.quire` destination.
+4. Open the `.quire` file in Quire and use `quireFit` to verify every slide.
 
-A request to edit a deck authorizes the content change, not the creation or use
-of parsing or manipulation code. If you are considering any generated command,
-one-liner, script, or program that interprets slide boundaries or rewrites
-slides, do not run it yet.
+For an existing deck:
 
-First explain why direct editing may be unreliable, present the relevant
-choices and tradeoffs, and ask the user which approach they want. One choice
-may be careful direct editing. Another may be a general-purpose Quire deck
-access tool. Wait for an explicit answer before proceeding with tooling.
+1. Unpack the `.quire` file into a dedicated working directory.
+2. Edit `deck.md` and assets there; do not change `manifest.json` manually.
+3. Repack to the original `.quire` path only after the edits are complete.
+4. Reopen or refresh the package and verify the result.
 
-This applies whether the proposed code would be temporary or persistent.
-Moving, reordering, or changing many slides in a large deck is a structural
-operation that should trigger this discussion. Do not substitute a
-task-specific reorder or transformation script without asking.
+Packing discovers relative `image:` settings, includes those files at the same
+paths, records their media types, and refuses unsafe traversal paths. If a
+referenced image is missing, fix the source or asset rather than replacing it
+with an unrelated placeholder.
 
-A general-purpose deck access tool might expose an interface conceptually like
-this:
+### Additional structural tooling still requires a decision
 
-```text
-deck = openQuire(path)
-deck.listSlides()                  -> number, title, layout, source range
-deck.readSlide(selector)           -> structured slide and original source
-deck.replaceSlide(selector, source)
-deck.insertSlide(position, source)
-deck.moveSlide(selector, position)
-deck.removeSlide(selector)
-deck.validate()
-deck.write()
-```
+The package helper manages the container; it does not interpret or rewrite
+slides. For large decks, duplicate titles, slide reordering, repeated
+structures, or broad multi-slide changes, direct text editing may still be
+unreliable.
 
-This is illustrative rather than a required implementation. The important
-distinction is that the tool provides structured access to the deck for many
-operations instead of encoding only the current requested transformation.
-
-If the user chooses to build tooling, test it against a representative Quire
-fixture with known results before using it on their deck.
-
-If the requested edit is already clear and safely scoped, proceed normally
-without raising tooling concerns.
+Before creating or running any additional generated command, one-liner, script,
+or program that interprets slide boundaries or rewrites slides, explain the
+need and ask the user whether to continue carefully with direct edits or build
+a general-purpose Quire deck access tool. Wait for an explicit answer before
+proceeding. Test any approved structural tool against a representative Quire
+fixture with known results before using it on the user's deck.
 
 ## Structural rule: settings come first
 

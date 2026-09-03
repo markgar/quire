@@ -30,7 +30,9 @@ unsupported versions, corrupt checksums, and unsupported compression methods.
 
 ## 1. Document
 
-A deck is one UTF-8 text file, conventionally using the `.md` extension.
+The source document is one UTF-8 text file named `deck.md` inside a native
+`.quire` package. The viewer also accepts standalone `.md` source files for
+compatibility and development.
 
 An optional metadata block may open the file. It is delimited by `---` lines and
 must be the first non-blank content.
@@ -83,7 +85,7 @@ begins with `#`, `>`, `|`, `-`, or `*`.
 | `hidden` | `true`/`yes`/`1` | Omit from the running order and page count. |
 | `numbered` | `true`/`yes`/`1` | Number the cards. |
 | `badge` | text | Corner label on `rows` layouts. |
-| `image` | URL | Path relative to the deck folder, same-origin URL, or embedded raster data URL. |
+| `image` | URL | Path relative to the package root, same-origin URL, or embedded raster data URL. |
 | `image-alt` | text | Accessible description of the image. |
 | `image-position` | `left`/`right`/`full` | Place an image beside or below the slide’s native content. |
 | `image-fit` | `cover`/`contain` | Crop to fill the image frame, or preserve the complete image. |
@@ -234,13 +236,10 @@ is too blunt.
 
 ### 3.8 Images
 
-`image:` adds native media without requiring HTML. A same-origin path may refer
-to an asset served beside the deck. A raster image may instead be embedded as a
-`data:image/...;base64,...` URL, which also works when the deck source is opened
-directly from disk. Browsers do not grant a picked `.md` file access to sibling
-files. Relative paths are resolved from the deck's directory when it is loaded
-through a same-origin `?deck=` URL. Embed images when an exported HTML file must
-remain self-contained.
+`image:` adds native media without requiring HTML. In a `.quire` package, a
+relative path refers to an asset entry at that normalized path. A same-origin
+path may also refer to an asset served beside a standalone deck. A raster image
+may instead be embedded as a `data:image/...;base64,...` URL.
 
 An image can accompany title, card, metric, table, row, chart, diagram, and
 pull-quote layouts. It does not replace those layouts or their content.
@@ -252,10 +251,10 @@ optional. An image's intrinsic aspect ratio never contributes to slide height;
 the selected frame constrains it, and `cover` or `contain` controls how it fits
 inside that frame.
 
-When the browser opens a local `.md` through a file picker, it cannot read
-sibling image files. Use embedded raster data URLs for that workflow. Relative
-paths work when the deck directory is served through a same-origin `?deck=`
-URL.
+When the browser opens a standalone local `.md` through a file picker, it
+cannot read sibling image files. Package the source and assets as `.quire`, use
+embedded raster data URLs, or serve the directory through a same-origin
+`?deck=` URL.
 
 ### 3.9 Charts, diagrams, and metrics
 

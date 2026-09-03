@@ -9,7 +9,7 @@ The Quire source format allows raw HTML on purpose, because its built-in
 constructs are too blunt for every typographic need (`SPEC.md` §3.7). The viewer puts
 that HTML in the DOM. One consequence follows directly and is easy to miss:
 
-> Opening someone else's `.md` runs their JavaScript in the page.
+> Opening someone else's `.quire` or `.md` deck runs its JavaScript in the page.
 
 That is not a defect to be fixed without changing the format, so it is
 documented rather than hidden. The app's policy blocks the quiet network
@@ -47,8 +47,9 @@ Opening an exported `.html` is exactly as trusted as opening any HTML
 attachment. If you export a deck you did not write, you are forwarding its
 markup along with its slides.
 
-**Handle permission is not scoped per deck.** The app stores one handle for the
-last deck opened. Anything running in the page can reach it.
+**Handle permission is not scoped inside a deck.** The app stores one handle for
+the last `.quire` or `.md` file opened. Anything running in the page can reach
+that complete file.
 
 **Top-level navigation is not blocked by CSP.** Deck script can assign
 `location.href` or open a new page with data in the URL. That is visible to the
