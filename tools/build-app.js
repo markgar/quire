@@ -205,7 +205,7 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   line-height: 1;
 }
 .intro h1 {
-  max-width: 16ch;
+  max-width: none;
   margin: 0 44px 14px 0;
   font-size: clamp(2rem, 6vw, 3.25rem);
   line-height: 0.98;
