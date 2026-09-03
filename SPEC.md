@@ -69,7 +69,8 @@ begins with `#`, `>`, `|`, `-`, or `*`.
 | `badge` | text | Corner label on `rows` layouts. |
 | `image` | URL | Same-origin path or embedded raster data URL. |
 | `image-alt` | text | Accessible description of the image. |
-| `image-position` | `left`/`right`/`full` | Placement in a `media` layout. |
+| `image-position` | `left`/`right`/`full` | Place an image beside or below the slide’s native content. |
+| `image-fit` | `cover`/`contain` | Crop to fill the image frame, or preserve the complete image. |
 | `caption` | inline text | Caption below an image. |
 | `credit` | inline text | Image credit appended to the caption. |
 | `chart` | `bar`/`line`/`donut` | Render a table as a chart. |
@@ -220,9 +221,18 @@ files. Relative paths are resolved from the deck's directory when it is loaded
 through a same-origin `?deck=` URL. Embed images when an exported HTML file must
 remain self-contained.
 
-`image-position:` defaults to `right`. `left` reverses the split and `full`
-gives the image the body of the slide. `image-alt:` is required for meaningful
-images; `caption:` and `credit:` are optional.
+An image can accompany title, card, metric, table, row, chart, diagram, and
+pull-quote layouts. It does not replace those layouts or their content.
+`image-position:` defaults to `right`; `left` reverses the split and `full`
+places a wide image band below the native content. `image-fit:` defaults to
+`cover`; use `contain` when cropping would remove important content.
+`image-alt:` is required for meaningful images; `caption:` and `credit:` are
+optional.
+
+When the browser opens a local `.md` through a file picker, it cannot read
+sibling image files. Use embedded raster data URLs for that workflow. Relative
+paths work when the deck directory is served through a same-origin `?deck=`
+URL.
 
 ### 3.9 Charts, diagrams, and metrics
 

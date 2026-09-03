@@ -207,6 +207,29 @@
       <div class="pull">
         A test that has never failed has never been tested.
       </div>
+      <div class="rows">
+        <div class="row">
+          <span class="badge">1</span>
+          <div>
+            <div class="q">Break the code on purpose.</div>
+            <div class="a">Change the thing under test and watch the test go red. If it stays green, you have found a second bug.</div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="badge">2</span>
+          <div>
+            <div class="q">Break the assertion.</div>
+            <div class="a">Invert it. A test that passes both ways is asserting nothing, whatever its name claims.</div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="badge">3</span>
+          <div>
+            <div class="q">Do it when you write it.</div>
+            <div class="a">Retrofitting this to a suite of four hundred is a project. Doing it once per test is thirty seconds.</div>
+          </div>
+        </div>
+      </div>
       <div class="note"><strong>This is not theory.</strong> Two tests written for this very deck's repository passed against an application that was genuinely broken, and were only caught by deliberately reintroducing the defect they claimed to cover.</div>
     </div>
   </section>

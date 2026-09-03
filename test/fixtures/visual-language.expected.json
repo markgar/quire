@@ -48,7 +48,7 @@
       "credit": "Quire project",
       "title": "Pair an argument with an image",
       "sub": "The image is structure, not pasted HTML.",
-      "layout": "media",
+      "layout": "cards2",
       "cards": [
         {
           "h": "Local source",

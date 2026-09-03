@@ -13,6 +13,10 @@ Your deck content and rendering stay local. There is no upload, account,
 backend, or server-side processing. The viewer opens the Quire source from your own
 disk, watches it, and re-renders when it changes.
 
+Browsers do not let a picked `.md` file read sibling image files. Decks opened
+directly at quiredeck.com should embed raster images as data URLs; relative
+image paths work when the deck directory is served alongside Quire.
+
 The app is plain HTML and JavaScript. Read the source if you want to verify
 exactly what it does.
 

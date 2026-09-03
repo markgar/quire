@@ -170,6 +170,8 @@ if (existsSync(shellPath)) {
     'title: Round trip',
     '---',
     '',
+    'layout: cards2',
+    '',
     '## Contains </script> and &lt; and &amp;',
     'Ampersands & angle brackets < > and a tag <b>bold</b>.',
     '',
@@ -247,6 +249,91 @@ if (existsSync(shellPath)) {
         slides: [{ layout: 'media', title: 'Image', sub: 'One description', image: './image.png' }],
       });
       if ((media.match(/One description/g) || []).length !== 1) problems.push('cardless media duplicates its description');
+      const fullMediaCards = renderSlides({
+        title: 'Visual edges',
+        slides: [{
+          layout: 'media',
+          title: 'Image',
+          image: './image.png',
+          imagePosition: 'full',
+          cards: [{ h: 'Kept', p: 'This card remains visible.', accent: false }],
+        }],
+      });
+      if (!fullMediaCards.includes('This card remains visible.') || !fullMediaCards.includes('mixed-media-full')) {
+        problems.push('full-position media discarded card content');
+      }
+
+      const mixedChart = parseQuire([
+        '# Visual edges',
+        '',
+        '---',
+        '',
+        'image: ./mission.jpg',
+        'image-fit: contain',
+        'chart: bar',
+        '',
+        '## Mission distance',
+        'A chart with supporting photography.',
+        '',
+        '| Leg | Miles |',
+        '|---|---:|',
+        '| Earth to Moon | 238855 |',
+      ].join('\n'));
+      const mixedChartHtml = renderSlides(mixedChart);
+      if (mixedChart.slides[1]?.layout !== 'chart') problems.push('an image replaced an inferred chart layout');
+      if (!mixedChartHtml.includes('mixed-media-right')) problems.push('chart image was not composed beside the chart');
+      if (!mixedChartHtml.includes('chart-bar')) problems.push('chart content disappeared when an image was present');
+      if (!mixedChartHtml.includes('media-fit-contain')) problems.push('image-fit contain was not rendered');
+
+      const mixedDiagram = parseQuire([
+        '# Visual edges',
+        '',
+        '---',
+        '',
+        'image: ./rocket.jpg',
+        'diagram: process',
+        '',
+        '## Flight plan',
+        '',
+        '1. **Launch** Leave Earth.',
+        '2. **Coast** Cross cislunar space.',
+      ].join('\n'));
+      const mixedDiagramHtml = renderSlides(mixedDiagram);
+      if (mixedDiagram.slides[1]?.layout !== 'diagram') problems.push('an image replaced an inferred diagram layout');
+      if (!mixedDiagramHtml.includes('diagram-process')) problems.push('diagram content disappeared when an image was present');
+
+      const mixedTitle = renderSlides({
+        title: 'Visual edges',
+        slides: [{ layout: 'title', headline: 'Mission', image: './moon.jpg', imageAlt: 'The Moon' }],
+      });
+      if (!mixedTitle.includes('mixed-media-right') || !mixedTitle.includes('Mission')) {
+        problems.push('title content and image were not composed together');
+      }
+
+      try {
+        parseQuire('layout: media\ndiagram: process\nimage: ./rocket.jpg\n\n## Bad\n\n1. **Launch** Leave Earth.');
+        problems.push('a conflicting media layout silently discarded diagram content');
+      } catch {
+        // Expected.
+      }
+      try {
+        parseQuire('layout: groups\n\n### Lost\nBefore any group.\n\ngroup: Kept\n\n### Kept\nInside the group.');
+        problems.push('a groups layout silently discarded an ungrouped card');
+      } catch {
+        // Expected.
+      }
+      try {
+        parseQuire('layout: title\ndiagram: process\n\n# Bad\n\n1. **Launch** Leave Earth.');
+        problems.push('a title layout silently discarded diagram content');
+      } catch {
+        // Expected.
+      }
+      try {
+        parseQuire('layout: title\n\n# Bad\n\n> [!NOTE] This closer would disappear.');
+        problems.push('a title layout silently discarded a closer');
+      } catch {
+        // Expected.
+      }
 
       const donut = renderSlides({
         title: 'Visual edges',
@@ -275,7 +362,7 @@ if (existsSync(shellPath)) {
         console.log('FAIL  native visual edge cases');
         for (const problem of problems) console.log(`   ${problem}`);
       } else {
-        console.log('PASS  native visual edge cases  attribution, media, zero data, and invalid types');
+        console.log('PASS  native visual edge cases  mixed media, attribution, zero data, and invalid types');
       }
     }
     if (problems.length) {

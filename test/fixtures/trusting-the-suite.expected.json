@@ -182,6 +182,20 @@
       "title": "Prove the test can fail",
       "sub": "The most common defect in a test suite is not a flaky test. It is a test that passes unconditionally and always has.",
       "layout": "pull",
+      "items": [
+        {
+          "q": "Break the code on purpose.",
+          "a": "Change the thing under test and watch the test go red. If it stays green, you have found a second bug."
+        },
+        {
+          "q": "Break the assertion.",
+          "a": "Invert it. A test that passes both ways is asserting nothing, whatever its name claims."
+        },
+        {
+          "q": "Do it when you write it.",
+          "a": "Retrofitting this to a suite of four hundred is a project. Doing it once per test is thirty seconds."
+        }
+      ],
       "quote": "A test that has never failed has never been tested.",
       "note": "<strong>This is not theory.</strong> Two tests written for this very deck's repository passed against an application that was genuinely broken, and were only caught by deliberately reintroducing the defect they claimed to cover."
     },
