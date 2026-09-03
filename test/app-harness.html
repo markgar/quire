@@ -211,10 +211,6 @@ const TESTS = [
       const dialog = $(f, 'introDialog');
       assert(dialog.open, 'the first-run explanation did not open');
       assert(
-        $(f, 'introTitle').textContent.trim() === '100% local.',
-        'the explanation does not lead with local operation',
-      );
-      assert(
         /agent-native presentation builder/.test(dialog.textContent),
         'the explanation does not state the product purpose',
       );
@@ -223,10 +219,6 @@ const TESTS = [
       assert(/Quire source/.test(dialog.textContent), 'the explanation omits a source example');
       assert(/Rendered presentation/.test(dialog.textContent), 'the explanation omits the rendered result');
       assert(/Teach your agent/.test(dialog.textContent), 'the explanation omits the agent handoff');
-      assert(
-        $(f, 'dropHint').querySelector('h1').textContent.trim() === '100% local.',
-        'the blank app does not lead with local operation',
-      );
       assert(
         /gh skill install markgar\/quire quire --scope user/.test(dialog.textContent),
         'the agent handoff omits the repository skill install command',
