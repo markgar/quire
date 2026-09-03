@@ -1,0 +1,32 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      # Type gate, app build, and the conformance suite.
+      - run: npm run check
+
+      # quire.html is a committed build artefact, so it can drift from the
+      # sources it is generated from. `npm run check` rebuilds it, and a dirty
+      # tree afterwards means someone edited src/ without rebuilding — which
+      # would ship an app that does not match the code under review.
+      - name: the committed app matches its sources
+        run: |
+          if ! git diff --quiet -- quire.html; then
+            echo "quire.html is out of date. Run 'npm run check' and commit the result."
+            git --no-pager diff --stat -- quire.html
+            exit 1
+          fi

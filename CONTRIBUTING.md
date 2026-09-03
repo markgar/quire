@@ -1,0 +1,73 @@
+# Contributing
+
+## Getting it running
+
+    npm install
+    npm run check      # type gate, app build, conformance suite
+    npm run serve      # http://localhost:8931/quire.html
+
+There is no build step for the source. `src/*.js` is plain JavaScript with
+`// @ts-check` and JSDoc, checked by `tsc --noEmit`. The runtime files stay
+directly readable and executable while still passing a strict type gate.
+
+`quire.html` **is** generated, by `tools/build-app.js`, and is committed
+because it is the deployable. `npm run check` rebuilds it, so commit the result
+when you change anything in `src/`. CI fails if it has drifted.
+
+## Tests
+
+Two suites, because they can reach different things.
+
+`npm run check` runs the headless gates: parse and render conformance against
+golden files, page assembly, source round-trip, and app-build integrity.
+
+When the format or renderer changes intentionally, update the snapshots with
+`npm run update:goldens` and review every generated diff.
+
+`test/app-harness.html` covers what the headless suite cannot reach — the file
+picker, handle persistence, permission re-grant, watching, drag-and-drop,
+overflow, and export. Those need a real file handle, and a handle needs a user
+gesture no automation can produce, so they run in a browser:
+
+    npm run serve
+    # open http://localhost:8931/test/app-harness.html
+
+## The bar for a test
+
+**A green test that cannot go red is worse than no test.** This is not a slogan
+here; it has caught real problems more than once, including two harness tests
+that passed against an app that was genuinely broken.
+
+So: when you add a test, break the thing it covers and watch it fail. For the
+browser harness there is a mechanism for this — add your defect to
+`test/mutations.js` naming the tests that must catch it, then run:
+
+    http://localhost:8931/test/app-harness.html?mutate=all
+
+Every defect must be caught. A mutation whose target text no longer appears in
+the built app is reported as stale rather than passing, so an app change cannot
+quietly retire a check.
+
+## Things worth knowing before you change them
+
+**Measure before trimming.** Overflow can come from grid rows, margins, or
+wrapping rather than word count. Use `quireFit.report()` to identify the
+constraining element before cutting content.
+
+**Silent data loss is the bug this project cares most about.** A parser that
+drops content without an error has failed worse than one that refuses to parse.
+The fields consumed by each layout are defined in `SPEC.md`; changes to that
+contract require fixtures and reviewed golden updates.
+
+**The app must never transmit deck content.** No telemetry, no analytics, no
+server-side anything. This is a design constraint, not a preference.
+
+## Commits
+
+Explain why, not what — the diff already says what. If a change came from
+something breaking, say what broke.
+
+## Reporting a vulnerability
+
+See `SECURITY.md`. Note that decks are executable content by design, so read
+the stated trust boundary before filing.

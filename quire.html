@@ -1,0 +1,3589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  A deck may contain raw HTML by design, and the app puts it in the DOM, so a
+  deck is executable content. script-src therefore cannot be tightened without
+  changing the format.
+
+  What *can* be shut are the quiet network channels. connect-src 'self' blocks
+  cross-origin fetch and XHR, img-src 'self' data: blocks remote image beacons,
+  and form-action 'none' blocks form submission. Top-level navigation remains
+  possible: CSP has no widely supported directive that can disable it.
+
+  frame-ancestors is deliberately absent: browsers ignore it in a meta element,
+  so it would be console noise pretending to be a control. A host that can set
+  response headers should send frame-ancestors 'none' there.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>quire</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("theme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --q-bg: #f7f4ef;
+  --q-bg-elevated: #fcfbf8;
+  --q-surface: #ffffff;
+  --q-surface-soft: #f5f5f5;
+  --q-border: #dedede;
+  --q-border-strong: #919191;
+  --q-text: #242424;
+  --q-text-muted: #5c5c5c;
+  --q-text-soft: #6f6f6f;
+  --q-accent: #b11f4b;
+  --q-accent-hover: #9a1a41;
+  --q-accent-soft: rgba(177, 31, 75, 0.08);
+  --q-accent-fg: #ffffff;
+  --q-success: #16a34a;
+  --q-danger: #dc2626;
+  --q-warning: #f59e0b;
+  --q-link: #0078d4;
+  --q-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --q-overlay: rgba(255, 255, 255, 0.8);
+  --q-panel: rgba(255, 255, 255, 0.86);
+  --q-panel-strong: rgba(255, 255, 255, 0.96);
+  --q-sheen: rgba(255, 255, 255, 0.55);
+  --q-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --q-bg: #3d3b3a;
+  --q-bg-elevated: #343231;
+  --q-surface: #292929;
+  --q-surface-soft: #2e2e2e;
+  --q-border: #474747;
+  --q-border-strong: #5f5f5f;
+  --q-text: #dedede;
+  --q-text-muted: #919191;
+  --q-text-soft: #b0b0b0;
+  --q-accent: #fd8ea1;
+  --q-accent-hover: #fb7b91;
+  --q-accent-soft: rgba(253, 142, 161, 0.14);
+  --q-accent-fg: #1a1a1a;
+  --q-success: #4ade80;
+  --q-danger: #f87171;
+  --q-warning: #fbbf24;
+  --q-link: #4da6ff;
+  --q-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --q-overlay: rgba(41, 41, 41, 0.88);
+  --q-panel: rgba(41, 41, 41, 0.72);
+  --q-panel-strong: rgba(41, 41, 41, 0.96);
+  --q-sheen: rgba(255, 255, 255, 0.04);
+  --q-highlight: rgba(253, 142, 161, 0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--q-bg);
+  color: var(--q-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fixed 16:9 canvas, scaled to fit the viewport. Everything is authored at
+   1280x720 and scaled as a unit, so layout never reflows between screens -
+   what you see while editing is what a projector shows. */
+.stage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 20px;
+}
+.scaler {
+  width: 1280px;
+  height: 720px;
+  flex: 0 0 auto;
+  transform-origin: center center;
+  position: relative;
+}
+
+/* Slides stack in the same box so scaling applies once. Content taller than
+   720px overflows the frame - that is a content bug, not a layout one. */
+.slide {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background: var(--q-surface);
+  border: 1px solid var(--q-border);
+  border-radius: 16px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+  padding: 54px 64px;
+  flex-direction: column;
+  overflow: hidden;
+}
+.slide.active { display: flex; }
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--q-accent);
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+h1 { font-size: 50px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 20px; }
+h2 { font-size: 38px; line-height: 1.15; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 8px; }
+.sub { font-size: 18px; color: var(--q-text-muted); margin-bottom: 30px; max-width: 78ch; line-height: 1.5; }
+/* .sub carries the gap below the title; without one, .body would sit
+   almost flush against the h2. */
+h2 + .body { margin-top: 22px; }
+p { font-size: 16px; line-height: 1.6; }
+
+/* A trailing note/kicker is pushed to the bottom of the frame, so light
+   slides read as designed instead of floating above dead space. */
+.body { flex: 1; display: flex; flex-direction: column; gap: 22px; }
+.body > .note:last-child,
+.body > .kicker:last-child { margin-top: auto; }
+
+.title-slide { justify-content: center; background: var(--q-bg-elevated); }
+.title-slide h1 { font-size: 64px; max-width: 20ch; }
+.title-slide .lede { font-size: 22px; color: var(--q-text-muted); max-width: 62ch; line-height: 1.5; margin-top: 6px; }
+.title-meta {
+  margin-top: 44px; padding-top: 22px;
+  border-top: 1px solid var(--q-border);
+  font-size: 14px; color: var(--q-text-soft);
+  display: flex; gap: 28px; flex-wrap: wrap;
+}
+
+.pull {
+  font-size: 30px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em;
+  border-left: 4px solid var(--q-accent);
+  padding: 4px 0 4px 24px;
+  max-width: 62ch;
+}
+.pull em { color: var(--q-accent); font-style: normal; }
+
+.grid { display: grid; gap: 18px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+
+.card {
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+  border-radius: 16px;
+  padding: 22px 24px;
+}
+.card.accent { background: var(--q-accent-soft); border-color: var(--q-accent); }
+.card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.card p { font-size: 14.5px; color: var(--q-text-muted); line-height: 1.55; }
+
+.num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--q-accent); color: var(--q-accent-fg);
+  font-size: 14px; font-weight: 700; margin-bottom: 12px;
+}
+
+/* A labelled band of cards. The rule trailing the label ties the pair
+   together visually, so two groups on one slide read as two questions
+   rather than one list of four. */
+.group { display: flex; flex-direction: column; gap: 11px; }
+.group-label {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 11.5px; letter-spacing: 0.11em; text-transform: uppercase;
+  font-weight: 700; color: var(--q-text-soft);
+}
+.group-label::after {
+  content: ""; flex: 1; height: 1px; background: var(--q-border);
+}
+
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; font-size: 12px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--q-text-soft); font-weight: 700;
+  padding: 0 14px 10px 0; border-bottom: 1px solid var(--q-border);
+}
+td { padding: 13px 14px 13px 0; font-size: 15px; border-bottom: 1px solid var(--q-border); vertical-align: top; line-height: 1.5; }
+td.k { font-weight: 700; width: 26%; }
+td.was { color: var(--q-text-soft); width: 33%; }
+td.is { color: var(--q-text); }
+tr:last-child td { border-bottom: none; }
+
+.rows { display: flex; flex-direction: column; gap: 11px; }
+.row {
+  display: flex; gap: 16px; align-items: flex-start;
+  padding: 13px 18px;
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+  border-radius: 16px;
+}
+.row .q { font-weight: 700; font-size: 15.5px; margin-bottom: 3px; }
+.row .a { font-size: 14.5px; color: var(--q-text-muted); line-height: 1.5; }
+.row .badge {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--q-accent-soft); color: var(--q-accent);
+  border: 1px solid var(--q-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; margin-top: 1px;
+}
+
+.note {
+  padding: 16px 20px; border-radius: 16px;
+  background: var(--q-accent-soft); border: 1px solid var(--q-accent);
+  font-size: 15px; line-height: 1.55;
+}
+.note strong, .note b { color: var(--q-accent); }
+
+.kicker {
+  padding-top: 22px; font-size: 15.5px; color: var(--q-text-muted);
+  border-top: 1px solid var(--q-border); line-height: 1.55;
+}
+.kicker b, .kicker strong { color: var(--q-text); }
+
+.source-line {
+  margin-top: auto;
+  padding-top: 12px;
+  color: var(--q-text-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.source-line a { color: inherit; text-underline-offset: 3px; }
+.title-source { margin-top: 34px; }
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 18px;
+  flex: 1;
+  align-items: stretch;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: 28px;
+  background: var(--q-surface-soft);
+  border-top: 3px solid var(--q-border-strong);
+}
+.metric.accent { background: var(--q-accent-soft); border-color: var(--q-accent); }
+.metric-value {
+  color: var(--q-text);
+  font-size: clamp(48px, 5vw, 76px);
+  font-weight: 750;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+.metric-label {
+  max-width: 24ch;
+  margin-top: 18px;
+  color: var(--q-text-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.media-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 28px;
+  min-height: 0;
+  height: 100%;
+}
+.media-split > .grid { align-content: center; }
+.media-figure {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+}
+.media-figure img {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  object-fit: cover;
+}
+.media-figure figcaption {
+  padding: 9px 12px;
+  color: var(--q-text-soft);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.media-missing {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  color: var(--q-text-soft);
+  font-size: 14px;
+}
+.media-position-full .sub { margin-bottom: 18px; }
+.media-position-full .body { min-height: 0; }
+.media-position-full .media-figure { flex: 1; height: auto; }
+.media-copy { align-self: center; color: var(--q-text-muted); font-size: 20px; }
+
+.chart {
+  --chart-1: var(--q-accent);
+  --chart-2: #d97706;
+  --chart-3: #2563eb;
+  --chart-4: #059669;
+  --chart-5: #7c3aed;
+  flex: 1;
+  min-height: 0;
+}
+.chart-bar { display: flex; flex-direction: column; justify-content: center; gap: 17px; }
+.chart-bar-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 70px;
+  gap: 16px;
+  align-items: center;
+}
+.chart-label { font-size: 14px; font-weight: 650; }
+.chart-track { height: 22px; overflow: hidden; background: var(--q-surface-soft); }
+.chart-track span { display: block; height: 100%; background: var(--q-accent); }
+.chart-value { text-align: right; font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.chart-line { display: flex; flex-direction: column; justify-content: center; }
+.chart-line svg { width: 100%; max-height: 320px; overflow: visible; }
+.chart-line polyline { fill: none; stroke: var(--q-accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.chart-line circle { fill: var(--q-surface); stroke: var(--q-accent); stroke-width: 4; }
+.chart-line text { fill: var(--q-text); font-size: 15px; font-weight: 750; text-anchor: middle; }
+.chart-axis { display: flex; justify-content: space-between; margin-top: 8px; color: var(--q-text-soft); font-size: 12px; }
+.chart-donut { display: grid; grid-template-columns: 0.85fr 1.15fr; align-items: center; gap: 52px; }
+.donut {
+  width: 300px;
+  aspect-ratio: 1;
+  margin: auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.donut::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--q-surface);
+}
+.donut span { z-index: 1; font-size: 40px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.chart-legend { display: flex; flex-direction: column; gap: 15px; }
+.chart-legend-item { display: grid; grid-template-columns: 14px 1fr auto; gap: 12px; align-items: center; font-size: 15px; }
+.chart-swatch { width: 11px; height: 11px; border-radius: 50%; }
+.swatch-1 { background: var(--chart-1); }
+.swatch-2 { background: var(--chart-2); }
+.swatch-3 { background: var(--chart-3); }
+.swatch-4 { background: var(--chart-4); }
+.swatch-5 { background: var(--chart-5); }
+
+.diagram { flex: 1; min-height: 0; }
+.diagram-process {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 28px;
+  align-items: center;
+}
+.diagram-process .diagram-node:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  top: 50%;
+  right: -22px;
+  color: var(--q-accent);
+  font-size: 24px;
+  transform: translateY(-50%);
+}
+.diagram-node {
+  position: relative;
+  padding: 22px;
+  background: var(--q-surface-soft);
+  border-top: 2px solid var(--q-border-strong);
+}
+.diagram-node.accent { border-color: var(--q-accent); }
+.diagram-node strong { display: block; margin: 12px 0 7px; font-size: 17px; }
+.diagram-node p { color: var(--q-text-muted); font-size: 14px; line-height: 1.5; }
+.diagram-mark { color: var(--q-accent); font-size: 12px; font-weight: 800; }
+.diagram-timeline { display: flex; flex-direction: column; justify-content: center; gap: 0; }
+.diagram-timeline .diagram-node {
+  display: grid;
+  grid-template-columns: 48px 180px 1fr;
+  align-items: baseline;
+  padding: 15px 0;
+  background: none;
+  border-top: 1px solid var(--q-border);
+}
+.diagram-timeline .diagram-node:last-child { border-bottom: 1px solid var(--q-border); }
+.diagram-timeline .diagram-node strong { margin: 0; }
+.diagram-hierarchy {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  align-content: center;
+}
+.diagram-hierarchy .diagram-node:first-child { grid-column: 2; }
+.diagram-hierarchy .diagram-node:not(:first-child) { grid-row: 2; }
+
+.align-center { text-align: center; }
+.align-center .sub { margin-left: auto; margin-right: auto; }
+.tone-accent { background: var(--q-accent); color: var(--q-accent-fg); border-color: transparent; }
+.tone-accent .eyebrow,
+.tone-accent .sub,
+.tone-accent .metric-label,
+.tone-accent .diagram-node p,
+.tone-accent .card p,
+.tone-accent .source-line { color: color-mix(in srgb, var(--q-accent-fg) 76%, transparent); }
+.tone-accent .metric,
+.tone-accent .diagram-node,
+.tone-accent .card { background: color-mix(in srgb, var(--q-accent-fg) 10%, transparent); border-color: color-mix(in srgb, var(--q-accent-fg) 38%, transparent); }
+.tone-accent .metric-value,
+.tone-accent .card h3,
+.tone-accent .donut span { color: var(--q-accent-fg); }
+.tone-accent .chart { --chart-1: var(--q-accent-fg); }
+.tone-accent .chart-track { background: color-mix(in srgb, var(--q-accent-fg) 18%, transparent); }
+.tone-accent .chart-track span { background: var(--q-accent-fg); }
+.tone-accent .chart-line polyline { stroke: var(--q-accent-fg); }
+.tone-accent .chart-line circle { fill: var(--q-accent); stroke: var(--q-accent-fg); }
+.tone-accent .chart-line text,
+.tone-accent .chart-axis { fill: var(--q-accent-fg); color: var(--q-accent-fg); }
+.tone-contrast { background: #171717; color: #f7f4ef; border-color: #171717; }
+.tone-contrast .eyebrow { color: #fd8ea1; }
+.tone-contrast .sub,
+.tone-contrast .source-line,
+.tone-contrast .title-meta { color: #c7c2bb; }
+.tone-contrast .title-meta { border-color: #55504a; }
+
+.nav {
+  flex: 0 0 auto;
+  background: var(--q-panel-strong);
+  border-top: 1px solid var(--q-border);
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; padding: 10px 20px;
+}
+
+/* ---- slide panel ------------------------------------------------------ */
+
+.burger {
+  position: fixed; top: 14px; left: 14px; z-index: 30;
+  width: 38px; height: 34px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 0;
+  background: var(--q-panel-strong);
+  border: 1px solid var(--q-border);
+  border-radius: 0.625rem;
+  cursor: pointer;
+}
+.burger span {
+  display: block; width: 16px; height: 2px; border-radius: 1px;
+  background: var(--q-text);
+}
+.burger:hover { background: var(--q-accent); border-color: var(--q-accent); }
+.burger:hover span { background: var(--q-accent-fg); }
+
+.panel {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
+  width: 300px;
+  background: var(--q-bg-elevated);
+  border-right: 1px solid var(--q-border);
+  box-shadow: var(--q-shadow);
+  transform: translateX(-100%);
+  transition: transform 0.18s ease;
+  display: flex; flex-direction: column;
+}
+.panel.open { transform: translateX(0); }
+
+.panel-head {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--q-border);
+}
+.panel-title {
+  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  font-weight: 700; color: var(--q-text-soft);
+}
+.panel-close {
+  border: none; background: none; color: var(--q-text-muted);
+  font-size: 20px; line-height: 1; padding: 2px 6px; cursor: pointer;
+  border-radius: 0.625rem;
+}
+.panel-close:hover { background: var(--q-accent); color: var(--q-accent-fg); }
+
+/* Extra bottom padding so the last thumbnail's label clears the footer. */
+.panel-list { flex: 1; overflow-y: auto; padding: 12px 12px 20px; }
+
+.thumb { margin-bottom: 14px; }
+.thumb-frame {
+  width: 100%; aspect-ratio: 16 / 9;
+  position: relative; overflow: hidden;
+  border: 2px solid var(--q-border);
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--q-surface);
+}
+.thumb-frame:hover { border-color: var(--q-accent); }
+.thumb.current .thumb-frame { border-color: var(--q-accent); }
+.thumb.is-hidden .thumb-frame { opacity: 0.42; }
+
+/* The clone is the real slide at 1280x720, scaled into the frame. Using the
+   actual markup keeps thumbnails honest - they cannot drift from the deck. */
+.thumb-scale {
+  position: absolute; top: 0; left: 0;
+  width: 1280px; height: 720px;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.thumb-scale .slide {
+  position: absolute; inset: 0; display: flex;
+  border-radius: 0; border: none; box-shadow: none;
+}
+
+.thumb-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 2px 0;
+}
+.thumb-num {
+  font-size: 11px; font-weight: 700; color: var(--q-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+.thumb.is-hidden .thumb-num { color: var(--q-accent); }
+.thumb-toggle {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--q-border-strong);
+  background: var(--q-surface); color: var(--q-text-muted);
+  cursor: pointer;
+}
+.thumb-toggle:hover { background: var(--q-accent); color: var(--q-accent-fg); border-color: var(--q-accent); }
+.thumb.is-hidden .thumb-toggle {
+  background: var(--q-accent-soft); color: var(--q-accent); border-color: var(--q-accent);
+}
+
+.panel-foot {
+  flex: 0 0 auto;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--q-border);
+  font-size: 11px; line-height: 1.45;
+  color: var(--q-text-soft);
+}
+
+.scrim {
+  position: fixed; inset: 0; z-index: 35;
+  background: rgba(0,0,0,0.28);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.scrim.on { opacity: 1; pointer-events: auto; }
+
+.counter.hidden-mark { color: var(--q-accent); font-weight: 700; }
+button {
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  padding: 8px 18px; border-radius: 0.625rem;
+  border: 1px solid var(--q-border-strong);
+  background: var(--q-surface); color: var(--q-text); cursor: pointer;
+}
+button:hover { background: var(--q-accent); color: var(--q-accent-fg); border-color: var(--q-accent); }
+button:disabled { opacity: 0.35; cursor: default; }
+button:disabled:hover { background: var(--q-surface); color: var(--q-text); border-color: var(--q-border-strong); }
+.counter { font-size: 14px; color: var(--q-text-muted); font-variant-numeric: tabular-nums; min-width: 62px; text-align: center; white-space: nowrap; }
+.dots { display: flex; gap: 7px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--q-border-strong); border: none; padding: 0; cursor: pointer; }
+.dot:hover, .dot.on { background: var(--q-accent); }
+.hint { font-size: 12px; color: var(--q-text-soft); margin-left: 6px; }
+
+/* The slide canvas is fixed and scaled, so it never reflows. Only the nav,
+   which lives outside the scaler, adapts on narrow screens. */
+@media (max-width: 700px) {
+  .dots { display: none; }
+  .hint { display: none; }
+}
+
+/* --- app chrome: only present in the hosted app, not in an exported deck --- */
+.toolbar {
+  position: fixed; top: 12px; right: 14px; z-index: 30;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.78rem;
+}
+.toolbar button {
+  font: inherit; font-weight: 600;
+  padding: 6px 12px; border-radius: 0.5rem;
+  background: var(--q-panel-strong); color: var(--q-text);
+  border: 1px solid var(--q-border); cursor: pointer;
+}
+.toolbar button:hover { background: var(--q-accent); border-color: var(--q-accent); color: var(--q-accent-fg); }
+.toolbar button:focus-visible,
+.intro button:focus-visible,
+.intro a:focus-visible {
+  outline: 3px solid var(--q-accent);
+  outline-offset: 3px;
+}
+#status { color: var(--q-text-muted); max-width: 46ch; text-align: right; }
+#status[data-kind="live"]  { color: var(--q-accent); }
+#status[data-kind="warn"]  { color: var(--q-text); }
+#status[data-kind="error"] { color: var(--q-accent); font-weight: 600; }
+
+/* Overflow badge. Hidden unless something is actually over, so a deck that
+   fits shows no editing chrome at all. */
+#fitBtn[hidden] { display: none; }
+#fitBtn {
+  background: var(--q-accent); color: var(--q-accent-fg); border-color: var(--q-accent);
+}
+#fitBtn:hover { filter: brightness(1.08); }
+
+/* Presenting is not authoring: a projected deck must not show the open button
+   or an overflow warning. app-spec.md 7.6. */
+:fullscreen .toolbar { display: none; }
+
+/* Panel marks for overflowing slides, so "which ones" is answered without
+   stepping through the deck. */
+.thumb-over {
+  font-size: 0.7rem; font-weight: 700;
+  color: var(--q-accent-fg); background: var(--q-accent);
+  border-radius: 0.35rem; padding: 1px 6px;
+}
+.thumb-over[hidden] { display: none; }
+.thumb.is-over .thumb-frame { outline: 2px solid var(--q-accent); outline-offset: 1px; }
+
+.drop-hint {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 32px; text-align: center; pointer-events: none;
+  color: var(--q-text-muted);
+}
+/* [hidden] is display:none in the UA sheet, but a later display rule wins.
+   Without this the hint bleeds through every rendered slide. */
+.drop-hint[hidden] { display: none; }
+.drop-hint h1 {
+  margin: 0 0 4px;
+  color: var(--q-text);
+  font-size: 2rem;
+  letter-spacing: -0.035em;
+}
+.drop-hint p { margin: 0; max-width: 52ch; line-height: 1.55; }
+.drop-hint .drop-lede {
+  color: var(--q-text);
+  font-size: 1.05rem;
+  font-weight: 650;
+  text-wrap: balance;
+}
+.drop-hint .drop-detail { font-size: 0.92rem; }
+.drop-hint .drop-proof {
+  margin-top: 6px;
+  color: var(--q-text-soft);
+  font-size: 0.78rem;
+  letter-spacing: 0.035em;
+}
+body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10px; }
+
+.intro {
+  width: min(1040px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  color: var(--q-text);
+  background: var(--q-bg-elevated);
+  border: 1px solid var(--q-border);
+  border-radius: 18px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.3);
+}
+.intro::backdrop {
+  background: rgba(15, 15, 15, 0.7);
+}
+.intro[open] {
+  animation: intro-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.intro-inner {
+  position: relative;
+  padding: clamp(28px, 6vw, 52px);
+}
+.intro-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+}
+.intro h1 {
+  max-width: 14ch;
+  margin: 0 44px 14px 0;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.intro-lede {
+  max-width: 68ch;
+  color: var(--q-text-muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+.intro-demo {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) 40px minmax(0, 1.1fr);
+  align-items: stretch;
+  margin: 30px 0 26px;
+}
+.intro-pane {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--q-border);
+  background: var(--q-surface);
+}
+.intro-code-pane {
+  border-radius: 14px 0 0 14px;
+}
+.intro-slide-pane {
+  display: flex;
+  flex-direction: column;
+  border-radius: 0 14px 14px 0;
+}
+.intro-pane-label {
+  display: block;
+  padding: 9px 13px;
+  color: var(--q-text-muted);
+  background: var(--q-surface-soft);
+  border-bottom: 1px solid var(--q-border);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.intro-code {
+  margin: 0;
+  padding: 18px;
+  overflow: auto;
+  color: var(--q-text);
+  font: 0.78rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+}
+.intro-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--q-accent);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.intro-slide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 250px;
+  padding: 24px;
+  background: var(--q-bg-elevated);
+}
+.intro-slide-label {
+  margin-bottom: 14px;
+  color: var(--q-accent);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.intro-slide h2 {
+  margin: 0 0 6px;
+  font-size: 1.55rem;
+  letter-spacing: -0.025em;
+}
+.intro-slide-sub {
+  margin: 0 0 18px;
+  color: var(--q-text-muted);
+  font-size: 0.82rem;
+}
+.intro-slide-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.intro-slide-card {
+  padding: 13px;
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+  border-radius: 10px;
+}
+.intro-slide-card.accent {
+  background: var(--q-accent-soft);
+  border-color: var(--q-accent);
+}
+.intro-slide-card strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.75rem;
+}
+.intro-slide-card span {
+  color: var(--q-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.intro-slide-note {
+  margin-top: auto;
+  padding-top: 16px;
+  color: var(--q-accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.intro-start {
+  margin: 0 0 26px;
+  padding: 20px;
+  border: 1px solid var(--q-border);
+  border-radius: 14px;
+  background: var(--q-surface-soft);
+}
+.intro-start-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.intro-start-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.intro-start-header span {
+  color: var(--q-text-muted);
+  font-size: 0.78rem;
+}
+.intro-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.intro-step {
+  position: relative;
+  min-width: 0;
+  padding: 14px 14px 14px 42px;
+  border: 1px solid var(--q-border);
+  border-radius: 10px;
+  background: var(--q-surface);
+}
+.intro-step-number {
+  position: absolute;
+  top: 13px;
+  left: 13px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  color: var(--q-accent);
+  background: var(--q-accent-soft);
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.intro-step strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.82rem;
+}
+.intro-step p {
+  margin: 0;
+  color: var(--q-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.intro-agent-prompt {
+  display: block;
+  margin-top: 8px;
+  padding: 9px 10px;
+  color: var(--q-text);
+  background: var(--q-bg-elevated);
+  border: 1px solid var(--q-border);
+  border-radius: 7px;
+  font: 0.68rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: normal;
+}
+.intro-points {
+  margin: 0 0 30px;
+  border-top: 1px solid var(--q-border);
+}
+.intro-point {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) 2fr;
+  gap: 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--q-border);
+}
+.intro-point dt {
+  font-weight: 750;
+}
+.intro-point dd {
+  margin: 0;
+  color: var(--q-text-muted);
+  line-height: 1.5;
+}
+.intro-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.intro-primary {
+  background: var(--q-accent);
+  border-color: var(--q-accent);
+  color: var(--q-accent-fg);
+}
+.intro-source {
+  margin-left: auto;
+  color: var(--q-link);
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+@keyframes intro-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+}
+@media (max-width: 560px) {
+  .intro-demo { grid-template-columns: 1fr; }
+  .intro-code-pane { border-radius: 14px 14px 0 0; }
+  .intro-slide-pane { border-radius: 0 0 14px 14px; }
+  .intro-arrow { min-height: 34px; transform: rotate(90deg); }
+  .intro-start-header { display: block; }
+  .intro-start-header span { display: block; margin-top: 5px; }
+  .intro-steps { grid-template-columns: 1fr; }
+  .intro-point { grid-template-columns: 1fr; gap: 4px; }
+  .intro-source { width: 100%; margin: 6px 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro[open] { animation: none; }
+}
+
+</style>
+</head>
+<body>
+
+<button class="burger" id="burger" type="button" aria-label="Slides">
+  <span></span><span></span><span></span>
+</button>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="panel" id="panel" aria-label="All slides">
+  <div class="panel-head">
+    <span class="panel-title">Slides</span>
+    <button class="panel-close" id="panelClose" type="button" aria-label="Close">&times;</button>
+  </div>
+  <div class="panel-list" id="panelList"></div>
+  <div class="panel-foot">
+    Hidden slides stay reachable here and are skipped in normal navigation.
+    Toggling is for this session only &mdash; set <code>hidden: true</code> in
+    the Markdown source to make it stick.
+  </div>
+</aside>
+
+
+<div class="toolbar">
+  <span id="status">Starting…</span>
+  <button id="fitBtn" type="button" hidden>—</button>
+  <button id="exportBtn" type="button" hidden>Export</button>
+  <button id="aboutBtn" type="button">About</button>
+  <button id="openBtn" type="button">Open deck…</button>
+</div>
+
+<dialog class="intro" id="introDialog" aria-labelledby="introTitle">
+  <div class="intro-inner">
+    <button class="intro-close" id="introClose" type="button" aria-label="Close">&times;</button>
+    <h1 id="introTitle">100% local.</h1>
+    <p class="intro-lede">
+      Quire is an agent-native presentation builder that works entirely on your
+      machine. Your agent writes Quire source—a focused, Markdown-shaped
+      presentation dialect—and your browser opens it directly and presents it
+      with plain, inspectable JavaScript.
+    </p>
+    <div class="intro-demo" aria-label="Quire source becomes a rendered slide">
+      <section class="intro-pane intro-code-pane">
+        <span class="intro-pane-label">Quire source</span>
+        <pre class="intro-code"><code>eyebrow: THE IDEA
+
+## Present from the source
+One local text file becomes the deck.
+
+### Your agent
+Writes clear, reviewable Quire source.
+
+### Your browser {accent}
+Renders and presents it locally.
+
+&gt; **Takeaway:** No upload required.</code></pre>
+      </section>
+      <div class="intro-arrow" aria-hidden="true">&rarr;</div>
+      <section class="intro-pane intro-slide-pane">
+        <span class="intro-pane-label">Rendered presentation</span>
+        <div class="intro-slide">
+          <div class="intro-slide-label">THE IDEA</div>
+          <h2>Present from the source</h2>
+          <p class="intro-slide-sub">One local text file becomes the deck.</p>
+          <div class="intro-slide-cards">
+            <div class="intro-slide-card">
+              <strong>Your agent</strong>
+              <span>Writes clear, reviewable Quire source.</span>
+            </div>
+            <div class="intro-slide-card accent">
+              <strong>Your browser</strong>
+              <span>Renders and presents it locally.</span>
+            </div>
+          </div>
+          <div class="intro-slide-note">Takeaway: No upload required.</div>
+        </div>
+      </section>
+    </div>
+    <section class="intro-start" aria-labelledby="introStartTitle">
+      <div class="intro-start-header">
+        <h2 id="introStartTitle">How you’ll get going</h2>
+        <span>No marketplace required.</span>
+      </div>
+      <div class="intro-steps">
+        <div class="intro-step">
+          <span class="intro-step-number">1</span>
+          <strong>Teach your agent</strong>
+          <p>Tell your agent:</p>
+          <code class="intro-agent-prompt">Run gh skill install markgar/quire quire --scope user, reload your skills, then use /quire to create my presentation.</code>
+        </div>
+        <div class="intro-step">
+          <span class="intro-step-number">2</span>
+          <strong>Ask for a deck</strong>
+          <p>Your agent creates a local <code>.md</code> file using Quire source.</p>
+        </div>
+        <div class="intro-step">
+          <span class="intro-step-number">3</span>
+          <strong>Open and present</strong>
+          <p>Choose that file here. Quire watches it and refreshes as your agent edits.</p>
+        </div>
+      </div>
+    </section>
+    <dl class="intro-points">
+      <div class="intro-point">
+        <dt>Local by design</dt>
+        <dd>Your deck stays on your machine. No upload, account, analytics, or server-side processing.</dd>
+      </div>
+      <div class="intro-point">
+        <dt>Source native</dt>
+        <dd>Write, diff, review, and revise the presentation as a small, purpose-built text format.</dd>
+      </div>
+      <div class="intro-point">
+        <dt>Open source</dt>
+        <dd>The app is one HTML file. Read the code and verify exactly what runs in your browser.</dd>
+      </div>
+    </dl>
+    <div class="intro-actions">
+      <button class="intro-primary" id="introOpenBtn" type="button">Choose a Quire deck</button>
+      <button id="introDismiss" type="button">Explore first</button>
+      <a class="intro-source" href="https://github.com/markgar/quire" target="_blank" rel="noopener noreferrer">
+        View source on GitHub
+      </a>
+    </div>
+  </div>
+</dialog>
+
+<div class="stage" id="stage">
+<div class="scaler" id="scaler"></div>
+<div class="drop-hint" id="dropHint">
+  <h1>100% local.</h1>
+  <p class="drop-lede">Quire turns agent-written source into presentations in your browser.</p>
+  <p class="drop-detail">Open a deck, or drop a <code>.md</code> file here. Your deck never leaves this machine.</p>
+  <p class="drop-proof">No upload. No account. No analytics. Open-source HTML and JavaScript.</p>
+</div>
+</div>
+
+<nav class="nav">
+  <button id="prev" type="button">&larr; Prev</button>
+  <span class="counter" id="counter">&mdash;</span>
+  <button id="next" type="button">Next &rarr;</button>
+  <span class="dots" id="dots"></span>
+  <span class="hint">&larr; &rarr; or space &middot; F full screen &middot; T theme &middot; S slides</span>
+</nav>
+
+<script>
+(() => {
+  const SLIDE_W = 1280, SLIDE_H = 720;
+  let slides = [];
+  let hidden = [];
+  const stage = document.getElementById("stage");
+  const scaler = document.getElementById("scaler");
+  const prev = document.getElementById("prev");
+  const next = document.getElementById("next");
+  const counter = document.getElementById("counter");
+  const dotWrap = document.getElementById("dots");
+  const burger = document.getElementById("burger");
+  const panel = document.getElementById("panel");
+  const panelList = document.getElementById("panelList");
+  const panelClose = document.getElementById("panelClose");
+  const scrim = document.getElementById("scrim");
+  let i = 0;
+
+  // Hidden state starts from the Markdown (data-hidden) and can be flipped
+  // for the current session from the panel. It is deliberately not persisted:
+  // the source of truth stays in the .md.
+  function readSlides() {
+    slides = Array.from(scaler.querySelectorAll(".slide"));
+    hidden = slides.map(s => s.dataset.hidden === "true");
+  }
+  const isShown = n => !hidden[n];
+  const shownIndexes = () => slides.map((_, n) => n).filter(isShown);
+
+  function fit() {
+    const cs = getComputedStyle(stage);
+    const availW = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const availH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const scale = Math.min(availW / SLIDE_W, availH / SLIDE_H);
+    scaler.style.transform = "scale(" + scale + ")";
+    scaler.style.margin =
+      ((availH - SLIDE_H) / 2) + "px " + ((availW - SLIDE_W) / 2) + "px";
+  }
+
+  // ---- slide panel ------------------------------------------------------
+  // Thumbnails are live clones of the real slides, scaled down. Rendering the
+  // actual markup means a thumbnail can never drift from the slide it shows.
+  function buildPanel() {
+    panelList.innerHTML = "";
+    slides.forEach((slide, n) => {
+      const item = document.createElement("div");
+      item.className = "thumb";
+      item.dataset.index = n;
+
+      const frame = document.createElement("div");
+      frame.className = "thumb-frame";
+      const inner = document.createElement("div");
+      inner.className = "thumb-scale";
+      const clone = slide.cloneNode(true);
+      // The clone must not carry .active: it would pollute every
+      // `.slide.active` query, and the panel sits before the stage in the DOM
+      // so the clone would win. `.thumb-scale .slide` displays it instead.
+      clone.classList.remove("active");
+      clone.removeAttribute("id");
+      inner.appendChild(clone);
+      frame.appendChild(inner);
+      frame.addEventListener("click", () => { go(n); closePanel(); });
+
+      const meta = document.createElement("div");
+      meta.className = "thumb-meta";
+      const num = document.createElement("span");
+      num.className = "thumb-num";
+      const over = document.createElement("span");
+      over.className = "thumb-over";
+      over.hidden = true;
+      const toggle = document.createElement("button");
+      toggle.className = "thumb-toggle";
+      toggle.type = "button";
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        hidden[n] = !hidden[n];
+        // Never strand the viewer on a slide just hidden, and never hide the
+        // last visible slide out from under the deck.
+        if (hidden[n] && shownIndexes().length === 0) { hidden[n] = false; }
+        else if (hidden[n] && n === i) { const s = shownIndexes(); if (s.length) go(s[0]); }
+        render();
+      });
+
+      meta.appendChild(num);
+      meta.appendChild(over);
+      meta.appendChild(toggle);
+      item.appendChild(frame);
+      item.appendChild(meta);
+      panelList.appendChild(item);
+    });
+    sizeThumbs();
+  }
+
+  function sizeThumbs() {
+    panelList.querySelectorAll(".thumb-frame").forEach(f => {
+      const s = f.clientWidth / SLIDE_W;
+      f.querySelector(".thumb-scale").style.transform = "scale(" + s + ")";
+    });
+  }
+
+  function openPanel() { panel.classList.add("open"); scrim.classList.add("on"); sizeThumbs(); }
+  function closePanel() { panel.classList.remove("open"); scrim.classList.remove("on"); }
+  function togglePanel() { panel.classList.contains("open") ? closePanel() : openPanel(); }
+
+  burger.addEventListener("click", togglePanel);
+  panelClose.addEventListener("click", closePanel);
+  scrim.addEventListener("click", closePanel);
+
+  // ---- dots -------------------------------------------------------------
+  function buildDots() {
+    dotWrap.innerHTML = "";
+    shownIndexes().forEach(n => {
+      const d = document.createElement("button");
+      d.className = "dot";
+      d.type = "button";
+      d.dataset.index = n;
+      d.setAttribute("aria-label", "Go to slide " + (n + 1));
+      d.addEventListener("click", () => go(n));
+      dotWrap.appendChild(d);
+    });
+  }
+
+  // ---- render -----------------------------------------------------------
+  function render() {
+    slides.forEach((s, k) => s.classList.toggle("active", k === i));
+
+    const shown = shownIndexes();
+    // Numbering counts visible slides only, so a hidden slide does not leave
+    // a gap in "3 / 9". A hidden slide shows its position plus a marker.
+    const pos = shown.indexOf(i);
+    if (pos === -1) {
+      // Show position within the full deck too, so it is obvious where you
+      // landed - "hidden" alone loses all sense of place.
+      counter.textContent = "hidden · " + (i + 1) + " of " + slides.length;
+      counter.classList.add("hidden-mark");
+    } else {
+      counter.textContent = (pos + 1) + " / " + shown.length;
+      counter.classList.remove("hidden-mark");
+    }
+
+    buildDots();
+    Array.from(dotWrap.children).forEach(d => d.classList.toggle("on", +d.dataset.index === i));
+
+    prev.disabled = pos <= 0 && pos !== -1;
+    next.disabled = pos === shown.length - 1 && pos !== -1;
+    if (pos === -1) { prev.disabled = false; next.disabled = false; }
+
+    panelList.querySelectorAll(".thumb").forEach(t => {
+      const n = +t.dataset.index;
+      t.classList.toggle("current", n === i);
+      t.classList.toggle("is-hidden", hidden[n]);
+      t.querySelector(".thumb-num").textContent =
+        hidden[n] ? "Hidden" : "Slide " + (shownIndexes().indexOf(n) + 1);
+      t.querySelector(".thumb-toggle").textContent = hidden[n] ? "Show" : "Hide";
+      // data-over is written by the fit pass before refresh() runs, so the
+      // panel shows which slides overflow without measuring again.
+      const over = slides[n] && slides[n].dataset.over;
+      t.classList.toggle("is-over", !!over);
+      const flag = t.querySelector(".thumb-over");
+      if (over) {
+        flag.textContent = over + "px over";
+        flag.hidden = false;
+      } else {
+        flag.hidden = true;
+      }
+    });
+
+    if (location.hash !== "#" + (i + 1)) history.replaceState(null, "", "#" + (i + 1));
+  }
+
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    render();
+  }
+
+  // Step through visible slides only; hidden ones are reachable by deep link
+  // or from the panel, which is the whole point of hiding them.
+  function step(dir) {
+    const shown = shownIndexes();
+    if (!shown.length) return;
+    const pos = shown.indexOf(i);
+    if (pos === -1) {
+      const nextUp = dir > 0 ? shown.find(n => n > i) : [...shown].reverse().find(n => n < i);
+      go(nextUp !== undefined ? nextUp : shown[dir > 0 ? 0 : shown.length - 1]);
+      return;
+    }
+    const t = pos + dir;
+    if (t >= 0 && t < shown.length) go(shown[t]);
+  }
+
+  prev.addEventListener("click", () => step(-1));
+  next.addEventListener("click", () => step(1));
+
+  document.addEventListener("keydown", (e) => {
+    if (document.querySelector("dialog[open]")) return;
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); step(1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); step(-1); }
+    else if (e.key === "Home") { e.preventDefault(); const s = shownIndexes(); if (s.length) go(s[0]); }
+    else if (e.key === "End") { e.preventDefault(); const s = shownIndexes(); if (s.length) go(s[s.length - 1]); }
+    else if (e.key === "Escape") { closePanel(); }
+    else if (e.key === "s" || e.key === "S") { e.preventDefault(); togglePanel(); }
+    else if (e.key === "f" || e.key === "F") {
+      e.preventDefault();
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen?.();
+    }
+    else if (e.key === "t" || e.key === "T") {
+      e.preventDefault();
+      const root = document.documentElement;
+      root.setAttribute("data-theme",
+        root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    }
+  });
+
+  function fromHash() {
+    const n = parseInt((location.hash || "").replace("#", ""), 10);
+    return Number.isFinite(n) && n > 0 ? n - 1 : 0;
+  }
+  // Without this listener, changing the hash on an already-loaded page does
+  // nothing: deep links silently show slide 1, and a screenshot loop that
+  // navigates by hash captures the same slide N times.
+  window.addEventListener("hashchange", () => {
+    const n = fromHash();
+    if (n !== i) go(n);
+  });
+
+  window.addEventListener("resize", fit);
+  document.addEventListener("fullscreenchange", fit);
+  // window.resize alone is not enough: it never fires when the deck is inside
+  // an iframe or app panel that is resized without the window changing, and it
+  // can lag behind a live window drag. ResizeObserver watches the element's
+  // own box, so it fires for every cause - panel drag, zoom, full screen.
+  if (window.ResizeObserver) {
+    new ResizeObserver(fit).observe(stage);
+    new ResizeObserver(sizeThumbs).observe(panelList);
+  }
+  // Called once on mount and again after every re-render. Everything that
+  // depends on the slide list is rebuilt; listeners above are attached once.
+  function refresh(keepIndex) {
+    readSlides();
+    if (!slides.length) return;
+    buildPanel();
+    const target = keepIndex === undefined ? fromHash() : Math.min(keepIndex, slides.length - 1);
+    go(target);
+    fit();
+  }
+
+  window.quireNav = { refresh, current: () => i, go };
+  refresh();
+})();
+
+</script>
+
+<script>
+window.quireShell = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{title}</title>\n<script>\n  (() => {\n    const param = new URLSearchParams(window.location.search).get(\"theme\");\n    const theme =\n      param || (window.matchMedia(\"(prefers-color-scheme: dark)\").matches ? \"dark\" : \"light\");\n    document.documentElement.setAttribute(\"data-theme\", theme);\n  })();\n<\/script>\n<style>\n:root {\n  color-scheme: light;\n  --q-bg: #f7f4ef;\n  --q-bg-elevated: #fcfbf8;\n  --q-surface: #ffffff;\n  --q-surface-soft: #f5f5f5;\n  --q-border: #dedede;\n  --q-border-strong: #919191;\n  --q-text: #242424;\n  --q-text-muted: #5c5c5c;\n  --q-text-soft: #6f6f6f;\n  --q-accent: #b11f4b;\n  --q-accent-hover: #9a1a41;\n  --q-accent-soft: rgba(177, 31, 75, 0.08);\n  --q-accent-fg: #ffffff;\n  --q-success: #16a34a;\n  --q-danger: #dc2626;\n  --q-warning: #f59e0b;\n  --q-link: #0078d4;\n  --q-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);\n  --q-overlay: rgba(255, 255, 255, 0.8);\n  --q-panel: rgba(255, 255, 255, 0.86);\n  --q-panel-strong: rgba(255, 255, 255, 0.96);\n  --q-sheen: rgba(255, 255, 255, 0.55);\n  --q-highlight: rgba(177, 31, 75, 0.12);\n}\nhtml[data-theme=\"dark\"] {\n  color-scheme: dark;\n  --q-bg: #3d3b3a;\n  --q-bg-elevated: #343231;\n  --q-surface: #292929;\n  --q-surface-soft: #2e2e2e;\n  --q-border: #474747;\n  --q-border-strong: #5f5f5f;\n  --q-text: #dedede;\n  --q-text-muted: #919191;\n  --q-text-soft: #b0b0b0;\n  --q-accent: #fd8ea1;\n  --q-accent-hover: #fb7b91;\n  --q-accent-soft: rgba(253, 142, 161, 0.14);\n  --q-accent-fg: #1a1a1a;\n  --q-success: #4ade80;\n  --q-danger: #f87171;\n  --q-warning: #fbbf24;\n  --q-link: #4da6ff;\n  --q-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);\n  --q-overlay: rgba(41, 41, 41, 0.88);\n  --q-panel: rgba(41, 41, 41, 0.72);\n  --q-panel-strong: rgba(41, 41, 41, 0.96);\n  --q-sheen: rgba(255, 255, 255, 0.04);\n  --q-highlight: rgba(253, 142, 161, 0.12);\n}\n\n* { box-sizing: border-box; margin: 0; padding: 0; }\n\nbody {\n  background: var(--q-bg);\n  color: var(--q-text);\n  font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, \"Noto Sans\", sans-serif;\n  height: 100vh;\n  overflow: hidden;\n  display: flex;\n  flex-direction: column;\n}\n\n/* Fixed 16:9 canvas, scaled to fit the viewport. Everything is authored at\n   1280x720 and scaled as a unit, so layout never reflows between screens -\n   what you see while editing is what a projector shows. */\n.stage {\n  flex: 1;\n  position: relative;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 0;\n  padding: 20px;\n}\n.scaler {\n  width: 1280px;\n  height: 720px;\n  flex: 0 0 auto;\n  transform-origin: center center;\n  position: relative;\n}\n\n/* Slides stack in the same box so scaling applies once. Content taller than\n   720px overflows the frame - that is a content bug, not a layout one. */\n.slide {\n  position: absolute;\n  inset: 0;\n  display: none;\n  background: var(--q-surface);\n  border: 1px solid var(--q-border);\n  border-radius: 16px;\n  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);\n  padding: 54px 64px;\n  flex-direction: column;\n  overflow: hidden;\n}\n.slide.active { display: flex; }\n\n.eyebrow {\n  font-size: 12px;\n  letter-spacing: 0.14em;\n  text-transform: uppercase;\n  color: var(--q-accent);\n  font-weight: 700;\n  margin-bottom: 14px;\n}\n\nh1 { font-size: 50px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 20px; }\nh2 { font-size: 38px; line-height: 1.15; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 8px; }\n.sub { font-size: 18px; color: var(--q-text-muted); margin-bottom: 30px; max-width: 78ch; line-height: 1.5; }\n/* .sub carries the gap below the title; without one, .body would sit\n   almost flush against the h2. */\nh2 + .body { margin-top: 22px; }\np { font-size: 16px; line-height: 1.6; }\n\n/* A trailing note/kicker is pushed to the bottom of the frame, so light\n   slides read as designed instead of floating above dead space. */\n.body { flex: 1; display: flex; flex-direction: column; gap: 22px; }\n.body > .note:last-child,\n.body > .kicker:last-child { margin-top: auto; }\n\n.title-slide { justify-content: center; background: var(--q-bg-elevated); }\n.title-slide h1 { font-size: 64px; max-width: 20ch; }\n.title-slide .lede { font-size: 22px; color: var(--q-text-muted); max-width: 62ch; line-height: 1.5; margin-top: 6px; }\n.title-meta {\n  margin-top: 44px; padding-top: 22px;\n  border-top: 1px solid var(--q-border);\n  font-size: 14px; color: var(--q-text-soft);\n  display: flex; gap: 28px; flex-wrap: wrap;\n}\n\n.pull {\n  font-size: 30px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em;\n  border-left: 4px solid var(--q-accent);\n  padding: 4px 0 4px 24px;\n  max-width: 62ch;\n}\n.pull em { color: var(--q-accent); font-style: normal; }\n\n.grid { display: grid; gap: 18px; }\n.g2 { grid-template-columns: 1fr 1fr; }\n.g3 { grid-template-columns: repeat(3, 1fr); }\n\n.card {\n  background: var(--q-surface-soft);\n  border: 1px solid var(--q-border);\n  border-radius: 16px;\n  padding: 22px 24px;\n}\n.card.accent { background: var(--q-accent-soft); border-color: var(--q-accent); }\n.card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }\n.card p { font-size: 14.5px; color: var(--q-text-muted); line-height: 1.55; }\n\n.num {\n  display: inline-flex; align-items: center; justify-content: center;\n  width: 30px; height: 30px; border-radius: 50%;\n  background: var(--q-accent); color: var(--q-accent-fg);\n  font-size: 14px; font-weight: 700; margin-bottom: 12px;\n}\n\n/* A labelled band of cards. The rule trailing the label ties the pair\n   together visually, so two groups on one slide read as two questions\n   rather than one list of four. */\n.group { display: flex; flex-direction: column; gap: 11px; }\n.group-label {\n  display: flex; align-items: center; gap: 12px;\n  font-size: 11.5px; letter-spacing: 0.11em; text-transform: uppercase;\n  font-weight: 700; color: var(--q-text-soft);\n}\n.group-label::after {\n  content: \"\"; flex: 1; height: 1px; background: var(--q-border);\n}\n\ntable { width: 100%; border-collapse: collapse; }\nth {\n  text-align: left; font-size: 12px; letter-spacing: 0.08em;\n  text-transform: uppercase; color: var(--q-text-soft); font-weight: 700;\n  padding: 0 14px 10px 0; border-bottom: 1px solid var(--q-border);\n}\ntd { padding: 13px 14px 13px 0; font-size: 15px; border-bottom: 1px solid var(--q-border); vertical-align: top; line-height: 1.5; }\ntd.k { font-weight: 700; width: 26%; }\ntd.was { color: var(--q-text-soft); width: 33%; }\ntd.is { color: var(--q-text); }\ntr:last-child td { border-bottom: none; }\n\n.rows { display: flex; flex-direction: column; gap: 11px; }\n.row {\n  display: flex; gap: 16px; align-items: flex-start;\n  padding: 13px 18px;\n  background: var(--q-surface-soft);\n  border: 1px solid var(--q-border);\n  border-radius: 16px;\n}\n.row .q { font-weight: 700; font-size: 15.5px; margin-bottom: 3px; }\n.row .a { font-size: 14.5px; color: var(--q-text-muted); line-height: 1.5; }\n.row .badge {\n  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;\n  background: var(--q-accent-soft); color: var(--q-accent);\n  border: 1px solid var(--q-accent);\n  display: flex; align-items: center; justify-content: center;\n  font-size: 13px; font-weight: 700; margin-top: 1px;\n}\n\n.note {\n  padding: 16px 20px; border-radius: 16px;\n  background: var(--q-accent-soft); border: 1px solid var(--q-accent);\n  font-size: 15px; line-height: 1.55;\n}\n.note strong, .note b { color: var(--q-accent); }\n\n.kicker {\n  padding-top: 22px; font-size: 15.5px; color: var(--q-text-muted);\n  border-top: 1px solid var(--q-border); line-height: 1.55;\n}\n.kicker b, .kicker strong { color: var(--q-text); }\n\n.source-line {\n  margin-top: auto;\n  padding-top: 12px;\n  color: var(--q-text-soft);\n  font-size: 12px;\n  line-height: 1.4;\n}\n.source-line a { color: inherit; text-underline-offset: 3px; }\n.title-source { margin-top: 34px; }\n\n.metrics {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));\n  gap: 18px;\n  flex: 1;\n  align-items: stretch;\n}\n.metric {\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-end;\n  min-width: 0;\n  padding: 28px;\n  background: var(--q-surface-soft);\n  border-top: 3px solid var(--q-border-strong);\n}\n.metric.accent { background: var(--q-accent-soft); border-color: var(--q-accent); }\n.metric-value {\n  color: var(--q-text);\n  font-size: clamp(48px, 5vw, 76px);\n  font-weight: 750;\n  line-height: 0.95;\n  letter-spacing: -0.04em;\n}\n.metric-label {\n  max-width: 24ch;\n  margin-top: 18px;\n  color: var(--q-text-muted);\n  font-size: 15px;\n  line-height: 1.45;\n}\n\n.media-split {\n  display: grid;\n  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);\n  gap: 28px;\n  min-height: 0;\n  height: 100%;\n}\n.media-split > .grid { align-content: center; }\n.media-figure {\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  min-width: 0;\n  min-height: 0;\n  margin: 0;\n  overflow: hidden;\n  background: var(--q-surface-soft);\n  border: 1px solid var(--q-border);\n}\n.media-figure img {\n  width: 100%;\n  min-height: 0;\n  flex: 1;\n  object-fit: cover;\n}\n.media-figure figcaption {\n  padding: 9px 12px;\n  color: var(--q-text-soft);\n  font-size: 11px;\n  line-height: 1.4;\n}\n.media-missing {\n  display: grid;\n  flex: 1;\n  place-items: center;\n  color: var(--q-text-soft);\n  font-size: 14px;\n}\n.media-position-full .sub { margin-bottom: 18px; }\n.media-position-full .body { min-height: 0; }\n.media-position-full .media-figure { flex: 1; height: auto; }\n.media-copy { align-self: center; color: var(--q-text-muted); font-size: 20px; }\n\n.chart {\n  --chart-1: var(--q-accent);\n  --chart-2: #d97706;\n  --chart-3: #2563eb;\n  --chart-4: #059669;\n  --chart-5: #7c3aed;\n  flex: 1;\n  min-height: 0;\n}\n.chart-bar { display: flex; flex-direction: column; justify-content: center; gap: 17px; }\n.chart-bar-row {\n  display: grid;\n  grid-template-columns: 160px 1fr 70px;\n  gap: 16px;\n  align-items: center;\n}\n.chart-label { font-size: 14px; font-weight: 650; }\n.chart-track { height: 22px; overflow: hidden; background: var(--q-surface-soft); }\n.chart-track span { display: block; height: 100%; background: var(--q-accent); }\n.chart-value { text-align: right; font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; }\n.chart-line { display: flex; flex-direction: column; justify-content: center; }\n.chart-line svg { width: 100%; max-height: 320px; overflow: visible; }\n.chart-line polyline { fill: none; stroke: var(--q-accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }\n.chart-line circle { fill: var(--q-surface); stroke: var(--q-accent); stroke-width: 4; }\n.chart-line text { fill: var(--q-text); font-size: 15px; font-weight: 750; text-anchor: middle; }\n.chart-axis { display: flex; justify-content: space-between; margin-top: 8px; color: var(--q-text-soft); font-size: 12px; }\n.chart-donut { display: grid; grid-template-columns: 0.85fr 1.15fr; align-items: center; gap: 52px; }\n.donut {\n  width: 300px;\n  aspect-ratio: 1;\n  margin: auto;\n  border-radius: 50%;\n  display: grid;\n  place-items: center;\n}\n.donut::before {\n  content: \"\";\n  grid-area: 1 / 1;\n  width: 58%;\n  aspect-ratio: 1;\n  border-radius: 50%;\n  background: var(--q-surface);\n}\n.donut span { z-index: 1; font-size: 40px; font-weight: 750; font-variant-numeric: tabular-nums; }\n.chart-legend { display: flex; flex-direction: column; gap: 15px; }\n.chart-legend-item { display: grid; grid-template-columns: 14px 1fr auto; gap: 12px; align-items: center; font-size: 15px; }\n.chart-swatch { width: 11px; height: 11px; border-radius: 50%; }\n.swatch-1 { background: var(--chart-1); }\n.swatch-2 { background: var(--chart-2); }\n.swatch-3 { background: var(--chart-3); }\n.swatch-4 { background: var(--chart-4); }\n.swatch-5 { background: var(--chart-5); }\n\n.diagram { flex: 1; min-height: 0; }\n.diagram-process {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));\n  gap: 28px;\n  align-items: center;\n}\n.diagram-process .diagram-node:not(:last-child)::after {\n  content: \"→\";\n  position: absolute;\n  top: 50%;\n  right: -22px;\n  color: var(--q-accent);\n  font-size: 24px;\n  transform: translateY(-50%);\n}\n.diagram-node {\n  position: relative;\n  padding: 22px;\n  background: var(--q-surface-soft);\n  border-top: 2px solid var(--q-border-strong);\n}\n.diagram-node.accent { border-color: var(--q-accent); }\n.diagram-node strong { display: block; margin: 12px 0 7px; font-size: 17px; }\n.diagram-node p { color: var(--q-text-muted); font-size: 14px; line-height: 1.5; }\n.diagram-mark { color: var(--q-accent); font-size: 12px; font-weight: 800; }\n.diagram-timeline { display: flex; flex-direction: column; justify-content: center; gap: 0; }\n.diagram-timeline .diagram-node {\n  display: grid;\n  grid-template-columns: 48px 180px 1fr;\n  align-items: baseline;\n  padding: 15px 0;\n  background: none;\n  border-top: 1px solid var(--q-border);\n}\n.diagram-timeline .diagram-node:last-child { border-bottom: 1px solid var(--q-border); }\n.diagram-timeline .diagram-node strong { margin: 0; }\n.diagram-hierarchy {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr);\n  gap: 20px;\n  align-content: center;\n}\n.diagram-hierarchy .diagram-node:first-child { grid-column: 2; }\n.diagram-hierarchy .diagram-node:not(:first-child) { grid-row: 2; }\n\n.align-center { text-align: center; }\n.align-center .sub { margin-left: auto; margin-right: auto; }\n.tone-accent { background: var(--q-accent); color: var(--q-accent-fg); border-color: transparent; }\n.tone-accent .eyebrow,\n.tone-accent .sub,\n.tone-accent .metric-label,\n.tone-accent .diagram-node p,\n.tone-accent .card p,\n.tone-accent .source-line { color: color-mix(in srgb, var(--q-accent-fg) 76%, transparent); }\n.tone-accent .metric,\n.tone-accent .diagram-node,\n.tone-accent .card { background: color-mix(in srgb, var(--q-accent-fg) 10%, transparent); border-color: color-mix(in srgb, var(--q-accent-fg) 38%, transparent); }\n.tone-accent .metric-value,\n.tone-accent .card h3,\n.tone-accent .donut span { color: var(--q-accent-fg); }\n.tone-accent .chart { --chart-1: var(--q-accent-fg); }\n.tone-accent .chart-track { background: color-mix(in srgb, var(--q-accent-fg) 18%, transparent); }\n.tone-accent .chart-track span { background: var(--q-accent-fg); }\n.tone-accent .chart-line polyline { stroke: var(--q-accent-fg); }\n.tone-accent .chart-line circle { fill: var(--q-accent); stroke: var(--q-accent-fg); }\n.tone-accent .chart-line text,\n.tone-accent .chart-axis { fill: var(--q-accent-fg); color: var(--q-accent-fg); }\n.tone-contrast { background: #171717; color: #f7f4ef; border-color: #171717; }\n.tone-contrast .eyebrow { color: #fd8ea1; }\n.tone-contrast .sub,\n.tone-contrast .source-line,\n.tone-contrast .title-meta { color: #c7c2bb; }\n.tone-contrast .title-meta { border-color: #55504a; }\n\n.nav {\n  flex: 0 0 auto;\n  background: var(--q-panel-strong);\n  border-top: 1px solid var(--q-border);\n  display: flex; align-items: center; justify-content: center;\n  gap: 16px; padding: 10px 20px;\n}\n\n/* ---- slide panel ------------------------------------------------------ */\n\n.burger {\n  position: fixed; top: 14px; left: 14px; z-index: 30;\n  width: 38px; height: 34px;\n  display: flex; flex-direction: column; align-items: center; justify-content: center;\n  gap: 4px; padding: 0;\n  background: var(--q-panel-strong);\n  border: 1px solid var(--q-border);\n  border-radius: 0.625rem;\n  cursor: pointer;\n}\n.burger span {\n  display: block; width: 16px; height: 2px; border-radius: 1px;\n  background: var(--q-text);\n}\n.burger:hover { background: var(--q-accent); border-color: var(--q-accent); }\n.burger:hover span { background: var(--q-accent-fg); }\n\n.panel {\n  position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;\n  width: 300px;\n  background: var(--q-bg-elevated);\n  border-right: 1px solid var(--q-border);\n  box-shadow: var(--q-shadow);\n  transform: translateX(-100%);\n  transition: transform 0.18s ease;\n  display: flex; flex-direction: column;\n}\n.panel.open { transform: translateX(0); }\n\n.panel-head {\n  flex: 0 0 auto;\n  display: flex; align-items: center; justify-content: space-between;\n  padding: 14px 16px;\n  border-bottom: 1px solid var(--q-border);\n}\n.panel-title {\n  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;\n  font-weight: 700; color: var(--q-text-soft);\n}\n.panel-close {\n  border: none; background: none; color: var(--q-text-muted);\n  font-size: 20px; line-height: 1; padding: 2px 6px; cursor: pointer;\n  border-radius: 0.625rem;\n}\n.panel-close:hover { background: var(--q-accent); color: var(--q-accent-fg); }\n\n/* Extra bottom padding so the last thumbnail's label clears the footer. */\n.panel-list { flex: 1; overflow-y: auto; padding: 12px 12px 20px; }\n\n.thumb { margin-bottom: 14px; }\n.thumb-frame {\n  width: 100%; aspect-ratio: 16 / 9;\n  position: relative; overflow: hidden;\n  border: 2px solid var(--q-border);\n  border-radius: 10px;\n  cursor: pointer;\n  background: var(--q-surface);\n}\n.thumb-frame:hover { border-color: var(--q-accent); }\n.thumb.current .thumb-frame { border-color: var(--q-accent); }\n.thumb.is-hidden .thumb-frame { opacity: 0.42; }\n\n/* The clone is the real slide at 1280x720, scaled into the frame. Using the\n   actual markup keeps thumbnails honest - they cannot drift from the deck. */\n.thumb-scale {\n  position: absolute; top: 0; left: 0;\n  width: 1280px; height: 720px;\n  transform-origin: top left;\n  pointer-events: none;\n}\n.thumb-scale .slide {\n  position: absolute; inset: 0; display: flex;\n  border-radius: 0; border: none; box-shadow: none;\n}\n\n.thumb-meta {\n  display: flex; align-items: center; justify-content: space-between;\n  padding: 5px 2px 0;\n}\n.thumb-num {\n  font-size: 11px; font-weight: 700; color: var(--q-text-soft);\n  font-variant-numeric: tabular-nums;\n}\n.thumb.is-hidden .thumb-num { color: var(--q-accent); }\n.thumb-toggle {\n  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;\n  text-transform: uppercase;\n  padding: 3px 8px; border-radius: 999px;\n  border: 1px solid var(--q-border-strong);\n  background: var(--q-surface); color: var(--q-text-muted);\n  cursor: pointer;\n}\n.thumb-toggle:hover { background: var(--q-accent); color: var(--q-accent-fg); border-color: var(--q-accent); }\n.thumb.is-hidden .thumb-toggle {\n  background: var(--q-accent-soft); color: var(--q-accent); border-color: var(--q-accent);\n}\n\n.panel-foot {\n  flex: 0 0 auto;\n  padding: 10px 16px 14px;\n  border-top: 1px solid var(--q-border);\n  font-size: 11px; line-height: 1.45;\n  color: var(--q-text-soft);\n}\n\n.scrim {\n  position: fixed; inset: 0; z-index: 35;\n  background: rgba(0,0,0,0.28);\n  opacity: 0; pointer-events: none;\n  transition: opacity 0.18s ease;\n}\n.scrim.on { opacity: 1; pointer-events: auto; }\n\n.counter.hidden-mark { color: var(--q-accent); font-weight: 700; }\nbutton {\n  font-family: inherit; font-size: 14px; font-weight: 600;\n  padding: 8px 18px; border-radius: 0.625rem;\n  border: 1px solid var(--q-border-strong);\n  background: var(--q-surface); color: var(--q-text); cursor: pointer;\n}\nbutton:hover { background: var(--q-accent); color: var(--q-accent-fg); border-color: var(--q-accent); }\nbutton:disabled { opacity: 0.35; cursor: default; }\nbutton:disabled:hover { background: var(--q-surface); color: var(--q-text); border-color: var(--q-border-strong); }\n.counter { font-size: 14px; color: var(--q-text-muted); font-variant-numeric: tabular-nums; min-width: 62px; text-align: center; white-space: nowrap; }\n.dots { display: flex; gap: 7px; }\n.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--q-border-strong); border: none; padding: 0; cursor: pointer; }\n.dot:hover, .dot.on { background: var(--q-accent); }\n.hint { font-size: 12px; color: var(--q-text-soft); margin-left: 6px; }\n\n/* The slide canvas is fixed and scaled, so it never reflows. Only the nav,\n   which lives outside the scaler, adapts on narrow screens. */\n@media (max-width: 700px) {\n  .dots { display: none; }\n  .hint { display: none; }\n}\n</style>\n</head>\n<body>\n\n<button class=\"burger\" id=\"burger\" type=\"button\" aria-label=\"Slides\">\n  <span></span><span></span><span></span>\n</button>\n\n<div class=\"scrim\" id=\"scrim\"></div>\n\n<aside class=\"panel\" id=\"panel\" aria-label=\"All slides\">\n  <div class=\"panel-head\">\n    <span class=\"panel-title\">Slides</span>\n    <button class=\"panel-close\" id=\"panelClose\" type=\"button\" aria-label=\"Close\">&times;</button>\n  </div>\n  <div class=\"panel-list\" id=\"panelList\"></div>\n  <div class=\"panel-foot\">\n    Hidden slides stay reachable here and are skipped in normal navigation.\n    Toggling is for this session only &mdash; set <code>hidden: true</code> in\n    the Markdown source to make it stick.\n  </div>\n</aside>\n\n<div class=\"stage\" id=\"stage\">\n<div class=\"scaler\" id=\"scaler\">\n\n{slides}\n</div>\n</div>\n\n<nav class=\"nav\">\n  <button id=\"prev\" type=\"button\">&larr; Prev</button>\n  <span class=\"counter\" id=\"counter\">1 / {n}</span>\n  <button id=\"next\" type=\"button\">Next &rarr;</button>\n  <span class=\"dots\" id=\"dots\"></span>\n  <span class=\"hint\">&larr; &rarr; or space &middot; F full screen &middot; T theme &middot; S slides</span>\n</nav>\n\n<script>\n(() => {\n  const SLIDE_W = 1280, SLIDE_H = 720;\n  const slides = Array.from(document.querySelectorAll(\".slide\"));\n  const stage = document.getElementById(\"stage\");\n  const scaler = document.getElementById(\"scaler\");\n  const prev = document.getElementById(\"prev\");\n  const next = document.getElementById(\"next\");\n  const counter = document.getElementById(\"counter\");\n  const dotWrap = document.getElementById(\"dots\");\n  const burger = document.getElementById(\"burger\");\n  const panel = document.getElementById(\"panel\");\n  const panelList = document.getElementById(\"panelList\");\n  const panelClose = document.getElementById(\"panelClose\");\n  const scrim = document.getElementById(\"scrim\");\n  let i = 0;\n\n  // Hidden state starts from the Markdown (data-hidden) and can be flipped\n  // for the current session from the panel. It is deliberately not persisted:\n  // the HTML is a build artifact, so the source of truth stays in the .md.\n  const hidden = slides.map(s => s.dataset.hidden === \"true\");\n  const isShown = n => !hidden[n];\n  const shownIndexes = () => slides.map((_, n) => n).filter(isShown);\n\n  function fit() {\n    const cs = getComputedStyle(stage);\n    const availW = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);\n    const availH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);\n    const scale = Math.min(availW / SLIDE_W, availH / SLIDE_H);\n    scaler.style.transform = \"scale(\" + scale + \")\";\n    scaler.style.margin =\n      ((availH - SLIDE_H) / 2) + \"px \" + ((availW - SLIDE_W) / 2) + \"px\";\n  }\n\n  // ---- slide panel ------------------------------------------------------\n  // Thumbnails are live clones of the real slides, scaled down. Rendering the\n  // actual markup means a thumbnail can never drift from the slide it shows.\n  function buildPanel() {\n    panelList.innerHTML = \"\";\n    slides.forEach((slide, n) => {\n      const item = document.createElement(\"div\");\n      item.className = \"thumb\";\n      item.dataset.index = n;\n\n      const frame = document.createElement(\"div\");\n      frame.className = \"thumb-frame\";\n      const inner = document.createElement(\"div\");\n      inner.className = \"thumb-scale\";\n      const clone = slide.cloneNode(true);\n      // The clone must not carry .active: it would pollute every\n      // `.slide.active` query, and the panel sits before the stage in the DOM\n      // so the clone would win. `.thumb-scale .slide` displays it instead.\n      clone.classList.remove(\"active\");\n      clone.removeAttribute(\"id\");\n      inner.appendChild(clone);\n      frame.appendChild(inner);\n      frame.addEventListener(\"click\", () => { go(n); closePanel(); });\n\n      const meta = document.createElement(\"div\");\n      meta.className = \"thumb-meta\";\n      const num = document.createElement(\"span\");\n      num.className = \"thumb-num\";\n      const toggle = document.createElement(\"button\");\n      toggle.className = \"thumb-toggle\";\n      toggle.type = \"button\";\n      toggle.addEventListener(\"click\", (e) => {\n        e.stopPropagation();\n        hidden[n] = !hidden[n];\n        // Never strand the viewer on a slide just hidden, and never hide the\n        // last visible slide out from under the deck.\n        if (hidden[n] && shownIndexes().length === 0) { hidden[n] = false; }\n        else if (hidden[n] && n === i) { const s = shownIndexes(); if (s.length) go(s[0]); }\n        render();\n      });\n\n      meta.appendChild(num);\n      meta.appendChild(toggle);\n      item.appendChild(frame);\n      item.appendChild(meta);\n      panelList.appendChild(item);\n    });\n    sizeThumbs();\n  }\n\n  function sizeThumbs() {\n    panelList.querySelectorAll(\".thumb-frame\").forEach(f => {\n      const s = f.clientWidth / SLIDE_W;\n      f.querySelector(\".thumb-scale\").style.transform = \"scale(\" + s + \")\";\n    });\n  }\n\n  function openPanel() { panel.classList.add(\"open\"); scrim.classList.add(\"on\"); sizeThumbs(); }\n  function closePanel() { panel.classList.remove(\"open\"); scrim.classList.remove(\"on\"); }\n  function togglePanel() { panel.classList.contains(\"open\") ? closePanel() : openPanel(); }\n\n  burger.addEventListener(\"click\", togglePanel);\n  panelClose.addEventListener(\"click\", closePanel);\n  scrim.addEventListener(\"click\", closePanel);\n\n  // ---- dots -------------------------------------------------------------\n  function buildDots() {\n    dotWrap.innerHTML = \"\";\n    shownIndexes().forEach(n => {\n      const d = document.createElement(\"button\");\n      d.className = \"dot\";\n      d.type = \"button\";\n      d.dataset.index = n;\n      d.setAttribute(\"aria-label\", \"Go to slide \" + (n + 1));\n      d.addEventListener(\"click\", () => go(n));\n      dotWrap.appendChild(d);\n    });\n  }\n\n  // ---- render -----------------------------------------------------------\n  function render() {\n    slides.forEach((s, k) => s.classList.toggle(\"active\", k === i));\n\n    const shown = shownIndexes();\n    // Numbering counts visible slides only, so a hidden slide does not leave\n    // a gap in \"3 / 9\". A hidden slide shows its position plus a marker.\n    const pos = shown.indexOf(i);\n    if (pos === -1) {\n      // Show position within the full deck too, so it is obvious where you\n      // landed - \"hidden\" alone loses all sense of place.\n      counter.textContent = \"hidden · \" + (i + 1) + \" of \" + slides.length;\n      counter.classList.add(\"hidden-mark\");\n    } else {\n      counter.textContent = (pos + 1) + \" / \" + shown.length;\n      counter.classList.remove(\"hidden-mark\");\n    }\n\n    buildDots();\n    Array.from(dotWrap.children).forEach(d => d.classList.toggle(\"on\", +d.dataset.index === i));\n\n    prev.disabled = pos <= 0 && pos !== -1;\n    next.disabled = pos === shown.length - 1 && pos !== -1;\n    if (pos === -1) { prev.disabled = false; next.disabled = false; }\n\n    panelList.querySelectorAll(\".thumb\").forEach(t => {\n      const n = +t.dataset.index;\n      t.classList.toggle(\"current\", n === i);\n      t.classList.toggle(\"is-hidden\", hidden[n]);\n      t.querySelector(\".thumb-num\").textContent =\n        hidden[n] ? \"Hidden\" : \"Slide \" + (shownIndexes().indexOf(n) + 1);\n      t.querySelector(\".thumb-toggle\").textContent = hidden[n] ? \"Show\" : \"Hide\";\n    });\n\n    if (location.hash !== \"#\" + (i + 1)) history.replaceState(null, \"\", \"#\" + (i + 1));\n  }\n\n  function go(n) {\n    i = Math.max(0, Math.min(slides.length - 1, n));\n    render();\n  }\n\n  // Step through visible slides only; hidden ones are reachable by deep link\n  // or from the panel, which is the whole point of hiding them.\n  function step(dir) {\n    const shown = shownIndexes();\n    if (!shown.length) return;\n    const pos = shown.indexOf(i);\n    if (pos === -1) {\n      const nextUp = dir > 0 ? shown.find(n => n > i) : [...shown].reverse().find(n => n < i);\n      go(nextUp !== undefined ? nextUp : shown[dir > 0 ? 0 : shown.length - 1]);\n      return;\n    }\n    const t = pos + dir;\n    if (t >= 0 && t < shown.length) go(shown[t]);\n  }\n\n  prev.addEventListener(\"click\", () => step(-1));\n  next.addEventListener(\"click\", () => step(1));\n\n  document.addEventListener(\"keydown\", (e) => {\n    if (e.key === \"ArrowRight\" || e.key === \" \" || e.key === \"PageDown\") { e.preventDefault(); step(1); }\n    else if (e.key === \"ArrowLeft\" || e.key === \"PageUp\") { e.preventDefault(); step(-1); }\n    else if (e.key === \"Home\") { e.preventDefault(); const s = shownIndexes(); if (s.length) go(s[0]); }\n    else if (e.key === \"End\") { e.preventDefault(); const s = shownIndexes(); if (s.length) go(s[s.length - 1]); }\n    else if (e.key === \"Escape\") { closePanel(); }\n    else if (e.key === \"s\" || e.key === \"S\") { e.preventDefault(); togglePanel(); }\n    else if (e.key === \"f\" || e.key === \"F\") {\n      e.preventDefault();\n      if (document.fullscreenElement) document.exitFullscreen();\n      else document.documentElement.requestFullscreen?.();\n    }\n    else if (e.key === \"t\" || e.key === \"T\") {\n      e.preventDefault();\n      const root = document.documentElement;\n      root.setAttribute(\"data-theme\",\n        root.getAttribute(\"data-theme\") === \"dark\" ? \"light\" : \"dark\");\n    }\n  });\n\n  function fromHash() {\n    const n = parseInt((location.hash || \"\").replace(\"#\", \"\"), 10);\n    return Number.isFinite(n) && n > 0 ? n - 1 : 0;\n  }\n  // Without this listener, changing the hash on an already-loaded page does\n  // nothing: deep links silently show slide 1, and a screenshot loop that\n  // navigates by hash captures the same slide N times.\n  window.addEventListener(\"hashchange\", () => {\n    const n = fromHash();\n    if (n !== i) go(n);\n  });\n\n  window.addEventListener(\"resize\", fit);\n  document.addEventListener(\"fullscreenchange\", fit);\n  // window.resize alone is not enough: it never fires when the deck is inside\n  // an iframe or app panel that is resized without the window changing, and it\n  // can lag behind a live window drag. ResizeObserver watches the element's\n  // own box, so it fires for every cause - panel drag, zoom, full screen.\n  if (window.ResizeObserver) {\n    new ResizeObserver(fit).observe(stage);\n    new ResizeObserver(sizeThumbs).observe(panelList);\n  }\n  fit();\n  buildPanel();\n  go(fromHash());\n})();\n<\/script>\n\n<!--\n  The Markdown this deck was built from. It travels inside the file so the deck\n  is a document rather than a build output: whoever receives it can recover the\n  source, edit it, and re-render, with no other artefact.\n\n  Only & and < are escaped, which is enough to guarantee no <\/script> can\n  appear in the raw text.\n-->\n<script type=\"text/plain\" id=\"quire-source\">{source}<\/script>\n</body>\n</html>\n";
+</script>
+
+<script type="module">
+// @ts-check
+
+const VOID_ELEMENTS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
+
+const RAW_TEXT_ELEMENTS = new Set(['iframe', 'noembed', 'noframes', 'script', 'style', 'xmp']);
+const RCDATA_ELEMENTS = new Set(['textarea', 'title']);
+
+/**
+ * @typedef {Object} HtmlTag
+ * @property {number} end
+ * @property {string} name
+ * @property {boolean} closing
+ * @property {boolean} selfClosing
+ * @property {boolean} special
+ */
+
+/**
+ * Read one HTML tag or comment, respecting quotes in attributes.
+ *
+ * @param {string} text
+ * @param {number} start
+ * @returns {HtmlTag | null}
+ */
+function readTag(text, start) {
+  if (text[start] !== '<') return null;
+  if (text.startsWith('<!--', start)) {
+    const close = text.indexOf('-->', start + 4);
+    return {
+      end: close < 0 ? text.length : close + 3,
+      name: '',
+      closing: false,
+      selfClosing: true,
+      special: true,
+    };
+  }
+
+  const lead = text.slice(start).match(/^<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9:-]*)\b/);
+  if (!lead) {
+    if (!/^<\s*[!?]/.test(text.slice(start))) return null;
+  }
+
+  let quote = '';
+  for (let i = start + 1; i < text.length; i += 1) {
+    const char = text[i];
+    if (quote) {
+      if (char === quote) quote = '';
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '>') {
+      const raw = text.slice(start, i + 1);
+      return {
+        end: i + 1,
+        name: lead ? lead[2].toLowerCase() : '',
+        closing: Boolean(lead?.[1]),
+        selfClosing: /\/\s*>$/.test(raw),
+        special: !lead,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Find the end of a complete element, including nested elements with the same
+ * name. Returns the opening tag's end when it has no matching close.
+ *
+ * @param {string} text
+ * @param {HtmlTag} opening
+ * @returns {number}
+ */
+function elementEnd(text, opening) {
+  if (opening.special || opening.closing || opening.selfClosing || VOID_ELEMENTS.has(opening.name)) {
+    return opening.end;
+  }
+
+  if (opening.name === 'plaintext') return text.length;
+  if (RAW_TEXT_ELEMENTS.has(opening.name) || RCDATA_ELEMENTS.has(opening.name)) {
+    const close = new RegExp(`<\\/\\s*${opening.name}\\s*>`, 'ig');
+    close.lastIndex = opening.end;
+    const match = close.exec(text);
+    return match ? match.index + match[0].length : text.length;
+  }
+
+  let depth = 1;
+  let cursor = opening.end;
+  while (cursor < text.length) {
+    const next = text.indexOf('<', cursor);
+    if (next < 0) break;
+    const tag = readTag(text, next);
+    if (!tag) {
+      cursor = next + 1;
+      continue;
+    }
+    cursor = tag.end;
+    if (
+      !tag.special &&
+      !tag.closing &&
+      (tag.name === 'plaintext' || RAW_TEXT_ELEMENTS.has(tag.name) || RCDATA_ELEMENTS.has(tag.name))
+    ) {
+      cursor = elementEnd(text, tag);
+      continue;
+    }
+    if (tag.special || tag.name !== opening.name) continue;
+    if (tag.closing) {
+      depth -= 1;
+      if (depth === 0) return tag.end;
+    } else if (!tag.selfClosing && !VOID_ELEMENTS.has(tag.name)) {
+      depth += 1;
+    }
+  }
+  // An omitted closing tag is valid for several HTML elements. Once raw HTML
+  // begins, preserve the remainder rather than guessing where browser parsing
+  // would implicitly close it.
+  return text.length;
+}
+
+/**
+ * Transform plain-text regions while preserving raw HTML regions byte for
+ * byte, including attributes, comments, scripts, and nested elements.
+ *
+ * @param {string} text
+ * @param {(plain: string) => string} transform
+ * @returns {string}
+ */
+function mapOutsideHtml(text, transform) {
+  let out = '';
+  let plainStart = 0;
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const next = text.indexOf('<', cursor);
+    if (next < 0) break;
+    const tag = readTag(text, next);
+    if (!tag) {
+      cursor = next + 1;
+      continue;
+    }
+    out += transform(text.slice(plainStart, next));
+    const end = elementEnd(text, tag);
+    out += text.slice(next, end);
+    cursor = end;
+    plainStart = end;
+  }
+
+  return out + transform(text.slice(plainStart));
+}
+
+// @ts-check
+/**
+ * Parse Quire source into a deck spec.
+ *
+ * The format is described in SPEC.md, which is normative. Changes to parser
+ * behavior must update the spec and reviewed fixture snapshots together.
+ */
+
+
+/**
+ * @typedef {Object} Card
+ * @property {string} h
+ * @property {string} p
+ * @property {boolean} accent
+ */
+
+/**
+ * @typedef {Object} Slide
+ * @property {string} [eyebrow]
+ * @property {boolean} [hidden]
+ * @property {string} [layout]
+ * @property {string} [headline]
+ * @property {string} [lede]
+ * @property {string[]} [meta]
+ * @property {string} [title]
+ * @property {string} [sub]
+ * @property {Card[]} [cards]
+ * @property {{label: string, cards: Card[]}[]} [groups]
+ * @property {boolean} [numbered]
+ * @property {string[]} [columns]
+ * @property {string[][]} [rows]
+ * @property {{q: string, a: string}[]} [items]
+ * @property {string} [badge]
+ * @property {string} [quote]
+ * @property {string} [note]
+ * @property {string} [kicker]
+ * @property {string} [image]
+ * @property {string} [imageAlt]
+ * @property {string} [imagePosition]
+ * @property {string} [caption]
+ * @property {string} [credit]
+ * @property {string} [chart]
+ * @property {string} [diagram]
+ * @property {string} [source]
+ * @property {string} [tone]
+ * @property {string} [align]
+ */
+
+/** @typedef {{title: string, slides: Slide[]}} Deck */
+/** @typedef {{assetBase?: string}} ParseOptions */
+
+const SEP = /^-{3,}\s*$/;
+const META = /^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)$/;
+
+/**
+ * Meta keys the parser understands. Used to tell a commented-out meta line
+ * ("# hidden: true") from a real Markdown heading ("# Owning versus renting"),
+ * which otherwise both start with '#'.
+ */
+const META_KEYS = new Set([
+  'eyebrow',
+  'layout',
+  'hidden',
+  'numbered',
+  'badge',
+  'image',
+  'image-alt',
+  'image-position',
+  'caption',
+  'credit',
+  'chart',
+  'diagram',
+  'source',
+  'tone',
+  'align',
+]);
+const COMMENTED_META = /^#+\s*([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)$/;
+
+/** `group: Label` inside a slide body opens a labelled band of cards. */
+const GROUP = /^group:\s*(.+)$/i;
+const ACCENT = /\s*\{accent\}\s*$/i;
+const ALERT = /^\[!([a-zA-Z]+)\]\s*/i;
+const ROW_ITEM = /^(?:\d+[.)]|[-*])\s+(.*)$/;
+
+/**
+ * The question is the bold lead of a list item. An em-dash separator was tried
+ * first and split on the wrong dash whenever the question itself contained one
+ * ("Standard or Enterprise - and do they still need Enterprise?"), so the
+ * question is marked explicitly instead of inferred from punctuation.
+ */
+const QA_BOLD = /^\*\*([\s\S]+?)\*\*[\s:.\u2014-]*([\s\S]*)$/;
+
+const KICKER_ALERTS = new Set(['aside', 'kicker']);
+
+const TRUTHY = new Set(['true', 'yes', '1']);
+
+/** @param {string | undefined} v */
+const isTrue = (v) => TRUTHY.has(String(v ?? '').toLowerCase());
+
+/** Trim whitespace from both ends. @param {string} s */
+const strip = (s) => s.replace(/^\s+|\s+$/g, '');
+
+/** @param {string} value */
+const inlineAttr = (value) =>
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** @param {string} value */
+const linkTarget = (value) => {
+  const target = strip(value);
+  return /^(?:https?:\/\/|mailto:|\/(?!\/)|\.{0,2}\/|#)/i.test(target) ? target : '';
+};
+
+// ---------------------------------------------------------------------------
+// inline
+// ---------------------------------------------------------------------------
+
+/**
+ * Markdown emphasis -> HTML. Raw HTML in the source is left alone, which is
+ * what makes the format usable when Markdown is too blunt.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function inline(text) {
+  if (!text) return '';
+  return mapOutsideHtml(strip(text), (plain) => {
+    const linked = plain.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (whole, label, target) => {
+      const href = linkTarget(target);
+      return href ? `<a href="${inlineAttr(href)}">${label}</a>` : whole;
+    });
+    return linked
+      .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(?<![\w*])\*(?!\s)([\s\S]+?)(?<!\s)\*(?![\w*])/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+  });
+}
+
+// ---------------------------------------------------------------------------
+// block splitting
+// ---------------------------------------------------------------------------
+
+/**
+ * Split on --- separators, honouring a leading meta block and code fences.
+ *
+ * @param {string} text
+ * @returns {{docMeta: Record<string, string>, chunks: string[][]}}
+ */
+function splitSlides(text) {
+  const lines = text.split('\n');
+  /** @type {Record<string, string>} */
+  const docMeta = {};
+  let start = 0;
+
+  // leading --- ... --- document meta
+  let i = 0;
+  while (i < lines.length && !strip(lines[i])) i += 1;
+  if (i < lines.length && SEP.test(lines[i])) {
+    for (let j = i + 1; j < lines.length; j += 1) {
+      if (SEP.test(lines[j])) {
+        for (const line of lines.slice(i + 1, j)) {
+          const m = META.exec(strip(line));
+          if (m) docMeta[m[1]] = strip(m[2]);
+        }
+        start = j + 1;
+        break;
+      }
+    }
+  }
+
+  /** @type {string[][]} */
+  const chunks = [];
+  /** @type {string[]} */
+  let cur = [];
+  let fenced = false;
+  for (const line of lines.slice(start)) {
+    if (strip(line).startsWith('```')) fenced = !fenced;
+    if (!fenced && SEP.test(line)) {
+      chunks.push(cur);
+      cur = [];
+    } else {
+      cur.push(line);
+    }
+  }
+  chunks.push(cur);
+
+  return { docMeta, chunks: chunks.filter((c) => c.some((x) => strip(x))) };
+}
+
+/**
+ * Pull leading `key: value` lines off a slide.
+ *
+ * A line like `# hidden: true` is treated as a commented-out meta line and
+ * skipped, so a setting can be toggled without being deleted. Disambiguated
+ * from a real heading by requiring a recognised meta key.
+ *
+ * Only recognised keys are absorbed. Anything else is body content, because
+ * absorbing unknown keys silently deletes it: a slide opening with
+ * `group: FIRST BAND` lost the whole band, and one opening with a line like
+ * "Bottom line: they own it" would lose the line, with no error either way.
+ *
+ * @param {string[]} lines
+ * @returns {[Record<string, string>, string[]]}
+ */
+function takeMeta(lines) {
+  /** @type {Record<string, string>} */
+  const meta = {};
+  let i = 0;
+  while (i < lines.length) {
+    const s = strip(lines[i]);
+    if (!s) {
+      i += 1;
+      continue;
+    }
+    const c = COMMENTED_META.exec(s);
+    if (c && META_KEYS.has(c[1].toLowerCase())) {
+      i += 1;
+      continue;
+    }
+    if (/^[#>|\-*]/.test(s)) break;
+    const m = META.exec(s);
+    if (!m || !META_KEYS.has(m[1].toLowerCase())) break;
+    meta[m[1].toLowerCase()] = strip(m[2]);
+    i += 1;
+  }
+  return [meta, lines.slice(i)];
+}
+
+/**
+ * Group lines into [kind, payload] blocks.
+ *
+ * @param {string[]} lines
+ * @returns {[string, any][]}
+ */
+function blocks(lines) {
+  /** @type {[string, any][]} */
+  const out = [];
+  /** @type {string[]} */
+  let buf = [];
+
+  const flush = () => {
+    if (buf.length) {
+      const joined = buf.map(strip).filter(Boolean).join(' ');
+      if (joined) out.push(['p', joined]);
+      buf = [];
+    }
+  };
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const s = strip(line);
+    if (!s) {
+      flush();
+      i += 1;
+      continue;
+    }
+    if (s.startsWith('### ')) {
+      flush();
+      const head = strip(s.slice(4));
+      /** @type {string[]} */
+      const body = [];
+      i += 1;
+      while (i < lines.length) {
+        const nxt = strip(lines[i]);
+        if (nxt.startsWith('#') || nxt.startsWith('>') || GROUP.test(nxt) || SEP.test(lines[i])) break;
+        if (nxt) body.push(nxt);
+        i += 1;
+      }
+      out.push(['card', [head, body.join(' ')]]);
+      continue;
+    }
+    const g = GROUP.exec(s);
+    if (g) {
+      flush();
+      out.push(['group', strip(g[1])]);
+      i += 1;
+      continue;
+    }
+    if (s.startsWith('## ')) {
+      flush();
+      out.push(['h2', strip(s.slice(3))]);
+    } else if (s.startsWith('# ')) {
+      flush();
+      out.push(['h1', strip(s.slice(2))]);
+    } else if (s.startsWith('>')) {
+      flush();
+      const quote = [strip(s.replace(/^>+/, ''))];
+      i += 1;
+      while (i < lines.length && strip(lines[i]).startsWith('>')) {
+        quote.push(strip(strip(lines[i]).replace(/^>+/, '')));
+        i += 1;
+      }
+      out.push(['quote', quote.filter(Boolean).join(' ')]);
+      continue;
+    } else if (s.startsWith('|')) {
+      flush();
+      /** @type {string[]} */
+      const rows = [];
+      while (i < lines.length && strip(lines[i]).startsWith('|')) {
+        rows.push(strip(lines[i]));
+        i += 1;
+      }
+      out.push(['table', rows]);
+      continue;
+    } else if (ROW_ITEM.test(s)) {
+      flush();
+      /** @type {string[]} */
+      const items = [];
+      while (i < lines.length) {
+        const m = ROW_ITEM.exec(strip(lines[i]));
+        if (!m) {
+          if (strip(lines[i])) break;
+          i += 1;
+          continue;
+        }
+        items.push(strip(m[1]));
+        i += 1;
+      }
+      out.push(['list', items]);
+      continue;
+    } else {
+      buf.push(line);
+    }
+    i += 1;
+  }
+  flush();
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// slide assembly
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {string[]} rows
+ * @returns {[string[], string[][]]}
+ */
+function parseTable(rows) {
+  /** @param {string} r */
+  const cells = (r) =>
+    strip(r)
+      .replace(/^\|+/, '')
+      .replace(/\|+$/, '')
+      .split('|')
+      .map(strip);
+
+  const header = cells(rows[0]);
+  const body = rows.slice(1).filter((r) => !/^\|[\s:|-]+\|?$/.test(strip(r))).map(cells);
+  return [header, body];
+}
+
+/**
+ * @param {string[]} chunk
+ * @param {boolean} first
+ * @param {ParseOptions} [opts]
+ * @returns {Slide}
+ */
+function buildSlide(chunk, first, opts = {}) {
+  const [meta, rest] = takeMeta(chunk);
+  const bl = blocks(rest);
+
+  /** @type {Slide} */
+  const slide = {};
+  if (meta.eyebrow) slide.eyebrow = meta.eyebrow;
+  if (isTrue(meta.hidden)) slide.hidden = true;
+  if (meta.image) {
+    slide.image = meta.image;
+    if (opts.assetBase && !/^data:/i.test(meta.image)) {
+      try {
+        const base = new URL(opts.assetBase);
+        const resolved = new URL(meta.image, base);
+        if (resolved.origin === base.origin) {
+          slide.image = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+        }
+      } catch {
+        // The renderer will show the unavailable-image state.
+      }
+    }
+  }
+  if (meta['image-alt']) slide.imageAlt = meta['image-alt'];
+  if (meta['image-position']) slide.imagePosition = meta['image-position'].toLowerCase();
+  if (meta.caption) slide.caption = inline(meta.caption);
+  if (meta.credit) slide.credit = inline(meta.credit);
+  if (meta.chart) slide.chart = meta.chart.toLowerCase();
+  if (meta.diagram) slide.diagram = meta.diagram.toLowerCase();
+  if (meta.source) slide.source = inline(meta.source);
+  if (meta.tone) slide.tone = meta.tone.toLowerCase();
+  if (meta.align) slide.align = meta.align.toLowerCase();
+
+  const heads = bl.filter((b) => b[0] === 'h1' || b[0] === 'h2');
+  const cards = bl.filter((b) => b[0] === 'card').map((b) => b[1]);
+  const tables = bl.filter((b) => b[0] === 'table').map((b) => b[1]);
+  const lists = bl.filter((b) => b[0] === 'list').map((b) => b[1]);
+  const quotes = bl.filter((b) => b[0] === 'quote').map((b) => b[1]);
+  const paras = bl.filter((b) => b[0] === 'p').map((b) => b[1]);
+  const hasGroups = bl.some((b) => b[0] === 'group');
+
+  const isTitle =
+    meta.layout === 'title' ||
+    (!meta.layout && (first || (heads.length > 0 && heads[0][0] === 'h1')));
+
+  // Trailing quotes become closers (note and/or kicker); a leading one is a
+  // pull quote. A slide can carry both a note and a kicker, in that order.
+  /** @type {[string, string][]} */
+  const closers = [];
+  /** @type {string | null} */
+  let leadQuote = null;
+  if (quotes.length) {
+    const idx = bl.map((b, n) => (b[0] === 'quote' ? n : -1)).filter((n) => n >= 0);
+    /** @type {string[]} */
+    const trailing = [];
+    for (const pos of [...idx].reverse()) {
+      const after = bl.slice(pos + 1).filter((b) => b[0] !== 'p' || strip(b[1]));
+      if (after.every((x) => x[0] === 'quote')) trailing.unshift(bl[pos][1]);
+      else break;
+    }
+    for (const q of trailing) {
+      const m = ALERT.exec(q);
+      if (m) {
+        const kind = m[1].toLowerCase();
+        closers.push([KICKER_ALERTS.has(kind) ? 'kicker' : 'note', q.replace(ALERT, '')]);
+      } else {
+        closers.push(['note', q]);
+      }
+    }
+    const remaining = quotes.slice(0, quotes.length - trailing.length);
+    if (remaining.length) leadQuote = remaining[0];
+  }
+
+  if (isTitle) {
+    slide.layout = 'title';
+    if (heads.length) slide.headline = inline(heads[0][1]);
+    if (paras.length) slide.lede = inline(paras[0]);
+    if (lists.length) slide.meta = lists[0].map(inline);
+    return slide;
+  }
+
+  if (heads.length) slide.title = inline(heads[0][1]);
+  if (paras.length) slide.sub = inline(paras[0]);
+
+  let layout = meta.layout;
+  if (!layout) {
+    if (hasGroups) layout = 'groups';
+    else if (leadQuote) layout = 'pull';
+    else if (meta.image) layout = 'media';
+    else if (meta.chart) layout = 'chart';
+    else if (meta.diagram) layout = 'diagram';
+    else if (tables.length) layout = 'table';
+    else if (cards.length) layout = cards.length >= 3 ? 'cards3' : 'cards2';
+    else if (lists.length) layout = 'rows';
+    else layout = 'blank';
+  }
+  slide.layout = layout;
+
+  /**
+   * @param {string} head
+   * @param {string} body
+   * @returns {Card}
+   */
+  const mkcard = (head, body) => ({
+    h: inline(head.replace(ACCENT, '')),
+    p: inline(body),
+    accent: ACCENT.test(head),
+  });
+
+  if (hasGroups) {
+    /** @type {{label: string, cards: Card[]}[]} */
+    const groups = [];
+    /** @type {{label: string, cards: Card[]} | null} */
+    let cur = null;
+    for (const [kind, payload] of bl) {
+      if (kind === 'group') {
+        cur = { label: payload, cards: [] };
+        groups.push(cur);
+      } else if (kind === 'card' && cur !== null) {
+        cur.cards.push(mkcard(payload[0], payload[1]));
+      }
+    }
+    slide.groups = groups.filter((g) => g.cards.length);
+    if (isTrue(meta.numbered)) slide.numbered = true;
+  } else if (cards.length) {
+    slide.cards = cards.map(([head, body]) => mkcard(head, body));
+    if (isTrue(meta.numbered)) slide.numbered = true;
+  }
+
+  if (tables.length) {
+    const [header, body] = parseTable(tables[0]);
+    slide.columns = header.map(inline);
+    slide.rows = body.map((r) => r.map(inline));
+  }
+
+  if (lists.length && (layout === 'rows' || layout === 'diagram')) {
+    /** @type {{q: string, a: string}[]} */
+    const items = [];
+    for (const raw of lists[0]) {
+      const m = QA_BOLD.exec(strip(raw));
+      if (m) items.push({ q: inline(m[1]), a: inline(m[2]) });
+      else items.push({ q: inline(raw), a: '' });
+    }
+    slide.items = items;
+    if (layout === 'rows' && meta.badge) slide.badge = meta.badge;
+  }
+
+  if (layout === 'pull' && leadQuote) {
+    // Pass the rendered quote through whole: `.pull em` styles the accent span
+    // wherever it falls, so splitting into quote/emphasis would only drop any
+    // text trailing the emphasis (a closing quotation mark).
+    slide.quote = inline(leadQuote);
+  }
+
+  for (const [kind, text] of closers) {
+    // @ts-expect-error - kind is narrowed to 'note' | 'kicker' by construction
+    slide[kind] = inline(text);
+  }
+  return slide;
+}
+
+/**
+ * @param {string} text
+ * @param {ParseOptions} [opts]
+ * @returns {Deck}
+ */
+function parseQuire(text, opts = {}) {
+  const { docMeta, chunks } = splitSlides(text);
+  const slides = chunks.map((c, i) => buildSlide(c, i === 0, opts));
+  return { title: docMeta.title || 'Presentation', slides };
+}
+
+// @ts-check
+/**
+ * Render a deck spec to HTML.
+ *
+ * The renderers use deterministic string concatenation so output changes remain
+ * precise and reviewable in the golden snapshots.
+ *
+ * This module does not read files. `page()` takes the shell as a string so the
+ * same code works in Node (shell read from disk) and in the browser (shell is
+ * the document that is already loaded).
+ */
+
+
+/** @typedef {import('./deck.js').Slide} Slide */
+/** @typedef {import('./deck.js').Card} Card */
+/** @typedef {import('./deck.js').Deck} Deck */
+
+const ENTITY = /&(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]{1,31});/g;
+
+/**
+ * Escape bare ampersands, leave tags and existing entities intact.
+ *
+ * The format deliberately passes raw HTML through, so this cannot be a blanket
+ * escape. It only fixes the one character that would silently corrupt output.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function h(value) {
+  if (value === null || value === undefined) return '';
+  const text = String(value);
+  return mapOutsideHtml(text, (plain) => {
+    let out = '';
+    let pos = 0;
+    ENTITY.lastIndex = 0;
+    for (let m = ENTITY.exec(plain); m; m = ENTITY.exec(plain)) {
+      out += plain.slice(pos, m.index).replace(/&/g, '&amp;');
+      out += m[0];
+      pos = m.index + m[0].length;
+    }
+    return out + plain.slice(pos).replace(/&/g, '&amp;');
+  });
+}
+
+/**
+ * Escape text for an HTML attribute while preserving no markup.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+function attr(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Indent every non-blank line. Blank lines stay blank rather than becoming
+ * lines of spaces, which matters because the output is diffed.
+ *
+ * @param {string} text
+ * @param {number} spaces
+ * @returns {string}
+ */
+function indent(text, spaces) {
+  const pad = ' '.repeat(spaces);
+  return text
+    .split('\n')
+    .map((line) => (line.trim() ? pad + line : line))
+    .join('\n');
+}
+
+/**
+ * Return a default only when the value is absent, so an intentionally empty
+ * string survives.
+ *
+ * @template T
+ * @param {T | undefined | null} value
+ * @param {T} fallback
+ * @returns {T}
+ */
+const or = (value, fallback) => (value === undefined || value === null ? fallback : value);
+
+// ---------------------------------------------------------------------------
+// shared pieces
+// ---------------------------------------------------------------------------
+
+/**
+ * Eyebrow + title + sub, shared by every non-title layout.
+ * @param {Slide} slide
+ */
+function head(slide, includeSub = true) {
+  const parts = [];
+  if (slide.eyebrow) parts.push(`<div class="eyebrow">${h(slide.eyebrow)}</div>`);
+  parts.push(`<h2>${h(or(slide.title, 'Slide title'))}</h2>`);
+  if (includeSub && slide.sub) parts.push(`<p class="sub">${h(slide.sub)}</p>`);
+  return parts.join('\n');
+}
+
+/**
+ * Trailing note and/or kicker - the last one is bottom-anchored by CSS.
+ * @param {Slide} slide
+ */
+function closer(slide) {
+  const out = [];
+  if (slide.note) out.push(`<div class="note">${h(slide.note)}</div>`);
+  if (slide.kicker) out.push(`<div class="kicker">${h(slide.kicker)}</div>`);
+  if (slide.source) out.push(`<div class="source-line">Source: ${h(slide.source)}</div>`);
+  return out.join('\n');
+}
+
+/**
+ * @param {string} inner
+ * @param {Slide} slide
+ */
+function wrapBody(inner, slide) {
+  const blocks = [inner, closer(slide)].filter(Boolean);
+  return '<div class="body">\n' + indent(blocks.join('\n'), 2) + '\n</div>';
+}
+
+// ---------------------------------------------------------------------------
+// layouts
+// ---------------------------------------------------------------------------
+
+/** @param {Slide} slide */
+function lTitle(slide) {
+  const parts = [
+    `<div class="eyebrow">${h(or(slide.eyebrow, 'EYEBROW &middot; CONTEXT'))}</div>`,
+    `<h1>${h(or(slide.headline, or(slide.title, 'Headline that states the argument')))}</h1>`,
+  ];
+  if (slide.lede) parts.push(`<p class="lede">${h(slide.lede)}</p>`);
+  const meta = slide.meta || [];
+  if (meta.length) {
+    const spans = meta.map((m) => `  <span>${h(m)}</span>`).join('\n');
+    parts.push('<div class="title-meta">\n' + spans + '\n</div>');
+  }
+  if (slide.source) parts.push(`<div class="source-line title-source">Source: ${h(slide.source)}</div>`);
+  return parts.join('\n');
+}
+
+/**
+ * @param {{cards?: Card[], numbered?: boolean}} slide
+ * @param {number} cols
+ */
+function lCards(slide, cols) {
+  const cards =
+    slide.cards ||
+    Array.from({ length: cols }, () => /** @type {Card} */ ({ h: 'Point', p: 'Detail.' }));
+  const numbered = or(slide.numbered, false);
+  const out = [`<div class="grid g${cols}">`];
+  cards.forEach((c, i) => {
+    const cls = c.accent ? 'card accent' : 'card';
+    const bits = [`<div class="${cls}">`];
+    if (numbered) bits.push(`  <span class="num">${i + 1}</span>`);
+    bits.push(`  <h3>${h(or(c.h, 'Point'))}</h3>`);
+    bits.push(`  <p>${h(or(c.p, 'Detail.'))}</p>`);
+    bits.push('</div>');
+    out.push(indent(bits.join('\n'), 2));
+  });
+  out.push('</div>');
+  return out.join('\n');
+}
+
+/** @param {Slide} slide */
+function lTable(slide) {
+  const cols = slide.columns || ['Column A', 'Column B', 'Column C'];
+  const rows = slide.rows || [['Item', 'Before', 'After']];
+  const classes = ['k', 'was', 'is'];
+  let out = ['<table>', '  <thead>', '    <tr>'];
+  out = out.concat(cols.map((c) => `      <th>${h(c)}</th>`));
+  out = out.concat(['    </tr>', '  </thead>', '  <tbody>']);
+  for (const r of rows) {
+    out.push('    <tr>');
+    r.forEach((cell, j) => {
+      const cls = j < classes.length ? classes[j] : '';
+      const attr = cls ? ` class="${cls}"` : '';
+      out.push(`      <td${attr}>${h(cell)}</td>`);
+    });
+    out.push('    </tr>');
+  }
+  out = out.concat(['  </tbody>', '</table>']);
+  return out.join('\n');
+}
+
+/** @param {Slide} slide */
+function lRows(slide) {
+  const items = slide.items || [{ q: 'Question', a: 'Answer.' }];
+  const badge = or(slide.badge, 'number');
+  const out = ['<div class="rows">'];
+  items.forEach((it, i) => {
+    const mark = badge === 'check' ? '&check;' : String(i + 1);
+    const block = [
+      '<div class="row">',
+      `  <span class="badge">${mark}</span>`,
+      '  <div>',
+      `    <div class="q">${h(or(it.q, 'Question'))}</div>`,
+      `    <div class="a">${h(or(it.a, 'Answer.'))}</div>`,
+      '  </div>',
+      '</div>',
+    ];
+    out.push(indent(block.join('\n'), 2));
+  });
+  out.push('</div>');
+  return out.join('\n');
+}
+
+/** @param {Slide & {emphasis?: string, cols?: number}} slide */
+function lPull(slide) {
+  const quote = or(slide.quote, 'The line worth quoting back.');
+  const emph = slide.emphasis;
+  let text = h(quote);
+  if (emph) text += ` <em>${h(emph)}</em>`;
+  const out = [`<div class="pull">\n  ${text}\n</div>`];
+  if (slide.cards) out.push(lCards(slide, or(slide.cols, 2)));
+  return out.join('\n');
+}
+
+/**
+ * Labelled bands of cards - two questions rather than one list.
+ * @param {Slide} slide
+ */
+function lGroups(slide) {
+  const out = [];
+  for (const g of slide.groups || []) {
+    const cards = g.cards || [];
+    const cols = /** @type {any} */ (g).cols || (cards.length >= 3 ? 3 : 2);
+    const inner = lCards({ cards, numbered: slide.numbered }, cols);
+    const block = [
+      '<div class="group">',
+      `  <div class="group-label">${h(or(g.label, ''))}</div>`,
+      indent(inner, 2),
+      '</div>',
+    ];
+    out.push(block.join('\n'));
+  }
+  return out.join('\n');
+}
+
+/** @param {Slide} slide */
+function lMetrics(slide) {
+  const cards = slide.cards || [];
+  const out = ['<div class="metrics">'];
+  cards.forEach((card) => {
+    const cls = card.accent ? 'metric accent' : 'metric';
+    out.push(indent([
+      `<div class="${cls}">`,
+      `  <div class="metric-value">${h(card.h)}</div>`,
+      `  <div class="metric-label">${h(card.p)}</div>`,
+      '</div>',
+    ].join('\n'), 2));
+  });
+  out.push('</div>');
+  return out.join('\n');
+}
+
+/**
+ * Image sources are deliberately limited to same-origin paths and embedded
+ * raster data. Raw HTML remains the explicit escape hatch for anything else.
+ *
+ * @param {string | undefined} value
+ * @returns {string}
+ */
+function imageSource(value) {
+  const source = String(value || '').trim();
+  if (/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(source)) return source;
+  if (/^(?:\/(?!\/)|\.{1,2}\/)[^\s]*$/i.test(source)) return source;
+  if (/^[a-z0-9][a-z0-9._/-]*$/i.test(source)) return source;
+  return '';
+}
+
+/** @param {Slide} slide */
+function lMedia(slide) {
+  const src = imageSource(slide.image);
+  if (slide.imagePosition && !['left', 'right', 'full'].includes(slide.imagePosition)) {
+    throw new Error(`unknown image position ${JSON.stringify(slide.imagePosition)}; choose left, right, or full`);
+  }
+  const position = slide.imagePosition || 'right';
+  const figure = [
+    `<figure class="media-figure media-${position}">`,
+    src
+      ? `  <img src="${attr(src)}" alt="${attr(or(slide.imageAlt, ''))}">`
+      : '  <div class="media-missing">Image unavailable</div>',
+  ];
+  if (slide.caption || slide.credit) {
+    const caption = [slide.caption, slide.credit].filter(Boolean).map(h).join(' · ');
+    figure.push(`  <figcaption>${caption}</figcaption>`);
+  }
+  figure.push('</figure>');
+
+  if (position === 'full') return figure.join('\n');
+  const content = slide.cards?.length
+    ? lCards(slide, Math.min(slide.cards.length, 2))
+    : `<p class="media-copy">${h(or(slide.sub, ''))}</p>`;
+  const pieces = position === 'left' ? [figure.join('\n'), content] : [content, figure.join('\n')];
+  return `<div class="media-split">\n${indent(pieces.join('\n'), 2)}\n</div>`;
+}
+
+/** @param {unknown} value */
+function number(value) {
+  const parsed = Number(String(value ?? '').replace(/[,%$]/g, '').trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** @param {Slide} slide */
+function lChart(slide) {
+  const rows = slide.rows || [];
+  const values = rows.map((row) => number(row[1]));
+  if (!rows.length || rows.some((row) => row.length < 2)) {
+    throw new Error('a chart needs a table with label and value columns');
+  }
+  if (values.some((value) => value === null)) {
+    throw new Error('chart values must be numbers');
+  }
+  if (slide.chart && !['bar', 'line', 'donut'].includes(slide.chart)) {
+    throw new Error(`unknown chart ${JSON.stringify(slide.chart)}; choose bar, line, or donut`);
+  }
+  const numeric = /** @type {number[]} */ (values);
+  const max = Math.max(...numeric, 1);
+  const kind = slide.chart || 'bar';
+
+  if (kind === 'bar') {
+    const bars = rows.map((row, index) => {
+      const width = Math.max(2, (numeric[index] / max) * 100);
+      return [
+        '<div class="chart-bar-row">',
+        `  <div class="chart-label">${h(row[0])}</div>`,
+        `  <div class="chart-track"><span style="width:${width.toFixed(2)}%"></span></div>`,
+        `  <div class="chart-value">${h(row[1])}</div>`,
+        '</div>',
+      ].join('\n');
+    });
+    return `<div class="chart chart-bar">\n${indent(bars.join('\n'), 2)}\n</div>`;
+  }
+
+  if (kind === 'line') {
+    const width = 820;
+    const height = 280;
+    const step = rows.length > 1 ? width / (rows.length - 1) : 0;
+    const points = numeric.map((value, index) => {
+      const x = index * step;
+      const y = height - (value / max) * (height - 20);
+      return [x, y];
+    });
+    const polyline = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+    const dots = points.map(([x, y], index) => [
+      `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6"><title>${attr(rows[index][0])}: ${attr(rows[index][1])}</title></circle>`,
+      `<text x="${x.toFixed(1)}" y="${Math.max(16, y - 16).toFixed(1)}">${h(rows[index][1])}</text>`,
+    ].join('\n')).join('\n');
+    const labels = rows.map((row) => `<span>${h(row[0])}</span>`).join('');
+    return [
+      '<div class="chart chart-line">',
+      `  <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${attr(or(slide.imageAlt, 'Line chart'))}">`,
+      `    <polyline points="${polyline}"></polyline>`,
+      indent(dots, 4),
+      '  </svg>',
+      `  <div class="chart-axis">${labels}</div>`,
+      '</div>',
+    ].join('\n');
+  }
+
+  const total = numeric.reduce((sum, value) => sum + value, 0);
+  const denominator = total || 1;
+  let cursor = 0;
+  const stops = numeric.map((value, index) => {
+    const start = cursor;
+    cursor += (value / denominator) * 100;
+    return `var(--chart-${(index % 5) + 1}) ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
+  });
+  const legend = rows.map((row, index) => [
+    '<div class="chart-legend-item">',
+    `  <span class="chart-swatch swatch-${(index % 5) + 1}"></span>`,
+    `  <span>${h(row[0])}</span>`,
+    `  <strong>${h(row[1])}</strong>`,
+    '</div>',
+  ].join('\n')).join('\n');
+  return [
+    '<div class="chart chart-donut">',
+    `  <div class="donut" style="background:conic-gradient(${stops.join(',')})">`,
+    `    <span>${h(String(total))}</span>`,
+    '  </div>',
+    `  <div class="chart-legend">\n${indent(legend, 4)}\n  </div>`,
+    '</div>',
+  ].join('\n');
+}
+
+/** @param {Slide} slide */
+function lDiagram(slide) {
+  const items = slide.items || [];
+  if (!items.length) throw new Error('a diagram needs a list of nodes');
+  if (slide.diagram && !['process', 'timeline', 'hierarchy'].includes(slide.diagram)) {
+    throw new Error(`unknown diagram ${JSON.stringify(slide.diagram)}; choose process, timeline, or hierarchy`);
+  }
+  const kind = slide.diagram || 'process';
+  const nodes = items.map((item, index) => [
+    `<div class="diagram-node${index === 0 ? ' accent' : ''}">`,
+    `  <span class="diagram-mark">${index + 1}</span>`,
+    `  <strong>${h(item.q)}</strong>`,
+    `  <p>${h(item.a)}</p>`,
+    '</div>',
+  ].join('\n')).join('\n');
+  return `<div class="diagram diagram-${kind}">\n${indent(nodes, 2)}\n</div>`;
+}
+
+/** @type {Record<string, ((s: any) => string) | null>} */
+const LAYOUTS = {
+  title: null, // handled specially - no .body wrapper
+  cards2: (s) => lCards(s, 2),
+  cards3: (s) => lCards(s, 3),
+  groups: lGroups,
+  table: lTable,
+  rows: lRows,
+  pull: lPull,
+  metrics: lMetrics,
+  media: lMedia,
+  chart: lChart,
+  diagram: lDiagram,
+  blank: () => '<!-- content -->',
+};
+
+/**
+ * @param {Slide} slide
+ * @param {boolean} first
+ * @returns {string}
+ */
+function renderSlide(slide, first) {
+  const layout = or(slide.layout, 'cards3');
+  if (!(layout in LAYOUTS)) {
+    throw new Error(`unknown layout ${JSON.stringify(layout)}; choose from ${Object.keys(LAYOUTS).join(', ')}`);
+  }
+
+  const active = first ? ' active' : '';
+  const hid = slide.hidden ? ' data-hidden="true"' : '';
+  const modifiers = [
+    slide.tone === 'accent' || slide.tone === 'contrast' ? ` tone-${slide.tone}` : '',
+    slide.align === 'center' ? ' align-center' : '',
+    layout === 'media' && ['left', 'right', 'full'].includes(slide.imagePosition || '')
+      ? ` media-position-${slide.imagePosition}`
+      : layout === 'media'
+        ? ' media-position-right'
+        : '',
+  ].join('');
+  if (layout === 'title') {
+    return `<section class="slide title-slide${modifiers}${active}"${hid}>\n${indent(lTitle(slide), 2)}\n</section>`;
+  }
+
+  const fn = LAYOUTS[layout];
+  if (!fn) throw new Error(`layout ${layout} has no renderer`);
+  const inner = wrapBody(fn(slide), slide);
+  const mediaUsesSub =
+    layout === 'media' && slide.imagePosition !== 'full' && !(slide.cards && slide.cards.length);
+  return `<section class="slide${modifiers}${active}"${hid}>\n${indent(head(slide, !mediaUsesSub), 2)}\n${indent(inner, 2)}\n</section>`;
+}
+
+/**
+ * Render every slide as one indented fragment.
+ * @param {Deck} spec
+ */
+function renderSlides(spec) {
+  const slides = spec.slides || [];
+  if (!slides.length) throw new Error('spec has no slides');
+  return slides.map((s, i) => indent(renderSlide(s, i === 0), 2)).join('\n\n');
+}
+
+/**
+ * Escape Markdown for embedding in a `text/plain` script element.
+ *
+ * Script elements are raw text: the parser does not decode entities, it only
+ * scans for a closing tag. Escaping every `<` therefore makes it impossible
+ * for embedded content to terminate the element early — including a deck that
+ * legitimately contains a closing script tag as literal text.
+ *
+ * Only `&` and `<` are touched, so the source stays readable in view-source.
+ * The pair is exactly reversible: `&` is escaped first and unescaped last, so
+ * a deck containing `&lt;` round-trips to `&lt;` rather than to `<`.
+ *
+ * (This comment deliberately avoids writing that closing tag out. These
+ * modules are concatenated into one script element to build the app, and the
+ * HTML parser does not care that an occurrence sits inside a comment.)
+ *
+ * @param {string} markdown
+ * @returns {string}
+ */
+function escapeSource(markdown) {
+  return markdown.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+
+/**
+ * Inverse of escapeSource. Order matters — see there.
+ *
+ * @param {string} escaped
+ * @returns {string}
+ */
+function unescapeSource(escaped) {
+  return escaped.replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+}
+
+/** Matches the source element in the shell, whole line, so it can be removed. */
+const SOURCE_TAG = /^[ \t]*<script type="text\/plain" id="quire-source">\{source\}<\/script>[ \t]*\r?\n?/m;
+
+/** The placeholders the shell defines, matched in one pass. */
+const PLACEHOLDER = /\{(title|slides|n|source)\}/g;
+
+/**
+ * Fill the shell with a rendered deck.
+ *
+ * The shell is passed in rather than read, so this works unchanged in the
+ * browser once a deck renders itself at runtime.
+ *
+ * When `markdown` is supplied it is embedded, making the output a
+ * self-describing file. When it is omitted the source element is removed rather
+ * than left empty, so a deck built without a source does not claim to carry one.
+ *
+ * Every placeholder is substituted in a single pass, and the replacement
+ * function form means `$&` inside deck content is never read as a replacement
+ * pattern.
+ *
+ * The single pass is load-bearing. Replacing one at a time walked the string
+ * again after each substitution, so a deck could hand a later placeholder to
+ * an earlier one: a deck titled `{slides}` put that text into `<title>` first,
+ * and the next replacement then filled *that* copy — the whole deck body
+ * landed inside the title element, the real slide slot survived verbatim, and
+ * the reader saw an empty deck. The round-trip guard did not notice, because
+ * the source still recovered exactly.
+ *
+ * @param {Deck} spec
+ * @param {string} shell
+ * @param {string} [markdown]
+ * @returns {string}
+ */
+function page(spec, shell, markdown) {
+  const embed = markdown !== undefined && markdown !== null;
+  /** @type {Record<string, string>} */
+  const values = {
+    title: h(or(spec.title, 'Presentation')),
+    slides: renderSlides(spec) + '\n',
+    n: String((spec.slides || []).length),
+    source: embed ? escapeSource(/** @type {string} */ (markdown)) : '',
+  };
+  const base = embed ? shell : shell.replace(SOURCE_TAG, '');
+  PLACEHOLDER.lastIndex = 0;
+  return base.replace(PLACEHOLDER, (_match, /** @type {string} */ key) => values[key]);
+}
+
+/**
+ * Recover the Markdown a deck was built from.
+ *
+ * Takes the HTML as a string so it works on a file read from disk as well as
+ * on a live document, and so recovery can be tested without a browser.
+ *
+ * @param {string} html
+ * @returns {string | null} the exact source, or null if the deck carries none
+ */
+function readSource(html) {
+  const m = /<script type="text\/plain" id="quire-source">([\s\S]*?)<\/script>/.exec(html);
+  return m ? unescapeSource(m[1]) : null;
+}
+
+// @ts-check
+/**
+ * Overflow measurement.
+ *
+ * A slide is a fixed 1280×720 box with `overflow: hidden`, so content taller
+ * than the canvas is clipped in silence. Finding that by eye costs an
+ * edit-look cycle per slide, and the cycle lies: cutting prose can change the
+ * height by exactly zero when the real constraint is a grid row sizing to its
+ * tallest card, or a margin rule that fires when an element is removed.
+ *
+ * Only the browser knows those numbers. This asks it.
+ *
+ * ## Two metrics that returned confident wrong answers
+ *
+ * Both were tried against a real 26-slide deck before this one was written.
+ *
+ * `scrollHeight - clientHeight` reports **0 on every slide**, overflowing or
+ * not. A flex column with `overflow: hidden` exposes no scrollable overflow,
+ * so the obvious metric is not merely imprecise — it never fires at all.
+ *
+ * The deepest descendant's `getBoundingClientRect().bottom` reports **the same
+ * value for 25 of 26 slides**, because `.body` is `flex: 1` and stretches to
+ * fill the box: it measures the container, not the content. It also mixes
+ * coordinate spaces, since the stage carries a CSS scale transform and rects
+ * come back in scaled pixels while padding is in layout pixels.
+ *
+ * ## What actually works
+ *
+ * Measure the height the slide *would* take if nothing constrained it: clone
+ * it into an untransformed, `height: auto` host. Flex children then size to
+ * their content instead of stretching, a trailing `margin-top: auto` kicker
+ * collapses to nothing, and `offsetHeight` comes back in the same layout
+ * pixels as the 720 it is compared against.
+ *
+ * Verified to go red as well as green: injecting a 300px block into a slide
+ * that fit moved the measurement by 322px — the extra 22 being a gap that
+ * fired when the child was added, which is precisely the structural effect
+ * this exists to catch.
+ */
+
+/** Authoring canvas, in layout pixels. Matches `.scaler` in shell.html. */
+const SLIDE_W = 1280;
+const SLIDE_H = 720;
+
+/**
+ * Overrides applied to a clone so it reports its natural height.
+ *
+ * `height:auto` is the load-bearing one; the rest undo the positioning and
+ * clipping that make a real slide a fixed box.
+ */
+const CLONE_STYLE = [
+  'position:static',
+  'display:flex',
+  'height:auto',
+  'min-height:0',
+  'max-height:none',
+  'inset:auto',
+  'margin:0',
+  `width:${SLIDE_W}px`,
+  'overflow:visible',
+  'transform:none',
+].join(';');
+
+/**
+ * @typedef {object} SlideFit
+ * @property {number} index    zero-based position in the deck
+ * @property {number} number   one-based, as the panel and deep links count
+ * @property {string} title    first heading, for identifying the slide
+ * @property {boolean} hidden  excluded from the running order
+ * @property {number} natural  height the content needs, in px
+ * @property {number} over     natural − 720; negative means headroom
+ */
+
+/**
+ * Measure every slide in a rendered deck.
+ *
+ * Clones are appended before any height is read. Interleaving append and read
+ * forces a layout per slide — 37 ms against 5 ms batched, for 26 slides — and
+ * the two agree exactly, so there is no reason to pay for the slow one.
+ *
+ * @param {HTMLElement} scaler the element holding the rendered slides
+ * @returns {SlideFit[]}
+ */
+function measureDeck(scaler) {
+  const slides = /** @type {HTMLElement[]} */ (Array.from(scaler.querySelectorAll('.slide')));
+  if (!slides.length) return [];
+
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  // Absolutely positioned, so it is out of flow and does not become a flex
+  // item of `body`. Body is `overflow: hidden`, so the offset adds no scroll.
+  host.style.cssText =
+    `position:absolute;left:-20000px;top:0;width:${SLIDE_W}px;visibility:hidden;pointer-events:none;`;
+  document.body.appendChild(host);
+
+  try {
+    const clones = slides.map((slide) => {
+      const clone = /** @type {HTMLElement} */ (slide.cloneNode(true));
+      // `.active` is what makes a slide display; the clone sets display itself
+      // and must not answer to `.slide.active` queries elsewhere.
+      clone.classList.remove('active');
+      clone.removeAttribute('id');
+      clone.style.cssText = CLONE_STYLE;
+      host.appendChild(clone);
+      return clone;
+    });
+
+    return clones.map((clone, index) => {
+      const slide = slides[index];
+      const natural = clone.offsetHeight;
+      return {
+        index,
+        number: index + 1,
+        title: titleOf(slide),
+        hidden: slide.dataset.hidden === 'true',
+        natural,
+        over: natural - SLIDE_H,
+      };
+    });
+  } finally {
+    // A measuring host left in the document would be cloned by the next pass.
+    host.remove();
+  }
+}
+
+/**
+ * A human-readable name for a slide, for a report that has to be scanned.
+ *
+ * @param {HTMLElement} slide
+ * @returns {string}
+ */
+function titleOf(slide) {
+  const heading = slide.querySelector('h1, h2');
+  const text = (heading?.textContent || slide.querySelector('.eyebrow')?.textContent || '').trim();
+  return text || '(untitled)';
+}
+
+/**
+ * Record each slide's overflow on the slide itself, so the panel can mark
+ * thumbnails without measuring a second time.
+ *
+ * Only overflowing slides are marked. A `data-over` on every slide would make
+ * "which ones are over" a numeric comparison in CSS, which CSS cannot do.
+ *
+ * @param {HTMLElement} scaler
+ * @param {SlideFit[]} report
+ */
+function annotate(scaler, report) {
+  const slides = /** @type {HTMLElement[]} */ (Array.from(scaler.querySelectorAll('.slide')));
+  for (const fit of report) {
+    const slide = slides[fit.index];
+    if (!slide) continue;
+    if (fit.over > 0) slide.dataset.over = String(fit.over);
+    else delete slide.dataset.over;
+  }
+}
+
+/**
+ * Format a report for a console table an author or an agent can read.
+ *
+ * @param {SlideFit[]} report
+ * @returns {string}
+ */
+function formatReport(report) {
+  const over = report.filter((r) => r.over > 0);
+  if (!over.length) {
+    const tightest = [...report].sort((a, b) => b.natural - a.natural)[0];
+    if (!tightest) return 'No slides.';
+    return (
+      `All ${report.length} slides fit. Tightest: ${tightest.number}. ` +
+      `${tightest.title} — ${-tightest.over}px of headroom.`
+    );
+  }
+  const lines = over.map(
+    (r) => `  ${String(r.number).padStart(3)}. ${r.title} — ${r.over}px over` + (r.hidden ? ' (hidden)' : ''),
+  );
+  return `${over.length} of ${report.length} slides overflow the 720px canvas:\n${lines.join('\n')}`;
+}
+
+// @ts-check
+/**
+ * Export: one HTML file carrying the runtime and source.
+ *
+ * The app is the better way to read a deck, but it cannot be the only way. A
+ * customer, an exec, or an attachment needs a file that opens on its own, so
+ * export inlines the runtime, pre-renders the slides, and embeds the Quire source.
+ * Pre-rendered slides matter beyond convenience: an export still displays
+ * where scripts are blocked, which many document previewers and webmail
+ * clients do.
+ *
+ * This deliberately reuses `page()` and `readSource()` rather than assembling
+ * a file from the live document. Cloning the DOM would be smaller — the app
+ * already holds the CSS, the runtime and the rendered slides — but it would
+ * also carry whatever runtime state happened to be on those nodes: the active
+ * slide, an inline scale transform, session-hidden slides, overflow
+ * annotations. Each of those is a silent difference between what the author
+ * saw and what the recipient opens, and the drop-hint that once bled through
+ * every slide is the reminder that this class of bug passes every check that
+ * is not looking straight at it.
+ *
+ * Going through `page()` also means an export is byte-identical to what the
+ * CLI produces from the same Quire source, which is a property the conformance
+ * suite already pins.
+ */
+
+
+
+/**
+ * Build a single-file deck runtime and source.
+ *
+ * Recovers the embedded source and compares before returning, the same check
+ * the CLI makes before writing. It costs one string comparison and turns a
+ * silent corruption into a refusal.
+ *
+ * @param {string} markdown
+ * @param {string} [assetBase]
+ * @returns {string} complete HTML document
+ */
+function exportHtml(markdown, assetBase) {
+  const shell = window.quireShell;
+  if (!shell) {
+    throw new Error('This build carries no shell template, so it cannot export.');
+  }
+  const html = page(parseQuire(markdown, { assetBase }), shell, markdown);
+  const recovered = readSource(html);
+  if (recovered !== markdown) {
+    throw new Error('The exported file does not give its source back; refusing to save it.');
+  }
+  return html;
+}
+
+/**
+ * Name the export after the deck rather than the app.
+ *
+ * `renewal.md` becomes `renewal.html`. A deck opened by drop or by URL still
+ * has a name; only a deck with none falls back.
+ *
+ * @param {string | undefined} deckName
+ * @returns {string}
+ */
+function exportName(deckName) {
+  if (!deckName) return 'deck.html';
+  return `${deckName.replace(/\.(md|markdown)$/i, '')}.html`;
+}
+
+/**
+ * Save a built export to disk.
+ *
+ * A blob URL and a synthetic click, because the alternative — a save picker —
+ * would need a permission the app does not otherwise ask for, on a path where
+ * the browser's own download flow already does the right thing.
+ *
+ * @param {string} filename
+ * @param {string} html
+ */
+function download(filename, html) {
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoking immediately can cancel the download in some builds; one turn of
+  // the event loop is enough for the browser to have taken the blob.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+// @ts-check
+/**
+ * The quire app: open local Quire source, watch it, render it.
+ *
+ * Loaded as a module inside quire.html with deck.js and render.js. It owns
+ * loading and watching; presenting is handled by nav.js, which this calls
+ * back into after every render.
+ *
+ * A hosted page cannot fetch a local file, so reaching one requires a handle
+ * the user grants explicitly.
+ */
+
+/* global quireNav */
+
+
+
+
+
+const scaler = /** @type {HTMLElement} */ (document.getElementById('scaler'));
+const status = /** @type {HTMLElement} */ (document.getElementById('status'));
+const openBtn = /** @type {HTMLButtonElement} */ (document.getElementById('openBtn'));
+const dropHint = /** @type {HTMLElement} */ (document.getElementById('dropHint'));
+const fitBtn = /** @type {HTMLButtonElement} */ (document.getElementById('fitBtn'));
+const exportBtn = /** @type {HTMLButtonElement} */ (document.getElementById('exportBtn'));
+const aboutBtn = /** @type {HTMLButtonElement} */ (document.getElementById('aboutBtn'));
+const introDialog = /** @type {HTMLDialogElement} */ (document.getElementById('introDialog'));
+const introClose = /** @type {HTMLButtonElement} */ (document.getElementById('introClose'));
+const introOpenBtn = /** @type {HTMLButtonElement} */ (document.getElementById('introOpenBtn'));
+const introDismiss = /** @type {HTMLButtonElement} */ (document.getElementById('introDismiss'));
+
+/** @type {string} name of the open deck, for naming an export */
+let deckName = '';
+/** @type {string | undefined} base URL for relative assets in a deck loaded through ?deck= */
+let assetBase;
+
+const hasFSA = typeof window.showOpenFilePicker === 'function';
+const INTRO_KEY = 'quire:intro:v1';
+
+/** @type {any} current file handle, when we have one */
+let handle = null;
+/** @type {string} last source we rendered, to skip no-op re-renders */
+let lastText = '';
+/** @type {number} */
+let lastModified = 0;
+/** @type {any} */
+let observer = null;
+/** @type {number | undefined} */
+let pollTimer;
+/** @type {boolean} guards reread against the observer and the poll overlapping */
+let rereading = false;
+/** Whether the stage currently shows a generated failure slide. */
+let showingFailure = false;
+/** Whether the active watcher most recently failed to read its source. */
+let watchFailed = false;
+
+// ---------------------------------------------------------------------------
+// status line
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {string} text
+ * @param {'idle' | 'live' | 'warn' | 'error'} [kind]
+ */
+function setStatus(text, kind = 'idle') {
+  status.textContent = text;
+  status.dataset.kind = kind;
+}
+
+function rememberIntro() {
+  try {
+    localStorage.setItem(INTRO_KEY, 'seen');
+  } catch {
+    /* private storage may be unavailable; dismissal still works */
+  }
+}
+
+function closeIntro() {
+  rememberIntro();
+  introDialog.close();
+}
+
+function showIntro() {
+  if (!introDialog.open) introDialog.showModal();
+}
+
+function showIntroOnce() {
+  try {
+    if (localStorage.getItem(INTRO_KEY) === 'seen') return;
+  } catch {
+    /* show it when storage cannot answer */
+  }
+  rememberIntro();
+  showIntro();
+}
+
+// ---------------------------------------------------------------------------
+// rendering
+// ---------------------------------------------------------------------------
+
+/**
+ * Render Quire source into the stage, preserving the reader's position.
+ *
+ * Landing back on slide 1 after every edit would make the authoring loop
+ * useless: the author is nearly always looking at the slide being edited.
+ *
+ * @param {string} markdown
+ * @param {{keepPosition?: boolean}} [opts]
+ * @returns {boolean} whether a deck was rendered; false means a failure slide
+ *   is on screen and its explanation must not be overwritten by a caller
+ *   reporting success.
+ */
+function render(markdown, opts = {}) {
+  const keep = opts.keepPosition && window.quireNav ? window.quireNav.current() : undefined;
+  let spec;
+  let slidesHtml;
+  try {
+    spec = parseQuire(markdown, { assetBase });
+    if (!spec.slides.length) {
+      showFailure('That file has no slides', new Error('A deck needs at least one slide.'));
+      return false;
+    }
+    // Rendering has to be inside the try as well as parsing. A one-character
+    // typo in a layout name — `card3` for `cards3` — parses cleanly and throws
+    // here, and an escaping throw meant a dropped deck silently did nothing, a
+    // watched deck stopped updating, and a re-read blamed the disk.
+    slidesHtml = renderSlides(spec);
+  } catch (err) {
+    showFailure('Could not render this file', err);
+    return false;
+  }
+
+  scaler.innerHTML = slidesHtml;
+  showingFailure = false;
+  document.title = spec.title || 'quire';
+  lastText = markdown;
+  reportFit();
+  window.quireNav.refresh(keep);
+  // Only a deck that rendered can be exported; the button is the affordance
+  // for that, so it follows the deck rather than the file.
+  exportBtn.hidden = !window.quireShell;
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// overflow reporting
+// ---------------------------------------------------------------------------
+
+/** @type {import('./fit.js').SlideFit[]} */
+let fitReport = [];
+
+/**
+ * Measure the deck and surface anything that overflows.
+ *
+ * Runs before `quireNav.refresh` so the panel can mark overflowing thumbnails
+ * from the annotations rather than measuring a second time.
+ *
+ * Deliberately reports rather than scales. Silent shrinking would let a deck
+ * drift dense and small one slide at a time; being told a slide is 97px over
+ * is the honest version, and leaves the judgement with the author.
+ */
+function reportFit() {
+  try {
+    fitReport = measureDeck(scaler);
+  } catch {
+    fitReport = []; // measurement must never take the deck down with it
+    return;
+  }
+  annotate(scaler, fitReport);
+
+  const over = fitReport.filter((r) => r.over > 0);
+  fitBtn.hidden = over.length === 0;
+  if (over.length) {
+    const worst = over.reduce((a, b) => (b.over > a.over ? b : a));
+    fitBtn.textContent =
+      over.length === 1 ? `1 slide ${worst.over}px over` : `${over.length} slides over`;
+    fitBtn.title = formatReport(fitReport);
+    console.warn('[quire] ' + formatReport(fitReport));
+  }
+}
+
+/**
+ * Queryable from the console and from a driving script:
+ *
+ *   quireFit.report()    every slide, with natural height and overflow
+ *   quireFit.overflowing() just the ones over
+ *
+ * This is the interface an agent uses. It turns "does this deck fit" from a
+ * screenshot someone has to look at into a number that can be asserted on.
+ */
+window.quireFit = {
+  report: () => fitReport,
+  overflowing: () => fitReport.filter((r) => r.over > 0),
+  format: () => formatReport(fitReport),
+  remeasure: () => {
+    reportFit();
+    return fitReport;
+  },
+};
+
+/**
+ * Export, from the console or a driving script:
+ *
+ *   quireExport.html()   the single-file runtime and source, as a string
+ *   quireExport.save()   the same thing, downloaded
+ *
+ * Exposed for the same reason as quireFit: it turns "does the export work"
+ * into something assertable, instead of a file someone has to open and look
+ * at.
+ */
+window.quireExport = {
+  html: () => exportHtml(lastText, assetBase),
+  name: () => exportName(deckName),
+  save: () => download(exportName(deckName), exportHtml(lastText, assetBase)),
+};
+
+/**
+ * Replace the deck with a single readable failure slide.
+ *
+ * Under a build step a bad file failed loudly at the command line. At runtime
+ * that feedback has to be built, or a malformed deck just goes blank.
+ *
+ * @param {string} headline
+ * @param {unknown} err
+ */
+function showFailure(headline, err) {
+  const detail = err instanceof Error ? err.message : String(err);
+  scaler.innerHTML =
+    '<section class="slide active">\n' +
+    '  <div class="eyebrow">COULD NOT RENDER</div>\n' +
+    `  <h2>${escapeHtml(headline)}</h2>\n` +
+    '  <div class="body">\n' +
+    `    <div class="note">${escapeHtml(detail)}</div>\n` +
+    '  </div>\n' +
+    '</section>';
+  showingFailure = true;
+  // A failure slide is generated, not authored: reporting its fit would be
+  // reporting on this code rather than on the deck.
+  fitReport = [];
+  fitBtn.hidden = true;
+  exportBtn.hidden = true;
+  window.quireNav.refresh(0);
+  setStatus(headline, 'error');
+}
+
+/** @param {string} s */
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ---------------------------------------------------------------------------
+// watching
+// ---------------------------------------------------------------------------
+
+function stopWatching() {
+  watchFailed = false;
+  if (observer) {
+    try {
+      observer.disconnect();
+    } catch {
+      /* already gone */
+    }
+    observer = null;
+  }
+  if (pollTimer !== undefined) {
+    clearInterval(pollTimer);
+    pollTimer = undefined;
+  }
+}
+
+/**
+ * Re-read the handle and render if the bytes changed.
+ *
+ * A failed read keeps the last good render on screen. A deck must not blank
+ * because a disk went away.
+ *
+ * Guarded against re-entry: the observer and the backstop poll can both fire
+ * for one save, and the `lastModified` check below is not a critical section —
+ * two concurrent calls would both pass it before either had assigned.
+ */
+async function reread() {
+  if (!handle || rereading) return;
+  rereading = true;
+  try {
+    const file = await handle.getFile();
+    if (watchFailed) {
+      watchFailed = false;
+      setStatus(`${handle.name} · watching for changes`, 'live');
+    }
+    if (file.lastModified === lastModified) return;
+    const text = await file.text();
+    // Commit the timestamp only once the read has actually succeeded.
+    // Advancing it first means a single failed read — a mid-save file, a
+    // volume that blinked — permanently suppresses that save: every later poll
+    // sees the timestamp it already recorded and returns above. The deck then
+    // never updates again and looks exactly like a file nobody edited, which
+    // is the failure the backstop poll exists to prevent.
+    lastModified = file.lastModified;
+    if (text === lastText && !showingFailure) return;
+    if (render(text, { keepPosition: true })) {
+      setStatus(`${handle.name} · updated ${timeNow()}`, 'live');
+    }
+  } catch (err) {
+    watchFailed = true;
+    setStatus(`${handle.name} · cannot read (showing last good version)`, 'warn');
+  } finally {
+    rereading = false;
+  }
+}
+
+function timeNow() {
+  return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+}
+
+/**
+ * Watch the current handle, by both mechanisms at once.
+ *
+ * `FileSystemObserver` gives sub-250ms notification where polling costs up to
+ * a second, which is worth having in a loop whose whole point is that an edit
+ * appears immediately.
+ *
+ * But the poll runs alongside it rather than only as a fallback. Observing was
+ * verified against an origin-private file, which is a *different storage
+ * backend* from a file picked off the local disk; whether it delivers there
+ * could not be verified without a real picker gesture. Treating an unverified
+ * component as authoritative is how an authoring loop silently stops updating
+ * — the worst failure this app has, because it looks exactly like a deck that
+ * did not change. A local `getFile()` once a second costs no network and no
+ * permission prompt, and `reread` returns immediately when nothing moved, so
+ * the backstop is invisible whenever the observer is doing its job.
+ */
+function startWatching() {
+  stopWatching();
+  if (!handle) return;
+
+  const FSObserver = /** @type {any} */ (window).FileSystemObserver;
+  if (typeof FSObserver === 'function') {
+    try {
+      observer = new FSObserver(() => {
+        void reread();
+      });
+      void observer.observe(handle);
+    } catch {
+      observer = null; // the poll below is then the only watcher
+    }
+  }
+  pollTimer = window.setInterval(() => void reread(), 1000);
+}
+
+// ---------------------------------------------------------------------------
+// opening
+// ---------------------------------------------------------------------------
+
+/** @param {any} h */
+async function openHandle(h) {
+  handle = h;
+  deckName = h.name;
+  assetBase = undefined;
+  const file = await h.getFile();
+  lastModified = file.lastModified;
+  const ok = render(await file.text());
+  // Watch either way: a deck that failed to parse is one the author is most
+  // likely about to fix, and it should recover without being reopened.
+  startWatching();
+  if (ok) setStatus(`${h.name} · watching for changes`, 'live');
+  dropHint.hidden = true;
+  void rememberHandle(h);
+}
+
+async function pickFile() {
+  const picker = window.showOpenFilePicker;
+  if (!picker) {
+    setStatus('This browser cannot open files directly — drop a .md onto the window', 'warn');
+    return;
+  }
+  try {
+    const [h] = await picker({
+      types: [{ description: 'Quire deck', accept: { 'text/markdown': ['.md', '.markdown'] } }],
+      multiple: false,
+    });
+    await openHandle(h);
+  } catch (err) {
+    // AbortError is the user closing the picker; not a failure.
+    if (!(err instanceof DOMException && err.name === 'AbortError')) {
+      setStatus('Could not open that file', 'error');
+    }
+  }
+}
+
+/**
+ * A dropped file has no handle, so it cannot be watched. Say so rather than
+ * appear to be watching.
+ *
+ * @param {File} file
+ */
+async function openDroppedFile(file) {
+  stopWatching();
+  handle = null;
+  deckName = file.name;
+  assetBase = undefined;
+  const ok = render(await file.text());
+  if (ok) setStatus(`${file.name} · drag it again to refresh`, 'warn');
+  dropHint.hidden = true;
+}
+
+// ---------------------------------------------------------------------------
+// remembering the last deck
+// ---------------------------------------------------------------------------
+
+const DB = 'quire';
+const STORE = 'handles';
+
+/** @returns {Promise<IDBDatabase>} */
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** @param {any} h */
+async function rememberHandle(h) {
+  try {
+    const db = await openDb();
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(h, 'last');
+  } catch {
+    /* remembering is a convenience, never a requirement */
+  }
+}
+
+/** @returns {Promise<any>} */
+async function recallHandle() {
+  try {
+    const db = await openDb();
+    return await new Promise((resolve) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get('last');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// startup
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a `?deck=` value, refusing anything that is not same-origin.
+ *
+ * This is a security boundary, not a tidiness check. `fetch` resolves absolute
+ * URLs, so without it `?deck=https://evil.example/x.md` fetches attacker
+ * content — CORS does not help, because the attacker sets the header on their
+ * own host. That text reaches `scaler.innerHTML`, and a deck may contain raw
+ * HTML by design, so the attacker's `onerror` handler runs in *this* origin.
+ *
+ * From there it reaches the handle in IndexedDB, whose permission is granted
+ * silently on return by design, reads the file it points at, and posts it
+ * anywhere. That was demonstrated end to end against a real local file before
+ * this check existed: one link, no dialog, no drop, and the screen still shows
+ * a plausible deck.
+ *
+ * Protocol-relative (`//host/x.md`) and root-relative (`/x.md`) values are
+ * rejected too — the first is cross-origin in disguise, the second escapes the
+ * directory the app was served from for no use case this has.
+ *
+ * @param {string} value the raw parameter
+ * @returns {string | null} a safe same-origin URL, or null if it must be refused
+ */
+function safeDeckUrl(value) {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//') || value.startsWith('/')) {
+    return null;
+  }
+  let url;
+  try {
+    url = new URL(value, location.href);
+  } catch {
+    return null;
+  }
+  // Belt and braces: a resolved URL must still land on this origin.
+  return url.origin === location.origin ? url.href : null;
+}
+
+/**
+ * Same-origin deck by URL: ?deck=name.md. Only works when the app and the
+ * deck are served from the same place, which in practice means a dev server.
+ */
+async function tryUrlDeck() {
+  const name = new URLSearchParams(location.search).get('deck');
+  if (!name) return false;
+  const url = safeDeckUrl(name);
+  if (!url) {
+    showFailure(
+      'That deck link is not allowed',
+      new Error(
+        `?deck= only opens a file served alongside the app. "${name}" points somewhere else, ` +
+          'and a deck can contain executable markup, so it is refused rather than rendered.',
+      ),
+    );
+    return true;
+  }
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    deckName = name;
+    assetBase = new URL('.', url).href;
+    const ok = render(await res.text());
+    if (ok) setStatus(`${name} · polling for changes`, 'live');
+    dropHint.hidden = true;
+    watchUrl(url);
+    return true;
+  } catch (err) {
+    showFailure(`Could not load ${name}`, err);
+    return true; // handled, even though it failed
+  }
+}
+
+/**
+ * Poll a same-origin deck by URL.
+ *
+ * Guarded against overlapping ticks and against rendering a failure body.
+ * Fetching the content rather than relying on Last-Modified also catches
+ * equal-length edits and saves within one timestamp-resolution window.
+ *
+ * @param {string} name a URL already checked as same-origin
+ */
+function watchUrl(name) {
+  stopWatching();
+  let polling = false;
+  pollTimer = window.setInterval(async () => {
+    if (polling) return;
+    polling = true;
+    try {
+      const res = await fetch(name, { cache: 'no-store' });
+      // A deck must never be replaced by an error page.
+      if (!res.ok) {
+        watchFailed = true;
+        setStatus(`${deckName} · cannot read (showing last good version)`, 'warn');
+        return;
+      }
+      const text = await res.text();
+      if (watchFailed) {
+        watchFailed = false;
+        setStatus(`${deckName} · polling for changes`, 'live');
+      }
+      if ((text !== lastText || showingFailure) && render(text, { keepPosition: true })) {
+        setStatus(`${deckName} · updated ${timeNow()}`, 'live');
+      }
+    } catch {
+      watchFailed = true;
+      setStatus(`${deckName} · cannot read (showing last good version)`, 'warn');
+    } finally {
+      polling = false;
+    }
+  }, 1000);
+}
+
+/**
+ * A stored handle may still be granted from a previous visit. Browsers require
+ * a user gesture to *request* permission, so when it is merely 'prompt' we
+ * offer a button rather than firing a dialog at someone who just opened a tab.
+ */
+async function tryStoredHandle() {
+  if (!hasFSA) return false;
+  const h = await recallHandle();
+  if (!h) return false;
+  try {
+    const state = await h.queryPermission({ mode: 'read' });
+    if (state === 'granted') {
+      await openHandle(h);
+      return true;
+    }
+    openBtn.textContent = `Reopen ${h.name}`;
+    openBtn.onclick = async () => {
+      try {
+        if ((await h.requestPermission({ mode: 'read' })) === 'granted') {
+          openBtn.textContent = 'Open deck…';
+          openBtn.onclick = () => void pickFile();
+          await openHandle(h);
+        }
+      } catch (err) {
+        setStatus(`Could not reopen ${h.name}`, 'error');
+      }
+    };
+    setStatus(`${h.name} — click to reopen`, 'idle');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function wireDragDrop() {
+  const stop = (/** @type {Event} */ e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  window.addEventListener('dragover', (e) => {
+    stop(e);
+    document.body.classList.add('dragging');
+  });
+  window.addEventListener('dragleave', (e) => {
+    stop(e);
+    if (e.relatedTarget === null) document.body.classList.remove('dragging');
+  });
+  window.addEventListener('drop', async (e) => {
+    stop(e);
+    document.body.classList.remove('dragging');
+    const dt = e.dataTransfer;
+    if (!dt) return;
+
+    try {
+      // Chromium can give a real handle from a drop, which means the dropped
+      // file can be watched like a picked one. Try that before falling back.
+      //
+      // The catch covers acquiring the handle only. Wrapping openHandle too
+      // meant a deck that failed to open fell through to the File path and
+      // threw a second time, out of an async listener nothing was awaiting —
+      // so a drop did nothing at all, with no error and no status change.
+      const item = dt.items && dt.items[0];
+      let handleFromDrop = null;
+      if (hasFSA && item && typeof item.getAsFileSystemHandle === 'function') {
+        try {
+          const h = await item.getAsFileSystemHandle();
+          if (h && h.kind === 'file') handleFromDrop = h;
+        } catch {
+          /* no handle available; the File below still works */
+        }
+      }
+      if (handleFromDrop) {
+        await openHandle(handleFromDrop);
+        return;
+      }
+      const file = dt.files && dt.files[0];
+      if (file) await openDroppedFile(file);
+    } catch (err) {
+      setStatus(
+        err instanceof Error ? `Could not open that file — ${err.message}` : 'Could not open that file',
+        'error',
+      );
+    }
+  });
+}
+
+async function main() {
+  openBtn.onclick = () => void pickFile();
+  aboutBtn.onclick = showIntro;
+  introClose.onclick = closeIntro;
+  introDismiss.onclick = closeIntro;
+  introDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeIntro();
+  });
+  introOpenBtn.onclick = () => {
+    closeIntro();
+    if (hasFSA) void pickFile();
+  };
+  if (!hasFSA) introOpenBtn.textContent = 'Start exploring';
+  showIntroOnce();
+
+  // Jumping to the worst offender is the action an author wants next; the
+  // full per-slide table is on the tooltip and in the console.
+  fitBtn.onclick = () => {
+    const over = fitReport.filter((r) => r.over > 0);
+    if (!over.length) return;
+    const worst = over.reduce((a, b) => (b.over > a.over ? b : a));
+    window.quireNav.go(worst.index);
+    console.warn('[quire] ' + formatReport(fitReport));
+  };
+  wireDragDrop();
+
+  // Export builds from the last source that rendered, not from the DOM, so
+  // what a recipient opens is what the author's file says.
+  exportBtn.onclick = () => {
+    if (!lastText) return;
+    try {
+      const html = exportHtml(lastText, assetBase);
+      download(exportName(deckName), html);
+      setStatus(`${exportName(deckName)} · saved, runtime and source embedded`, 'live');
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Could not export this deck', 'error');
+    }
+  };
+
+  if (!hasFSA) {
+    openBtn.hidden = true;
+    setStatus('Drop a .md file to open it — this browser cannot watch files', 'warn');
+  }
+
+  if (await tryUrlDeck()) return;
+  if (await tryStoredHandle()) return;
+
+  if (hasFSA) setStatus('Open a deck, or drop a .md file onto the window');
+}
+
+void main();
+
+</script>
+</body>
+</html>

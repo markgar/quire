@@ -1,0 +1,31 @@
+{
+  "name": "quire",
+  "version": "0.1.0",
+  "description": "An agent-native presentation format and local browser runtime",
+  "keywords": ["presentation", "slides", "markdown", "deck", "file-system-access"],
+  "license": "MIT",
+  "author": "Mark Garner",
+  "homepage": "https://github.com/markgar/quire#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/markgar/quire.git" },
+  "bugs": { "url": "https://github.com/markgar/quire/issues" },
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "files": ["src", "skills", "quire.html", "SPEC.md", "LICENSE"],
+  "scripts": {
+    "test": "node test/conformance.js",
+    "test:skill": "node tools/test-skill.js",
+    "guide": "node src/cli.js guide",
+    "typecheck": "tsc",
+    "build:app": "node tools/build-app.js",
+    "build:deploy": "npm run build:app && node tools/build-deploy.js",
+    "update:goldens": "node tools/update-goldens.js",
+    "check": "npm run typecheck && npm run build:app && npm test",
+    "deploy:azure": "npm run check && npm run build:deploy && node tools/deploy-azure.js",
+    "serve": "node tools/serve.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.3.0",
+    "typescript": "^5.9.3"
+  }
+}

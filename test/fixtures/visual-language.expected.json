@@ -1,0 +1,245 @@
+{
+  "title": "The visual language of Quire",
+  "slides": [
+    {
+      "source": "Quire visual language",
+      "tone": "contrast",
+      "align": "center",
+      "layout": "title",
+      "headline": "Visuals without a drawing tool",
+      "lede": "Native presentation structures written as readable Quire source.",
+      "meta": [
+        "Images",
+        "Data",
+        "Diagrams",
+        "Emphasis"
+      ]
+    },
+    {
+      "eyebrow": "METRICS",
+      "title": "Make the number carry the argument",
+      "sub": "Use cards as semantic metric-and-label pairs.",
+      "layout": "metrics",
+      "cards": [
+        {
+          "h": "84%",
+          "p": "of teams want fewer handoffs",
+          "accent": false
+        },
+        {
+          "h": "3.2×",
+          "p": "faster from source to presentation",
+          "accent": true
+        },
+        {
+          "h": "0",
+          "p": "uploads required to present",
+          "accent": false
+        }
+      ],
+      "note": "<strong>Takeaway:</strong> Numbers should explain a decision, not decorate a slide."
+    },
+    {
+      "image": "./visual-grid.svg",
+      "imageAlt": "Quire source becoming a rendered presentation",
+      "imagePosition": "right",
+      "caption": "Source on the left, presentation on the right",
+      "credit": "Quire project",
+      "title": "Pair an argument with an image",
+      "sub": "The image is structure, not pasted HTML.",
+      "layout": "media",
+      "cards": [
+        {
+          "h": "Local source",
+          "p": "The deck remains readable, reviewable text.",
+          "accent": false
+        },
+        {
+          "h": "Browser rendering",
+          "p": "Quire turns intent into a consistent visual system.",
+          "accent": true
+        }
+      ]
+    },
+    {
+      "image": "./visual-grid.svg",
+      "imageAlt": "Abstract pages and presentation panels",
+      "imagePosition": "full",
+      "source": "<a href=\"https://github.com/markgar/quire\">Quire visual fixture</a>",
+      "title": "Let a visual fill the stage",
+      "sub": "Full-width media still carries native captioning and attribution.",
+      "layout": "media"
+    },
+    {
+      "chart": "bar",
+      "source": "Internal product study, illustrative data",
+      "title": "Compare values without drawing bars",
+      "sub": "The first table column labels each bar; the second supplies its value.",
+      "layout": "chart",
+      "columns": [
+        "Workflow",
+        "Minutes"
+      ],
+      "rows": [
+        [
+          "Manual editing",
+          "42"
+        ],
+        [
+          "Template assembly",
+          "24"
+        ],
+        [
+          "Quire source",
+          "9"
+        ]
+      ]
+    },
+    {
+      "chart": "line",
+      "tone": "accent",
+      "title": "Show a trend from the same table syntax",
+      "sub": "Quire converts ordered rows into a deterministic line chart.",
+      "layout": "chart",
+      "columns": [
+        "Week",
+        "Authors"
+      ],
+      "rows": [
+        [
+          "Week 1",
+          "12"
+        ],
+        [
+          "Week 2",
+          "19"
+        ],
+        [
+          "Week 3",
+          "31"
+        ],
+        [
+          "Week 4",
+          "48"
+        ]
+      ]
+    },
+    {
+      "chart": "donut",
+      "title": "Show composition without custom SVG",
+      "sub": "The renderer calculates segments and keeps the legend readable.",
+      "layout": "chart",
+      "columns": [
+        "Activity",
+        "Share"
+      ],
+      "rows": [
+        [
+          "Authoring",
+          "45"
+        ],
+        [
+          "Review",
+          "30"
+        ],
+        [
+          "Presenting",
+          "25"
+        ]
+      ]
+    },
+    {
+      "diagram": "process",
+      "title": "Turn ordered rows into a process",
+      "sub": "Sequence is already present in the source.",
+      "layout": "diagram",
+      "items": [
+        {
+          "q": "Describe",
+          "a": "State the presentation goal."
+        },
+        {
+          "q": "Author",
+          "a": "Let the agent write Quire source."
+        },
+        {
+          "q": "Review",
+          "a": "Read and revise the local file."
+        },
+        {
+          "q": "Present",
+          "a": "Open it directly in the browser."
+        }
+      ]
+    },
+    {
+      "diagram": "timeline",
+      "title": "Give milestones a visual rhythm",
+      "sub": "The same rows become a timeline when intent changes.",
+      "layout": "diagram",
+      "items": [
+        {
+          "q": "Today",
+          "a": "Write and present from one local file."
+        },
+        {
+          "q": "Next",
+          "a": "Expand the native visual vocabulary."
+        },
+        {
+          "q": "Later",
+          "a": "Share reusable authoring skills."
+        }
+      ]
+    },
+    {
+      "diagram": "hierarchy",
+      "title": "Express hierarchy without positioned shapes",
+      "sub": "The first item leads; the following items form the supporting layer.",
+      "layout": "diagram",
+      "items": [
+        {
+          "q": "The argument",
+          "a": "One clear idea controls the slide."
+        },
+        {
+          "q": "Evidence",
+          "a": "Data makes it credible."
+        },
+        {
+          "q": "Structure",
+          "a": "Layout makes it legible."
+        },
+        {
+          "q": "Delivery",
+          "a": "The browser makes it presentable."
+        }
+      ]
+    },
+    {
+      "source": "Quire visual language",
+      "tone": "accent",
+      "align": "center",
+      "title": "Use tone and alignment deliberately",
+      "sub": "Visual controls change emphasis without coordinates or CSS.",
+      "layout": "metrics",
+      "cards": [
+        {
+          "h": "Local",
+          "p": "Your source",
+          "accent": false
+        },
+        {
+          "h": "Open",
+          "p": "Your runtime",
+          "accent": false
+        },
+        {
+          "h": "Agent-native",
+          "p": "Your workflow",
+          "accent": false
+        }
+      ]
+    }
+  ]
+}

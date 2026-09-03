@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("theme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --q-bg: #f7f4ef;
+  --q-bg-elevated: #fcfbf8;
+  --q-surface: #ffffff;
+  --q-surface-soft: #f5f5f5;
+  --q-border: #dedede;
+  --q-border-strong: #919191;
+  --q-text: #242424;
+  --q-text-muted: #5c5c5c;
+  --q-text-soft: #6f6f6f;
+  --q-accent: #b11f4b;
+  --q-accent-hover: #9a1a41;
+  --q-accent-soft: rgba(177, 31, 75, 0.08);
+  --q-accent-fg: #ffffff;
+  --q-success: #16a34a;
+  --q-danger: #dc2626;
+  --q-warning: #f59e0b;
+  --q-link: #0078d4;
+  --q-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --q-overlay: rgba(255, 255, 255, 0.8);
+  --q-panel: rgba(255, 255, 255, 0.86);
+  --q-panel-strong: rgba(255, 255, 255, 0.96);
+  --q-sheen: rgba(255, 255, 255, 0.55);
+  --q-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --q-bg: #3d3b3a;
+  --q-bg-elevated: #343231;
+  --q-surface: #292929;
+  --q-surface-soft: #2e2e2e;
+  --q-border: #474747;
+  --q-border-strong: #5f5f5f;
+  --q-text: #dedede;
+  --q-text-muted: #919191;
+  --q-text-soft: #b0b0b0;
+  --q-accent: #fd8ea1;
+  --q-accent-hover: #fb7b91;
+  --q-accent-soft: rgba(253, 142, 161, 0.14);
+  --q-accent-fg: #1a1a1a;
+  --q-success: #4ade80;
+  --q-danger: #f87171;
+  --q-warning: #fbbf24;
+  --q-link: #4da6ff;
+  --q-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --q-overlay: rgba(41, 41, 41, 0.88);
+  --q-panel: rgba(41, 41, 41, 0.72);
+  --q-panel-strong: rgba(41, 41, 41, 0.96);
+  --q-sheen: rgba(255, 255, 255, 0.04);
+  --q-highlight: rgba(253, 142, 161, 0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--q-bg);
+  color: var(--q-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fixed 16:9 canvas, scaled to fit the viewport. Everything is authored at
+   1280x720 and scaled as a unit, so layout never reflows between screens -
+   what you see while editing is what a projector shows. */
+.stage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 20px;
+}
+.scaler {
+  width: 1280px;
+  height: 720px;
+  flex: 0 0 auto;
+  transform-origin: center center;
+  position: relative;
+}
+
+/* Slides stack in the same box so scaling applies once. Content taller than
+   720px overflows the frame - that is a content bug, not a layout one. */
+.slide {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background: var(--q-surface);
+  border: 1px solid var(--q-border);
+  border-radius: 16px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+  padding: 54px 64px;
+  flex-direction: column;
+  overflow: hidden;
+}
+.slide.active { display: flex; }
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--q-accent);
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+h1 { font-size: 50px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 20px; }
+h2 { font-size: 38px; line-height: 1.15; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 8px; }
+.sub { font-size: 18px; color: var(--q-text-muted); margin-bottom: 30px; max-width: 78ch; line-height: 1.5; }
+/* .sub carries the gap below the title; without one, .body would sit
+   almost flush against the h2. */
+h2 + .body { margin-top: 22px; }
+p { font-size: 16px; line-height: 1.6; }
+
+/* A trailing note/kicker is pushed to the bottom of the frame, so light
+   slides read as designed instead of floating above dead space. */
+.body { flex: 1; display: flex; flex-direction: column; gap: 22px; }
+.body > .note:last-child,
+.body > .kicker:last-child { margin-top: auto; }
+
+.title-slide { justify-content: center; background: var(--q-bg-elevated); }
+.title-slide h1 { font-size: 64px; max-width: 20ch; }
+.title-slide .lede { font-size: 22px; color: var(--q-text-muted); max-width: 62ch; line-height: 1.5; margin-top: 6px; }
+.title-meta {
+  margin-top: 44px; padding-top: 22px;
+  border-top: 1px solid var(--q-border);
+  font-size: 14px; color: var(--q-text-soft);
+  display: flex; gap: 28px; flex-wrap: wrap;
+}
+
+.pull {
+  font-size: 30px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em;
+  border-left: 4px solid var(--q-accent);
+  padding: 4px 0 4px 24px;
+  max-width: 62ch;
+}
+.pull em { color: var(--q-accent); font-style: normal; }
+
+.grid { display: grid; gap: 18px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+
+.card {
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+  border-radius: 16px;
+  padding: 22px 24px;
+}
+.card.accent { background: var(--q-accent-soft); border-color: var(--q-accent); }
+.card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.card p { font-size: 14.5px; color: var(--q-text-muted); line-height: 1.55; }
+
+.num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--q-accent); color: var(--q-accent-fg);
+  font-size: 14px; font-weight: 700; margin-bottom: 12px;
+}
+
+/* A labelled band of cards. The rule trailing the label ties the pair
+   together visually, so two groups on one slide read as two questions
+   rather than one list of four. */
+.group { display: flex; flex-direction: column; gap: 11px; }
+.group-label {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 11.5px; letter-spacing: 0.11em; text-transform: uppercase;
+  font-weight: 700; color: var(--q-text-soft);
+}
+.group-label::after {
+  content: ""; flex: 1; height: 1px; background: var(--q-border);
+}
+
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; font-size: 12px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--q-text-soft); font-weight: 700;
+  padding: 0 14px 10px 0; border-bottom: 1px solid var(--q-border);
+}
+td { padding: 13px 14px 13px 0; font-size: 15px; border-bottom: 1px solid var(--q-border); vertical-align: top; line-height: 1.5; }
+td.k { font-weight: 700; width: 26%; }
+td.was { color: var(--q-text-soft); width: 33%; }
+td.is { color: var(--q-text); }
+tr:last-child td { border-bottom: none; }
+
+.rows { display: flex; flex-direction: column; gap: 11px; }
+.row {
+  display: flex; gap: 16px; align-items: flex-start;
+  padding: 13px 18px;
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+  border-radius: 16px;
+}
+.row .q { font-weight: 700; font-size: 15.5px; margin-bottom: 3px; }
+.row .a { font-size: 14.5px; color: var(--q-text-muted); line-height: 1.5; }
+.row .badge {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--q-accent-soft); color: var(--q-accent);
+  border: 1px solid var(--q-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; margin-top: 1px;
+}
+
+.note {
+  padding: 16px 20px; border-radius: 16px;
+  background: var(--q-accent-soft); border: 1px solid var(--q-accent);
+  font-size: 15px; line-height: 1.55;
+}
+.note strong, .note b { color: var(--q-accent); }
+
+.kicker {
+  padding-top: 22px; font-size: 15.5px; color: var(--q-text-muted);
+  border-top: 1px solid var(--q-border); line-height: 1.55;
+}
+.kicker b, .kicker strong { color: var(--q-text); }
+
+.source-line {
+  margin-top: auto;
+  padding-top: 12px;
+  color: var(--q-text-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.source-line a { color: inherit; text-underline-offset: 3px; }
+.title-source { margin-top: 34px; }
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 18px;
+  flex: 1;
+  align-items: stretch;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: 28px;
+  background: var(--q-surface-soft);
+  border-top: 3px solid var(--q-border-strong);
+}
+.metric.accent { background: var(--q-accent-soft); border-color: var(--q-accent); }
+.metric-value {
+  color: var(--q-text);
+  font-size: clamp(48px, 5vw, 76px);
+  font-weight: 750;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+.metric-label {
+  max-width: 24ch;
+  margin-top: 18px;
+  color: var(--q-text-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.media-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 28px;
+  min-height: 0;
+  height: 100%;
+}
+.media-split > .grid { align-content: center; }
+.media-figure {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+}
+.media-figure img {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  object-fit: cover;
+}
+.media-figure figcaption {
+  padding: 9px 12px;
+  color: var(--q-text-soft);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.media-missing {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  color: var(--q-text-soft);
+  font-size: 14px;
+}
+.media-position-full .sub { margin-bottom: 18px; }
+.media-position-full .body { min-height: 0; }
+.media-position-full .media-figure { flex: 1; height: auto; }
+.media-copy { align-self: center; color: var(--q-text-muted); font-size: 20px; }
+
+.chart {
+  --chart-1: var(--q-accent);
+  --chart-2: #d97706;
+  --chart-3: #2563eb;
+  --chart-4: #059669;
+  --chart-5: #7c3aed;
+  flex: 1;
+  min-height: 0;
+}
+.chart-bar { display: flex; flex-direction: column; justify-content: center; gap: 17px; }
+.chart-bar-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 70px;
+  gap: 16px;
+  align-items: center;
+}
+.chart-label { font-size: 14px; font-weight: 650; }
+.chart-track { height: 22px; overflow: hidden; background: var(--q-surface-soft); }
+.chart-track span { display: block; height: 100%; background: var(--q-accent); }
+.chart-value { text-align: right; font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.chart-line { display: flex; flex-direction: column; justify-content: center; }
+.chart-line svg { width: 100%; max-height: 320px; overflow: visible; }
+.chart-line polyline { fill: none; stroke: var(--q-accent); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.chart-line circle { fill: var(--q-surface); stroke: var(--q-accent); stroke-width: 4; }
+.chart-line text { fill: var(--q-text); font-size: 15px; font-weight: 750; text-anchor: middle; }
+.chart-axis { display: flex; justify-content: space-between; margin-top: 8px; color: var(--q-text-soft); font-size: 12px; }
+.chart-donut { display: grid; grid-template-columns: 0.85fr 1.15fr; align-items: center; gap: 52px; }
+.donut {
+  width: 300px;
+  aspect-ratio: 1;
+  margin: auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.donut::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--q-surface);
+}
+.donut span { z-index: 1; font-size: 40px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.chart-legend { display: flex; flex-direction: column; gap: 15px; }
+.chart-legend-item { display: grid; grid-template-columns: 14px 1fr auto; gap: 12px; align-items: center; font-size: 15px; }
+.chart-swatch { width: 11px; height: 11px; border-radius: 50%; }
+.swatch-1 { background: var(--chart-1); }
+.swatch-2 { background: var(--chart-2); }
+.swatch-3 { background: var(--chart-3); }
+.swatch-4 { background: var(--chart-4); }
+.swatch-5 { background: var(--chart-5); }
+
+.diagram { flex: 1; min-height: 0; }
+.diagram-process {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 28px;
+  align-items: center;
+}
+.diagram-process .diagram-node:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  top: 50%;
+  right: -22px;
+  color: var(--q-accent);
+  font-size: 24px;
+  transform: translateY(-50%);
+}
+.diagram-node {
+  position: relative;
+  padding: 22px;
+  background: var(--q-surface-soft);
+  border-top: 2px solid var(--q-border-strong);
+}
+.diagram-node.accent { border-color: var(--q-accent); }
+.diagram-node strong { display: block; margin: 12px 0 7px; font-size: 17px; }
+.diagram-node p { color: var(--q-text-muted); font-size: 14px; line-height: 1.5; }
+.diagram-mark { color: var(--q-accent); font-size: 12px; font-weight: 800; }
+.diagram-timeline { display: flex; flex-direction: column; justify-content: center; gap: 0; }
+.diagram-timeline .diagram-node {
+  display: grid;
+  grid-template-columns: 48px 180px 1fr;
+  align-items: baseline;
+  padding: 15px 0;
+  background: none;
+  border-top: 1px solid var(--q-border);
+}
+.diagram-timeline .diagram-node:last-child { border-bottom: 1px solid var(--q-border); }
+.diagram-timeline .diagram-node strong { margin: 0; }
+.diagram-hierarchy {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  align-content: center;
+}
+.diagram-hierarchy .diagram-node:first-child { grid-column: 2; }
+.diagram-hierarchy .diagram-node:not(:first-child) { grid-row: 2; }
+
+.align-center { text-align: center; }
+.align-center .sub { margin-left: auto; margin-right: auto; }
+.tone-accent { background: var(--q-accent); color: var(--q-accent-fg); border-color: transparent; }
+.tone-accent .eyebrow,
+.tone-accent .sub,
+.tone-accent .metric-label,
+.tone-accent .diagram-node p,
+.tone-accent .card p,
+.tone-accent .source-line { color: color-mix(in srgb, var(--q-accent-fg) 76%, transparent); }
+.tone-accent .metric,
+.tone-accent .diagram-node,
+.tone-accent .card { background: color-mix(in srgb, var(--q-accent-fg) 10%, transparent); border-color: color-mix(in srgb, var(--q-accent-fg) 38%, transparent); }
+.tone-accent .metric-value,
+.tone-accent .card h3,
+.tone-accent .donut span { color: var(--q-accent-fg); }
+.tone-accent .chart { --chart-1: var(--q-accent-fg); }
+.tone-accent .chart-track { background: color-mix(in srgb, var(--q-accent-fg) 18%, transparent); }
+.tone-accent .chart-track span { background: var(--q-accent-fg); }
+.tone-accent .chart-line polyline { stroke: var(--q-accent-fg); }
+.tone-accent .chart-line circle { fill: var(--q-accent); stroke: var(--q-accent-fg); }
+.tone-accent .chart-line text,
+.tone-accent .chart-axis { fill: var(--q-accent-fg); color: var(--q-accent-fg); }
+.tone-contrast { background: #171717; color: #f7f4ef; border-color: #171717; }
+.tone-contrast .eyebrow { color: #fd8ea1; }
+.tone-contrast .sub,
+.tone-contrast .source-line,
+.tone-contrast .title-meta { color: #c7c2bb; }
+.tone-contrast .title-meta { border-color: #55504a; }
+
+.nav {
+  flex: 0 0 auto;
+  background: var(--q-panel-strong);
+  border-top: 1px solid var(--q-border);
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; padding: 10px 20px;
+}
+
+/* ---- slide panel ------------------------------------------------------ */
+
+.burger {
+  position: fixed; top: 14px; left: 14px; z-index: 30;
+  width: 38px; height: 34px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 0;
+  background: var(--q-panel-strong);
+  border: 1px solid var(--q-border);
+  border-radius: 0.625rem;
+  cursor: pointer;
+}
+.burger span {
+  display: block; width: 16px; height: 2px; border-radius: 1px;
+  background: var(--q-text);
+}
+.burger:hover { background: var(--q-accent); border-color: var(--q-accent); }
+.burger:hover span { background: var(--q-accent-fg); }
+
+.panel {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
+  width: 300px;
+  background: var(--q-bg-elevated);
+  border-right: 1px solid var(--q-border);
+  box-shadow: var(--q-shadow);
+  transform: translateX(-100%);
+  transition: transform 0.18s ease;
+  display: flex; flex-direction: column;
+}
+.panel.open { transform: translateX(0); }
+
+.panel-head {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--q-border);
+}
+.panel-title {
+  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  font-weight: 700; color: var(--q-text-soft);
+}
+.panel-close {
+  border: none; background: none; color: var(--q-text-muted);
+  font-size: 20px; line-height: 1; padding: 2px 6px; cursor: pointer;
+  border-radius: 0.625rem;
+}
+.panel-close:hover { background: var(--q-accent); color: var(--q-accent-fg); }
+
+/* Extra bottom padding so the last thumbnail's label clears the footer. */
+.panel-list { flex: 1; overflow-y: auto; padding: 12px 12px 20px; }
+
+.thumb { margin-bottom: 14px; }
+.thumb-frame {
+  width: 100%; aspect-ratio: 16 / 9;
+  position: relative; overflow: hidden;
+  border: 2px solid var(--q-border);
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--q-surface);
+}
+.thumb-frame:hover { border-color: var(--q-accent); }
+.thumb.current .thumb-frame { border-color: var(--q-accent); }
+.thumb.is-hidden .thumb-frame { opacity: 0.42; }
+
+/* The clone is the real slide at 1280x720, scaled into the frame. Using the
+   actual markup keeps thumbnails honest - they cannot drift from the deck. */
+.thumb-scale {
+  position: absolute; top: 0; left: 0;
+  width: 1280px; height: 720px;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.thumb-scale .slide {
+  position: absolute; inset: 0; display: flex;
+  border-radius: 0; border: none; box-shadow: none;
+}
+
+.thumb-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 2px 0;
+}
+.thumb-num {
+  font-size: 11px; font-weight: 700; color: var(--q-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+.thumb.is-hidden .thumb-num { color: var(--q-accent); }
+.thumb-toggle {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--q-border-strong);
+  background: var(--q-surface); color: var(--q-text-muted);
+  cursor: pointer;
+}
+.thumb-toggle:hover { background: var(--q-accent); color: var(--q-accent-fg); border-color: var(--q-accent); }
+.thumb.is-hidden .thumb-toggle {
+  background: var(--q-accent-soft); color: var(--q-accent); border-color: var(--q-accent);
+}
+
+.panel-foot {
+  flex: 0 0 auto;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--q-border);
+  font-size: 11px; line-height: 1.45;
+  color: var(--q-text-soft);
+}
+
+.scrim {
+  position: fixed; inset: 0; z-index: 35;
+  background: rgba(0,0,0,0.28);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.scrim.on { opacity: 1; pointer-events: auto; }
+
+.counter.hidden-mark { color: var(--q-accent); font-weight: 700; }
+button {
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  padding: 8px 18px; border-radius: 0.625rem;
+  border: 1px solid var(--q-border-strong);
+  background: var(--q-surface); color: var(--q-text); cursor: pointer;
+}
+button:hover { background: var(--q-accent); color: var(--q-accent-fg); border-color: var(--q-accent); }
+button:disabled { opacity: 0.35; cursor: default; }
+button:disabled:hover { background: var(--q-surface); color: var(--q-text); border-color: var(--q-border-strong); }
+.counter { font-size: 14px; color: var(--q-text-muted); font-variant-numeric: tabular-nums; min-width: 62px; text-align: center; white-space: nowrap; }
+.dots { display: flex; gap: 7px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--q-border-strong); border: none; padding: 0; cursor: pointer; }
+.dot:hover, .dot.on { background: var(--q-accent); }
+.hint { font-size: 12px; color: var(--q-text-soft); margin-left: 6px; }
+
+/* The slide canvas is fixed and scaled, so it never reflows. Only the nav,
+   which lives outside the scaler, adapts on narrow screens. */
+@media (max-width: 700px) {
+  .dots { display: none; }
+  .hint { display: none; }
+}
+</style>
+</head>
+<body>
+
+<button class="burger" id="burger" type="button" aria-label="Slides">
+  <span></span><span></span><span></span>
+</button>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="panel" id="panel" aria-label="All slides">
+  <div class="panel-head">
+    <span class="panel-title">Slides</span>
+    <button class="panel-close" id="panelClose" type="button" aria-label="Close">&times;</button>
+  </div>
+  <div class="panel-list" id="panelList"></div>
+  <div class="panel-foot">
+    Hidden slides stay reachable here and are skipped in normal navigation.
+    Toggling is for this session only &mdash; set <code>hidden: true</code> in
+    the Markdown source to make it stick.
+  </div>
+</aside>
+
+<div class="stage" id="stage">
+<div class="scaler" id="scaler">
+
+{slides}
+</div>
+</div>
+
+<nav class="nav">
+  <button id="prev" type="button">&larr; Prev</button>
+  <span class="counter" id="counter">1 / {n}</span>
+  <button id="next" type="button">Next &rarr;</button>
+  <span class="dots" id="dots"></span>
+  <span class="hint">&larr; &rarr; or space &middot; F full screen &middot; T theme &middot; S slides</span>
+</nav>
+
+<script>
+(() => {
+  const SLIDE_W = 1280, SLIDE_H = 720;
+  const slides = Array.from(document.querySelectorAll(".slide"));
+  const stage = document.getElementById("stage");
+  const scaler = document.getElementById("scaler");
+  const prev = document.getElementById("prev");
+  const next = document.getElementById("next");
+  const counter = document.getElementById("counter");
+  const dotWrap = document.getElementById("dots");
+  const burger = document.getElementById("burger");
+  const panel = document.getElementById("panel");
+  const panelList = document.getElementById("panelList");
+  const panelClose = document.getElementById("panelClose");
+  const scrim = document.getElementById("scrim");
+  let i = 0;
+
+  // Hidden state starts from the Markdown (data-hidden) and can be flipped
+  // for the current session from the panel. It is deliberately not persisted:
+  // the HTML is a build artifact, so the source of truth stays in the .md.
+  const hidden = slides.map(s => s.dataset.hidden === "true");
+  const isShown = n => !hidden[n];
+  const shownIndexes = () => slides.map((_, n) => n).filter(isShown);
+
+  function fit() {
+    const cs = getComputedStyle(stage);
+    const availW = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const availH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const scale = Math.min(availW / SLIDE_W, availH / SLIDE_H);
+    scaler.style.transform = "scale(" + scale + ")";
+    scaler.style.margin =
+      ((availH - SLIDE_H) / 2) + "px " + ((availW - SLIDE_W) / 2) + "px";
+  }
+
+  // ---- slide panel ------------------------------------------------------
+  // Thumbnails are live clones of the real slides, scaled down. Rendering the
+  // actual markup means a thumbnail can never drift from the slide it shows.
+  function buildPanel() {
+    panelList.innerHTML = "";
+    slides.forEach((slide, n) => {
+      const item = document.createElement("div");
+      item.className = "thumb";
+      item.dataset.index = n;
+
+      const frame = document.createElement("div");
+      frame.className = "thumb-frame";
+      const inner = document.createElement("div");
+      inner.className = "thumb-scale";
+      const clone = slide.cloneNode(true);
+      // The clone must not carry .active: it would pollute every
+      // `.slide.active` query, and the panel sits before the stage in the DOM
+      // so the clone would win. `.thumb-scale .slide` displays it instead.
+      clone.classList.remove("active");
+      clone.removeAttribute("id");
+      inner.appendChild(clone);
+      frame.appendChild(inner);
+      frame.addEventListener("click", () => { go(n); closePanel(); });
+
+      const meta = document.createElement("div");
+      meta.className = "thumb-meta";
+      const num = document.createElement("span");
+      num.className = "thumb-num";
+      const toggle = document.createElement("button");
+      toggle.className = "thumb-toggle";
+      toggle.type = "button";
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        hidden[n] = !hidden[n];
+        // Never strand the viewer on a slide just hidden, and never hide the
+        // last visible slide out from under the deck.
+        if (hidden[n] && shownIndexes().length === 0) { hidden[n] = false; }
+        else if (hidden[n] && n === i) { const s = shownIndexes(); if (s.length) go(s[0]); }
+        render();
+      });
+
+      meta.appendChild(num);
+      meta.appendChild(toggle);
+      item.appendChild(frame);
+      item.appendChild(meta);
+      panelList.appendChild(item);
+    });
+    sizeThumbs();
+  }
+
+  function sizeThumbs() {
+    panelList.querySelectorAll(".thumb-frame").forEach(f => {
+      const s = f.clientWidth / SLIDE_W;
+      f.querySelector(".thumb-scale").style.transform = "scale(" + s + ")";
+    });
+  }
+
+  function openPanel() { panel.classList.add("open"); scrim.classList.add("on"); sizeThumbs(); }
+  function closePanel() { panel.classList.remove("open"); scrim.classList.remove("on"); }
+  function togglePanel() { panel.classList.contains("open") ? closePanel() : openPanel(); }
+
+  burger.addEventListener("click", togglePanel);
+  panelClose.addEventListener("click", closePanel);
+  scrim.addEventListener("click", closePanel);
+
+  // ---- dots -------------------------------------------------------------
+  function buildDots() {
+    dotWrap.innerHTML = "";
+    shownIndexes().forEach(n => {
+      const d = document.createElement("button");
+      d.className = "dot";
+      d.type = "button";
+      d.dataset.index = n;
+      d.setAttribute("aria-label", "Go to slide " + (n + 1));
+      d.addEventListener("click", () => go(n));
+      dotWrap.appendChild(d);
+    });
+  }
+
+  // ---- render -----------------------------------------------------------
+  function render() {
+    slides.forEach((s, k) => s.classList.toggle("active", k === i));
+
+    const shown = shownIndexes();
+    // Numbering counts visible slides only, so a hidden slide does not leave
+    // a gap in "3 / 9". A hidden slide shows its position plus a marker.
+    const pos = shown.indexOf(i);
+    if (pos === -1) {
+      // Show position within the full deck too, so it is obvious where you
+      // landed - "hidden" alone loses all sense of place.
+      counter.textContent = "hidden · " + (i + 1) + " of " + slides.length;
+      counter.classList.add("hidden-mark");
+    } else {
+      counter.textContent = (pos + 1) + " / " + shown.length;
+      counter.classList.remove("hidden-mark");
+    }
+
+    buildDots();
+    Array.from(dotWrap.children).forEach(d => d.classList.toggle("on", +d.dataset.index === i));
+
+    prev.disabled = pos <= 0 && pos !== -1;
+    next.disabled = pos === shown.length - 1 && pos !== -1;
+    if (pos === -1) { prev.disabled = false; next.disabled = false; }
+
+    panelList.querySelectorAll(".thumb").forEach(t => {
+      const n = +t.dataset.index;
+      t.classList.toggle("current", n === i);
+      t.classList.toggle("is-hidden", hidden[n]);
+      t.querySelector(".thumb-num").textContent =
+        hidden[n] ? "Hidden" : "Slide " + (shownIndexes().indexOf(n) + 1);
+      t.querySelector(".thumb-toggle").textContent = hidden[n] ? "Show" : "Hide";
+    });
+
+    if (location.hash !== "#" + (i + 1)) history.replaceState(null, "", "#" + (i + 1));
+  }
+
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    render();
+  }
+
+  // Step through visible slides only; hidden ones are reachable by deep link
+  // or from the panel, which is the whole point of hiding them.
+  function step(dir) {
+    const shown = shownIndexes();
+    if (!shown.length) return;
+    const pos = shown.indexOf(i);
+    if (pos === -1) {
+      const nextUp = dir > 0 ? shown.find(n => n > i) : [...shown].reverse().find(n => n < i);
+      go(nextUp !== undefined ? nextUp : shown[dir > 0 ? 0 : shown.length - 1]);
+      return;
+    }
+    const t = pos + dir;
+    if (t >= 0 && t < shown.length) go(shown[t]);
+  }
+
+  prev.addEventListener("click", () => step(-1));
+  next.addEventListener("click", () => step(1));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); step(1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); step(-1); }
+    else if (e.key === "Home") { e.preventDefault(); const s = shownIndexes(); if (s.length) go(s[0]); }
+    else if (e.key === "End") { e.preventDefault(); const s = shownIndexes(); if (s.length) go(s[s.length - 1]); }
+    else if (e.key === "Escape") { closePanel(); }
+    else if (e.key === "s" || e.key === "S") { e.preventDefault(); togglePanel(); }
+    else if (e.key === "f" || e.key === "F") {
+      e.preventDefault();
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen?.();
+    }
+    else if (e.key === "t" || e.key === "T") {
+      e.preventDefault();
+      const root = document.documentElement;
+      root.setAttribute("data-theme",
+        root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    }
+  });
+
+  function fromHash() {
+    const n = parseInt((location.hash || "").replace("#", ""), 10);
+    return Number.isFinite(n) && n > 0 ? n - 1 : 0;
+  }
+  // Without this listener, changing the hash on an already-loaded page does
+  // nothing: deep links silently show slide 1, and a screenshot loop that
+  // navigates by hash captures the same slide N times.
+  window.addEventListener("hashchange", () => {
+    const n = fromHash();
+    if (n !== i) go(n);
+  });
+
+  window.addEventListener("resize", fit);
+  document.addEventListener("fullscreenchange", fit);
+  // window.resize alone is not enough: it never fires when the deck is inside
+  // an iframe or app panel that is resized without the window changing, and it
+  // can lag behind a live window drag. ResizeObserver watches the element's
+  // own box, so it fires for every cause - panel drag, zoom, full screen.
+  if (window.ResizeObserver) {
+    new ResizeObserver(fit).observe(stage);
+    new ResizeObserver(sizeThumbs).observe(panelList);
+  }
+  fit();
+  buildPanel();
+  go(fromHash());
+})();
+</script>
+
+<!--
+  The Markdown this deck was built from. It travels inside the file so the deck
+  is a document rather than a build output: whoever receives it can recover the
+  source, edit it, and re-render, with no other artefact.
+
+  Only & and < are escaped, which is enough to guarantee no </script> can
+  appear in the raw text.
+-->
+<script type="text/plain" id="quire-source">{source}</script>
+</body>
+</html>

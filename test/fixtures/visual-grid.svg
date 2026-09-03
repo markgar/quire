@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Abstract Quire source becoming a presentation</title>
+  <desc id="desc">A warm geometric composition of pages, rules, and an accent panel.</desc>
+  <rect width="1200" height="800" fill="#f1ece4"/>
+  <rect x="90" y="86" width="438" height="628" rx="24" fill="#fff" stroke="#d4ccc0" stroke-width="3"/>
+  <rect x="672" y="86" width="438" height="628" rx="24" fill="#242424"/>
+  <path d="M560 400h78" stroke="#b11f4b" stroke-width="10" stroke-linecap="round"/>
+  <path d="m616 370 30 30-30 30" fill="none" stroke="#b11f4b" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#2e2e2e">
+    <rect x="142" y="154" width="262" height="20" rx="10"/>
+    <rect x="142" y="210" width="328" height="10" rx="5" opacity=".38"/>
+    <rect x="142" y="244" width="290" height="10" rx="5" opacity=".38"/>
+    <rect x="142" y="316" width="146" height="112" rx="12" opacity=".1"/>
+    <rect x="310" y="316" width="146" height="112" rx="12" opacity=".1"/>
+    <rect x="142" y="484" width="314" height="12" rx="6" opacity=".24"/>
+    <rect x="142" y="520" width="250" height="12" rx="6" opacity=".24"/>
+  </g>
+  <g>
+    <rect x="732" y="154" width="136" height="12" rx="6" fill="#fd8ea1"/>
+    <rect x="732" y="204" width="290" height="32" rx="8" fill="#f7f4ef"/>
+    <rect x="732" y="258" width="232" height="12" rx="6" fill="#919191"/>
+    <rect x="732" y="326" width="140" height="142" rx="14" fill="#343231" stroke="#5f5f5f"/>
+    <rect x="892" y="326" width="140" height="142" rx="14" fill="#522735" stroke="#fd8ea1"/>
+    <rect x="732" y="538" width="300" height="10" rx="5" fill="#5f5f5f"/>
+  </g>
+</svg>

@@ -1,0 +1,320 @@
+  <section class="slide title-slide active">
+    <div class="eyebrow">EYEBROW &middot; CONTEXT</div>
+    <h1>Title slide with meta</h1>
+    <p class="lede">The lede paragraph.</p>
+    <div class="title-meta">
+      <span>Audience: parser</span>
+      <span>Format: fixture</span>
+    </div>
+  </section>
+
+  <section class="slide title-slide">
+    <div class="eyebrow">FORCED</div>
+    <h1>Forced title, not first</h1>
+    <p class="lede">A title slide reached by layout, not by position.</p>
+  </section>
+
+  <section class="slide">
+    <h2>Blank layout</h2>
+    <p class="sub">Nothing but a title and this sub-line, so no structure to infer from.</p>
+    <div class="body">
+      <!-- content -->
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Unknown keys survive</h2>
+    <p class="sub">title: This metadata-like line is body content.</p>
+    <div class="body">
+      <!-- content -->
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">THE BAND</div>
+    <h2>Commented meta is ignored</h2>
+    <p class="sub">Both settings above are commented out, so this stays visible and infers its own layout.</p>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card">
+          <h3>One card</h3>
+          <p>Body.</p>
+        </div>
+        <div class="card">
+          <h3>Two card</h3>
+          <p>Body.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-hidden="true">
+    <h2>A genuinely hidden slide</h2>
+    <p class="sub">Excluded from the running order, still reachable by deep link.</p>
+    <div class="body">
+      <!-- content -->
+      <div class="note"><strong>Note:</strong> hidden slides keep their closers.</div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Accent and card counts</h2>
+    <p class="sub">Two cards, the second carrying the point.</p>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card">
+          <h3>Plain card</h3>
+          <p>Ordinary body text.</p>
+        </div>
+        <div class="card accent">
+          <h3>The one that matters</h3>
+          <p>This card is marked.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Numbered cards</h2>
+    <p class="sub">Three cards, numbered.</p>
+    <div class="body">
+      <div class="grid g3">
+        <div class="card">
+          <span class="num">1</span>
+          <h3>First</h3>
+          <p>Body.</p>
+        </div>
+        <div class="card">
+          <span class="num">2</span>
+          <h3>Second</h3>
+          <p>Body.</p>
+        </div>
+        <div class="card">
+          <span class="num">3</span>
+          <h3>Third</h3>
+          <p>Body.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Rows with a badge</h2>
+    <p class="sub">Questions marked in bold.</p>
+    <div class="body">
+      <div class="rows">
+        <div class="row">
+          <span class="badge">1</span>
+          <div>
+            <div class="q">A question containing - a hyphen?</div>
+            <div class="a">The answer survives the dash.</div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="badge">2</span>
+          <div>
+            <div class="q">Another question</div>
+            <div class="a">With an answer.</div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="badge">3</span>
+          <div>
+            <div class="q">A row with no bold lead at all.</div>
+            <div class="a"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Unordered rows</h2>
+    <p class="sub">Dashes and asterisks both open a row list.</p>
+    <div class="body">
+      <div class="rows">
+        <div class="row">
+          <span class="badge">1</span>
+          <div>
+            <div class="q">Dash item</div>
+            <div class="a">Answer.</div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="badge">2</span>
+          <div>
+            <div class="q">Star item</div>
+            <div class="a">Answer.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Pull layout</h2>
+    <p class="sub">The quote leads, so this is a pull.</p>
+    <div class="body">
+      <div class="pull">
+        The pull quote <em>carries the emphasis</em> itself."
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Both closers, in order</h2>
+    <p class="sub">A slide may carry a note and a kicker, separated by a blank line.</p>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card">
+          <h3>Only card</h3>
+          <p>Body.</p>
+        </div>
+      </div>
+      <div class="note"><strong>Takeaway:</strong> the note comes first.</div>
+      <div class="kicker">And the kicker follows it.</div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Adjacent blockquotes join</h2>
+    <p class="sub">Without a blank line these are one blockquote, so the second marker is literal text rather than a kicker. This is Markdown's rule, not quire's.</p>
+    <div class="body">
+      <!-- content -->
+      <div class="note"><strong>Takeaway:</strong> the note comes first. [!ASIDE] This marker does not survive.</div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Alert kinds</h2>
+    <p class="sub">An unrecognised alert falls back to a note.</p>
+    <div class="body">
+      <table>
+        <thead>
+          <tr>
+            <th>Alert</th>
+            <th>Renders as</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k"><code>[!ASIDE]</code></td>
+            <td class="was">kicker</td>
+          </tr>
+          <tr>
+            <td class="k"><code>[!KICKER]</code></td>
+            <td class="was">kicker</td>
+          </tr>
+          <tr>
+            <td class="k"><code>[!WARNING]</code></td>
+            <td class="was">note</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note">This should be a note, not a kicker.</div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Fenced code containing a separator</h2>
+    <p class="sub">The fence protects the separator from splitting the slide.</p>
+    <div class="body">
+      <!-- content -->
+      <div class="kicker">If you are reading this, the fence held.</div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Slide title</h2>
+    <div class="body">
+      <div class="group">
+        <div class="group-label">FIRST BAND</div>
+        <div class="grid g2">
+          <div class="card">
+            <h3>Card in first band</h3>
+            <p>Body.</p>
+          </div>
+          <div class="card">
+            <h3>Second card in first band</h3>
+            <p>Body.</p>
+          </div>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-label">SECOND BAND</div>
+        <div class="grid g2">
+          <div class="card">
+            <h3>Card in second band</h3>
+            <p>Body.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Groups with a heading</h2>
+    <p class="sub">Bands can follow a title and sub-line.</p>
+    <div class="body">
+      <div class="group">
+        <div class="group-label">LEFT</div>
+        <div class="grid g2">
+          <div class="card">
+            <h3>Left card</h3>
+            <p>Body.</p>
+          </div>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-label">RIGHT</div>
+        <div class="grid g2">
+          <div class="card">
+            <h3>Right card</h3>
+            <p>Body.</p>
+          </div>
+        </div>
+      </div>
+      <div class="note"><strong>Takeaway:</strong> groups infer their own layout.</div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Table with alignment row</h2>
+    <p class="sub">The alignment row is dropped, not treated as data.</p>
+    <div class="body">
+      <table>
+        <thead>
+          <tr>
+            <th>Position</th>
+            <th>Meaning</th>
+            <th>So what</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k">L+SA</td>
+            <td class="was">Owned, with rights</td>
+            <td class="is">Version rights and AHB</td>
+          </tr>
+          <tr>
+            <td class="k">Subscription</td>
+            <td class="was">Rented</td>
+            <td class="is">Reducible at anniversary</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Inline formatting</h2>
+    <p class="sub">Emphasis, <strong>strong</strong>, <em>italic</em>, <code>code</code>, and <em>raw HTML</em> all pass through.</p>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card">
+          <h3>Card with <strong>strong</strong> in the heading</h3>
+          <p>Body with <code>code</code>, <em>italic</em>, and raw <span data-note="**not bold**" title="`not code`">HTML</span>. <div><div>**inner stays raw**</div>**outer stays raw**</div> <script>**before stays raw**; window.example = left && right; const tag = "<script>";</script> <p>**raw text in an implicitly closed paragraph stays raw** <div><script>const close = "</div>";</script>**parent content stays raw**</div></p>
+        </div>
+      </div>
+    </div>
+  </section>

@@ -1,0 +1,248 @@
+  <section class="slide title-slide tone-contrast align-center active">
+    <div class="eyebrow">EYEBROW &middot; CONTEXT</div>
+    <h1>Visuals without a drawing tool</h1>
+    <p class="lede">Native presentation structures written as readable Quire source.</p>
+    <div class="title-meta">
+      <span>Images</span>
+      <span>Data</span>
+      <span>Diagrams</span>
+      <span>Emphasis</span>
+    </div>
+    <div class="source-line title-source">Source: Quire visual language</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">METRICS</div>
+    <h2>Make the number carry the argument</h2>
+    <p class="sub">Use cards as semantic metric-and-label pairs.</p>
+    <div class="body">
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-value">84%</div>
+          <div class="metric-label">of teams want fewer handoffs</div>
+        </div>
+        <div class="metric accent">
+          <div class="metric-value">3.2×</div>
+          <div class="metric-label">faster from source to presentation</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">0</div>
+          <div class="metric-label">uploads required to present</div>
+        </div>
+      </div>
+      <div class="note"><strong>Takeaway:</strong> Numbers should explain a decision, not decorate a slide.</div>
+    </div>
+  </section>
+
+  <section class="slide media-position-right">
+    <h2>Pair an argument with an image</h2>
+    <p class="sub">The image is structure, not pasted HTML.</p>
+    <div class="body">
+      <div class="media-split">
+        <div class="grid g2">
+          <div class="card">
+            <h3>Local source</h3>
+            <p>The deck remains readable, reviewable text.</p>
+          </div>
+          <div class="card accent">
+            <h3>Browser rendering</h3>
+            <p>Quire turns intent into a consistent visual system.</p>
+          </div>
+        </div>
+        <figure class="media-figure media-right">
+          <img src="./visual-grid.svg" alt="Quire source becoming a rendered presentation">
+          <figcaption>Source on the left, presentation on the right · Quire project</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide media-position-full">
+    <h2>Let a visual fill the stage</h2>
+    <p class="sub">Full-width media still carries native captioning and attribution.</p>
+    <div class="body">
+      <figure class="media-figure media-full">
+        <img src="./visual-grid.svg" alt="Abstract pages and presentation panels">
+      </figure>
+      <div class="source-line">Source: <a href="https://github.com/markgar/quire">Quire visual fixture</a></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Compare values without drawing bars</h2>
+    <p class="sub">The first table column labels each bar; the second supplies its value.</p>
+    <div class="body">
+      <div class="chart chart-bar">
+        <div class="chart-bar-row">
+          <div class="chart-label">Manual editing</div>
+          <div class="chart-track"><span style="width:100.00%"></span></div>
+          <div class="chart-value">42</div>
+        </div>
+        <div class="chart-bar-row">
+          <div class="chart-label">Template assembly</div>
+          <div class="chart-track"><span style="width:57.14%"></span></div>
+          <div class="chart-value">24</div>
+        </div>
+        <div class="chart-bar-row">
+          <div class="chart-label">Quire source</div>
+          <div class="chart-track"><span style="width:21.43%"></span></div>
+          <div class="chart-value">9</div>
+        </div>
+      </div>
+      <div class="source-line">Source: Internal product study, illustrative data</div>
+    </div>
+  </section>
+
+  <section class="slide tone-accent">
+    <h2>Show a trend from the same table syntax</h2>
+    <p class="sub">Quire converts ordered rows into a deterministic line chart.</p>
+    <div class="body">
+      <div class="chart chart-line">
+        <svg viewBox="0 0 820 280" role="img" aria-label="Line chart">
+          <polyline points="0.0,215.0 273.3,177.1 546.7,112.1 820.0,20.0"></polyline>
+          <circle cx="0.0" cy="215.0" r="6"><title>Week 1: 12</title></circle>
+          <text x="0.0" y="199.0">12</text>
+          <circle cx="273.3" cy="177.1" r="6"><title>Week 2: 19</title></circle>
+          <text x="273.3" y="161.1">19</text>
+          <circle cx="546.7" cy="112.1" r="6"><title>Week 3: 31</title></circle>
+          <text x="546.7" y="96.1">31</text>
+          <circle cx="820.0" cy="20.0" r="6"><title>Week 4: 48</title></circle>
+          <text x="820.0" y="16.0">48</text>
+        </svg>
+        <div class="chart-axis"><span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Show composition without custom SVG</h2>
+    <p class="sub">The renderer calculates segments and keeps the legend readable.</p>
+    <div class="body">
+      <div class="chart chart-donut">
+        <div class="donut" style="background:conic-gradient(var(--chart-1) 0.00% 45.00%,var(--chart-2) 45.00% 75.00%,var(--chart-3) 75.00% 100.00%)">
+          <span>100</span>
+        </div>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <span class="chart-swatch swatch-1"></span>
+            <span>Authoring</span>
+            <strong>45</strong>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-swatch swatch-2"></span>
+            <span>Review</span>
+            <strong>30</strong>
+          </div>
+          <div class="chart-legend-item">
+            <span class="chart-swatch swatch-3"></span>
+            <span>Presenting</span>
+            <strong>25</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Turn ordered rows into a process</h2>
+    <p class="sub">Sequence is already present in the source.</p>
+    <div class="body">
+      <div class="diagram diagram-process">
+        <div class="diagram-node accent">
+          <span class="diagram-mark">1</span>
+          <strong>Describe</strong>
+          <p>State the presentation goal.</p>
+        </div>
+        <div class="diagram-node">
+          <span class="diagram-mark">2</span>
+          <strong>Author</strong>
+          <p>Let the agent write Quire source.</p>
+        </div>
+        <div class="diagram-node">
+          <span class="diagram-mark">3</span>
+          <strong>Review</strong>
+          <p>Read and revise the local file.</p>
+        </div>
+        <div class="diagram-node">
+          <span class="diagram-mark">4</span>
+          <strong>Present</strong>
+          <p>Open it directly in the browser.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Give milestones a visual rhythm</h2>
+    <p class="sub">The same rows become a timeline when intent changes.</p>
+    <div class="body">
+      <div class="diagram diagram-timeline">
+        <div class="diagram-node accent">
+          <span class="diagram-mark">1</span>
+          <strong>Today</strong>
+          <p>Write and present from one local file.</p>
+        </div>
+        <div class="diagram-node">
+          <span class="diagram-mark">2</span>
+          <strong>Next</strong>
+          <p>Expand the native visual vocabulary.</p>
+        </div>
+        <div class="diagram-node">
+          <span class="diagram-mark">3</span>
+          <strong>Later</strong>
+          <p>Share reusable authoring skills.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <h2>Express hierarchy without positioned shapes</h2>
+    <p class="sub">The first item leads; the following items form the supporting layer.</p>
+    <div class="body">
+      <div class="diagram diagram-hierarchy">
+        <div class="diagram-node accent">
+          <span class="diagram-mark">1</span>
+          <strong>The argument</strong>
+          <p>One clear idea controls the slide.</p>
+        </div>
+        <div class="diagram-node">
+          <span class="diagram-mark">2</span>
+          <strong>Evidence</strong>
+          <p>Data makes it credible.</p>
+        </div>
+        <div class="diagram-node">
+          <span class="diagram-mark">3</span>
+          <strong>Structure</strong>
+          <p>Layout makes it legible.</p>
+        </div>
+        <div class="diagram-node">
+          <span class="diagram-mark">4</span>
+          <strong>Delivery</strong>
+          <p>The browser makes it presentable.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide tone-accent align-center">
+    <h2>Use tone and alignment deliberately</h2>
+    <p class="sub">Visual controls change emphasis without coordinates or CSS.</p>
+    <div class="body">
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-value">Local</div>
+          <div class="metric-label">Your source</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">Open</div>
+          <div class="metric-label">Your runtime</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">Agent-native</div>
+          <div class="metric-label">Your workflow</div>
+        </div>
+      </div>
+      <div class="source-line">Source: Quire visual language</div>
+    </div>
+  </section>

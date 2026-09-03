@@ -1,0 +1,278 @@
+{
+  "title": "Edge cases",
+  "slides": [
+    {
+      "layout": "title",
+      "headline": "Title slide with meta",
+      "lede": "The lede paragraph.",
+      "meta": [
+        "Audience: parser",
+        "Format: fixture"
+      ]
+    },
+    {
+      "eyebrow": "FORCED",
+      "layout": "title",
+      "headline": "Forced title, not first",
+      "lede": "A title slide reached by layout, not by position."
+    },
+    {
+      "title": "Blank layout",
+      "sub": "Nothing but a title and this sub-line, so no structure to infer from.",
+      "layout": "blank"
+    },
+    {
+      "title": "Unknown keys survive",
+      "sub": "title: This metadata-like line is body content.",
+      "layout": "blank"
+    },
+    {
+      "eyebrow": "THE BAND",
+      "title": "Commented meta is ignored",
+      "sub": "Both settings above are commented out, so this stays visible and infers its own layout.",
+      "layout": "cards2",
+      "cards": [
+        {
+          "h": "One card",
+          "p": "Body.",
+          "accent": false
+        },
+        {
+          "h": "Two card",
+          "p": "Body.",
+          "accent": false
+        }
+      ]
+    },
+    {
+      "hidden": true,
+      "title": "A genuinely hidden slide",
+      "sub": "Excluded from the running order, still reachable by deep link.",
+      "layout": "blank",
+      "note": "<strong>Note:</strong> hidden slides keep their closers."
+    },
+    {
+      "title": "Accent and card counts",
+      "sub": "Two cards, the second carrying the point.",
+      "layout": "cards2",
+      "cards": [
+        {
+          "h": "Plain card",
+          "p": "Ordinary body text.",
+          "accent": false
+        },
+        {
+          "h": "The one that matters",
+          "p": "This card is marked.",
+          "accent": true
+        }
+      ]
+    },
+    {
+      "title": "Numbered cards",
+      "sub": "Three cards, numbered.",
+      "layout": "cards3",
+      "cards": [
+        {
+          "h": "First",
+          "p": "Body.",
+          "accent": false
+        },
+        {
+          "h": "Second",
+          "p": "Body.",
+          "accent": false
+        },
+        {
+          "h": "Third",
+          "p": "Body.",
+          "accent": false
+        }
+      ],
+      "numbered": true
+    },
+    {
+      "title": "Rows with a badge",
+      "sub": "Questions marked in bold.",
+      "layout": "rows",
+      "items": [
+        {
+          "q": "A question containing - a hyphen?",
+          "a": "The answer survives the dash."
+        },
+        {
+          "q": "Another question",
+          "a": "With an answer."
+        },
+        {
+          "q": "A row with no bold lead at all.",
+          "a": ""
+        }
+      ],
+      "badge": "EVIDENCE"
+    },
+    {
+      "title": "Unordered rows",
+      "sub": "Dashes and asterisks both open a row list.",
+      "layout": "rows",
+      "items": [
+        {
+          "q": "Dash item",
+          "a": "Answer."
+        },
+        {
+          "q": "Star item",
+          "a": "Answer."
+        }
+      ]
+    },
+    {
+      "title": "Pull layout",
+      "sub": "The quote leads, so this is a pull.",
+      "layout": "pull",
+      "quote": "The pull quote <em>carries the emphasis</em> itself.\""
+    },
+    {
+      "title": "Both closers, in order",
+      "sub": "A slide may carry a note and a kicker, separated by a blank line.",
+      "layout": "cards2",
+      "cards": [
+        {
+          "h": "Only card",
+          "p": "Body.",
+          "accent": false
+        }
+      ],
+      "note": "<strong>Takeaway:</strong> the note comes first.",
+      "kicker": "And the kicker follows it."
+    },
+    {
+      "title": "Adjacent blockquotes join",
+      "sub": "Without a blank line these are one blockquote, so the second marker is literal text rather than a kicker. This is Markdown's rule, not quire's.",
+      "layout": "blank",
+      "note": "<strong>Takeaway:</strong> the note comes first. [!ASIDE] This marker does not survive."
+    },
+    {
+      "title": "Alert kinds",
+      "sub": "An unrecognised alert falls back to a note.",
+      "layout": "table",
+      "columns": [
+        "Alert",
+        "Renders as"
+      ],
+      "rows": [
+        [
+          "<code>[!ASIDE]</code>",
+          "kicker"
+        ],
+        [
+          "<code>[!KICKER]</code>",
+          "kicker"
+        ],
+        [
+          "<code>[!WARNING]</code>",
+          "note"
+        ]
+      ],
+      "note": "This should be a note, not a kicker."
+    },
+    {
+      "title": "Fenced code containing a separator",
+      "sub": "The fence protects the separator from splitting the slide.",
+      "layout": "blank",
+      "kicker": "If you are reading this, the fence held."
+    },
+    {
+      "layout": "groups",
+      "groups": [
+        {
+          "label": "FIRST BAND",
+          "cards": [
+            {
+              "h": "Card in first band",
+              "p": "Body.",
+              "accent": false
+            },
+            {
+              "h": "Second card in first band",
+              "p": "Body.",
+              "accent": false
+            }
+          ]
+        },
+        {
+          "label": "SECOND BAND",
+          "cards": [
+            {
+              "h": "Card in second band",
+              "p": "Body.",
+              "accent": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Groups with a heading",
+      "sub": "Bands can follow a title and sub-line.",
+      "layout": "groups",
+      "groups": [
+        {
+          "label": "LEFT",
+          "cards": [
+            {
+              "h": "Left card",
+              "p": "Body.",
+              "accent": false
+            }
+          ]
+        },
+        {
+          "label": "RIGHT",
+          "cards": [
+            {
+              "h": "Right card",
+              "p": "Body.",
+              "accent": false
+            }
+          ]
+        }
+      ],
+      "note": "<strong>Takeaway:</strong> groups infer their own layout."
+    },
+    {
+      "title": "Table with alignment row",
+      "sub": "The alignment row is dropped, not treated as data.",
+      "layout": "table",
+      "columns": [
+        "Position",
+        "Meaning",
+        "So what"
+      ],
+      "rows": [
+        [
+          "L+SA",
+          "Owned, with rights",
+          "Version rights and AHB"
+        ],
+        [
+          "Subscription",
+          "Rented",
+          "Reducible at anniversary"
+        ]
+      ]
+    },
+    {
+      "title": "Inline formatting",
+      "sub": "Emphasis, <strong>strong</strong>, <em>italic</em>, <code>code</code>, and <em>raw HTML</em> all pass through.",
+      "layout": "cards2",
+      "cards": [
+        {
+          "h": "Card with <strong>strong</strong> in the heading",
+          "p": "Body with <code>code</code>, <em>italic</em>, and raw <span data-note=\"**not bold**\" title=\"`not code`\">HTML</span>. <div><div>**inner stays raw**</div>**outer stays raw**</div> <script>**before stays raw**; window.example = left && right; const tag = \"<script>\";</script> <p>**raw text in an implicitly closed paragraph stays raw** <div><script>const close = \"</div>\";</script>**parent content stays raw**</div>",
+          "accent": false
+        }
+      ]
+    }
+  ]
+}
