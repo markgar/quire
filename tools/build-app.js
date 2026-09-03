@@ -542,7 +542,7 @@ ${chrome}
           <span class="intro-step-number">1</span>
           <strong>Teach your agent</strong>
           <p>Tell your agent:</p>
-          <code class="intro-agent-prompt">Run gh skill install markgar/quire quire --scope user, reload your skills, then use /quire to create my presentation.</code>
+          <code class="intro-agent-prompt">Run gh skill install markgar/quire quire --scope user, then reload your skills.</code>
         </div>
         <div class="intro-step">
           <span class="intro-step-number">2</span>
