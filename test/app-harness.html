@@ -244,6 +244,12 @@ const TESTS = [
         'the agent handoff omits the repository skill install command',
       );
       assert(
+        /Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon/.test(
+          dialog.textContent,
+        ),
+        'the getting-started flow omits a concrete deck prompt',
+      );
+      assert(
         f.contentWindow.localStorage.getItem('quire:intro:v1') === 'seen',
         'the automatic display was not remembered immediately',
       );
