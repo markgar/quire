@@ -347,6 +347,38 @@ if (existsSync(shellPath)) {
       });
       if (!donut.includes('<span>0</span>')) problems.push('zero-valued donut displays a nonzero total');
 
+      const line = renderSlides({
+        title: 'Visual edges',
+        slides: [{
+          layout: 'chart',
+          title: 'Aligned',
+          chart: 'line',
+          columns: ['Week', 'Authors'],
+          rows: [['Week 1', '12'], ['Week 2', '19'], ['Week 3', '31'], ['Week 4', '48']],
+        }],
+      });
+      const markerPositions = [...line.matchAll(/chart-line-point" style="left:([\d.]+)%;top:([\d.]+)%"/g)]
+        .map((match) => match[1]);
+      const labelPositions = [...line.matchAll(/<span style="left:([\d.]+)%">Week/g)]
+        .map((match) => match[1]);
+      if (markerPositions.length !== 4 || markerPositions.join() !== labelPositions.join()) {
+        problems.push('line chart markers and labels use different coordinates');
+      }
+
+      const bar = renderSlides({
+        title: 'Visual edges',
+        slides: [{
+          layout: 'chart',
+          title: 'Inset values',
+          chart: 'bar',
+          columns: ['Workflow', 'Minutes'],
+          rows: [['Manual editing', '42'], ['Quire source', '9']],
+        }],
+      });
+      if (!/chart-bar-fill[^>]*><strong>42<\/strong>/.test(bar) || /chart-value/.test(bar)) {
+        problems.push('bar chart values are not inset inside their bars');
+      }
+
       try {
         renderSlides({
           title: 'Visual edges',
@@ -407,6 +439,9 @@ if (existsSync(appPath)) {
       if (!module[1].includes(symbol)) problems.push(`module is missing ${symbol} — likely truncated`);
     }
   }
+  if (!/function fitMetricValues\b/.test(app)) {
+    problems.push('app does not fit metric values to their individual cards');
+  }
 
   {
     checked += 1;
@@ -460,6 +495,9 @@ if (existsSync(appPath)) {
       const source = readFileSync(join(here, '..', 'src', 'shell.html'), 'utf8');
       if (shellText !== source) {
         problems.push('embedded shell does not match src/shell.html — an export would differ from a CLI build');
+      }
+      if (!/function fitMetricValues\b/.test(source)) {
+        problems.push('exported decks do not fit metric values to their individual cards');
       }
       // Escaping `</script` is what keeps the embedded template from closing
       // its own element. Losing it truncates the app with a syntax error whose

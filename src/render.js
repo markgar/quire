@@ -360,8 +360,7 @@ export function lChart(slide) {
       return [
         '<div class="chart-bar-row">',
         `  <div class="chart-label">${h(row[0])}</div>`,
-        `  <div class="chart-track"><span style="width:${width.toFixed(2)}%"></span></div>`,
-        `  <div class="chart-value">${h(row[1])}</div>`,
+        `  <div class="chart-track"><span class="chart-bar-fill" style="width:${width.toFixed(2)}%"><strong>${h(row[1])}</strong></span></div>`,
         '</div>',
       ].join('\n');
     });
@@ -369,27 +368,30 @@ export function lChart(slide) {
   }
 
   if (kind === 'line') {
-    const width = 820;
-    const height = 280;
-    const step = rows.length > 1 ? width / (rows.length - 1) : 0;
+    const step = rows.length > 1 ? 96 / (rows.length - 1) : 0;
     const points = numeric.map((value, index) => {
-      const x = index * step;
-      const y = height - (value / max) * (height - 20);
+      const x = rows.length > 1 ? 2 + index * step : 50;
+      const y = 90 - (value / max) * 80;
       return [x, y];
     });
     const polyline = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
     const dots = points.map(([x, y], index) => [
-      `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6"><title>${attr(rows[index][0])}: ${attr(rows[index][1])}</title></circle>`,
-      `<text x="${x.toFixed(1)}" y="${Math.max(16, y - 16).toFixed(1)}">${h(rows[index][1])}</text>`,
+      `<div class="chart-line-point" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%" title="${attr(rows[index][0])}: ${attr(rows[index][1])}">`,
+      `  <span>${h(rows[index][1])}</span>`,
+      '</div>',
     ].join('\n')).join('\n');
-    const labels = rows.map((row) => `<span>${h(row[0])}</span>`).join('');
+    const labels = points.map(([x], index) => (
+      `<span style="left:${x.toFixed(1)}%">${h(rows[index][0])}</span>`
+    )).join('\n');
     return [
       '<div class="chart chart-line">',
-      `  <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${attr(or(slide.imageAlt, 'Line chart'))}">`,
+      `  <div class="chart-line-plot" role="img" aria-label="${attr(or(slide.imageAlt, 'Line chart'))}">`,
+      '    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">',
       `    <polyline points="${polyline}"></polyline>`,
+      '    </svg>',
       indent(dots, 4),
-      '  </svg>',
-      `  <div class="chart-axis">${labels}</div>`,
+      '  </div>',
+      `  <div class="chart-axis">\n${indent(labels, 4)}\n  </div>`,
       '</div>',
     ].join('\n');
   }

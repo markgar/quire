@@ -245,7 +245,9 @@ and row answers become descriptions. Process nodes are equal height regardless
 of their individual text length.
 
 `layout: metrics` treats cards as metric-and-label pairs: the `###` heading is
-the value and the card body is its meaning.
+the value and the card body is its meaning. Each value is measured after
+rendering and reduced from the standard display size only when needed to keep
+it within its card.
 
 Passing HTML through is a deliberate affordance and it has a security
 consequence that belongs in the format's definition rather than only in the

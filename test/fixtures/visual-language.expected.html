@@ -77,18 +77,15 @@
       <div class="chart chart-bar">
         <div class="chart-bar-row">
           <div class="chart-label">Manual editing</div>
-          <div class="chart-track"><span style="width:100.00%"></span></div>
-          <div class="chart-value">42</div>
+          <div class="chart-track"><span class="chart-bar-fill" style="width:100.00%"><strong>42</strong></span></div>
         </div>
         <div class="chart-bar-row">
           <div class="chart-label">Template assembly</div>
-          <div class="chart-track"><span style="width:57.14%"></span></div>
-          <div class="chart-value">24</div>
+          <div class="chart-track"><span class="chart-bar-fill" style="width:57.14%"><strong>24</strong></span></div>
         </div>
         <div class="chart-bar-row">
           <div class="chart-label">Quire source</div>
-          <div class="chart-track"><span style="width:21.43%"></span></div>
-          <div class="chart-value">9</div>
+          <div class="chart-track"><span class="chart-bar-fill" style="width:21.43%"><strong>9</strong></span></div>
         </div>
       </div>
       <div class="source-line">Source: Internal product study, illustrative data</div>
@@ -100,18 +97,29 @@
     <p class="sub">Quire converts ordered rows into a deterministic line chart.</p>
     <div class="body">
       <div class="chart chart-line">
-        <svg viewBox="0 0 820 280" role="img" aria-label="Line chart">
-          <polyline points="0.0,215.0 273.3,177.1 546.7,112.1 820.0,20.0"></polyline>
-          <circle cx="0.0" cy="215.0" r="6"><title>Week 1: 12</title></circle>
-          <text x="0.0" y="199.0">12</text>
-          <circle cx="273.3" cy="177.1" r="6"><title>Week 2: 19</title></circle>
-          <text x="273.3" y="161.1">19</text>
-          <circle cx="546.7" cy="112.1" r="6"><title>Week 3: 31</title></circle>
-          <text x="546.7" y="96.1">31</text>
-          <circle cx="820.0" cy="20.0" r="6"><title>Week 4: 48</title></circle>
-          <text x="820.0" y="16.0">48</text>
-        </svg>
-        <div class="chart-axis"><span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4</span></div>
+        <div class="chart-line-plot" role="img" aria-label="Line chart">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points="2.0,70.0 34.0,58.3 66.0,38.3 98.0,10.0"></polyline>
+          </svg>
+          <div class="chart-line-point" style="left:2.0%;top:70.0%" title="Week 1: 12">
+            <span>12</span>
+          </div>
+          <div class="chart-line-point" style="left:34.0%;top:58.3%" title="Week 2: 19">
+            <span>19</span>
+          </div>
+          <div class="chart-line-point" style="left:66.0%;top:38.3%" title="Week 3: 31">
+            <span>31</span>
+          </div>
+          <div class="chart-line-point" style="left:98.0%;top:10.0%" title="Week 4: 48">
+            <span>48</span>
+          </div>
+        </div>
+        <div class="chart-axis">
+          <span style="left:2.0%">Week 1</span>
+          <span style="left:34.0%">Week 2</span>
+          <span style="left:66.0%">Week 3</span>
+          <span style="left:98.0%">Week 4</span>
+        </div>
       </div>
     </div>
   </section>
