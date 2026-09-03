@@ -548,12 +548,12 @@ ${chrome}
           <span class="intro-step-number">2</span>
           <strong>Ask for a deck</strong>
           <p>Try this:</p>
-          <code class="intro-agent-prompt">Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon. Research accurate facts, cite sources, and use a timeline, process diagram, metrics, and a chart. Save the deck and nearby image assets in an apollo-11 folder.</code>
+          <code class="intro-agent-prompt">Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon. Research accurate facts, cite sources, and use a timeline, process diagram, metrics, and a chart. Save it as one apollo-11.quire file with its images packaged inside.</code>
         </div>
         <div class="intro-step">
           <span class="intro-step-number">3</span>
           <strong>Open the deck</strong>
-          <p>Go to <strong>quiredeck.com</strong>, choose a deck, and open the generated <code>.md</code> file.</p>
+          <p>Go to <strong>quiredeck.com</strong>, choose a deck, and open the generated <code>.quire</code> file.</p>
         </div>
       </div>
     </section>
@@ -624,7 +624,7 @@ Renders and presents it locally.
 <div class="drop-hint" id="dropHint">
   <h1>Quire</h1>
   <p class="drop-lede">100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.</p>
-  <p class="drop-detail">Open a deck, or drop a <code>.md</code> file here. Your file stays on this machine.</p>
+  <p class="drop-detail">Open or drop a <code>.quire</code> deck. Single <code>.md</code> files still work. Everything stays on this machine.</p>
   <p class="drop-proof">No upload. No account. Open-source HTML and JavaScript.</p>
 </div>
 </div>
@@ -651,6 +651,7 @@ ${inline('deck.js')}
 ${inline('render.js')}
 ${inline('fit.js')}
 ${inline('export.js')}
+${inline('../skills/quire/package.js')}
 ${inline('app.js')}
 </script>
 </body>

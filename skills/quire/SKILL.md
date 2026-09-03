@@ -19,10 +19,28 @@ When creating or revising a deck:
 5. Preserve existing metadata and intentional raw HTML when editing a deck.
 6. Treat raw HTML as executable content and use it only in trusted decks.
 
-Relative image paths work when the deck and assets are served from the same
-origin. When a user opens a `.md` file directly from disk, the browser cannot
-read sibling files automatically, so embed the image as a data URL instead.
-Embed images when the exported HTML must remain fully self-contained.
+Deliver one native `.quire` deck. It is a ZIP package containing `deck.md`,
+normal image files, and `manifest.json`; the user opens and shares that one
+file. Do not create a duplicate “standalone” Markdown file with base64 images.
+
+During authoring, keep `deck.md` and its relative assets together. Use the
+`quire-package.mjs` helper beside this skill file, substituting the installed
+skill directory for `<skill-dir>`:
+
+```text
+node <skill-dir>/quire-package.mjs pack deck.md deck.quire
+```
+
+To revise an existing package, unpack it, edit its ordinary files, and repack:
+
+```text
+node <skill-dir>/quire-package.mjs unpack deck.quire work-directory
+node <skill-dir>/quire-package.mjs pack work-directory/deck.md deck.quire
+```
+
+Use data URLs in Markdown only when the raw source itself must be independently
+portable. Quire embeds packaged images automatically when standalone HTML is
+requested.
 
 ## When direct editing becomes difficult
 
@@ -141,7 +159,7 @@ Use native visual settings before reaching for raw HTML:
 
 ```text
 layout: metrics             Render cards as large values and labels.
-image: ./image.png          Add a same-origin or embedded image.
+image: ./images/image.png   Add an image from the deck folder.
 image-alt: Description      Describe meaningful images.
 image-position: right       Place it left, right, or full-width below content.
 image-fit: contain          Preserve the whole image; cover crops to fill.
@@ -168,9 +186,23 @@ cropped. Prefer `image-position: left` or `right` for portraits and other
 subject-focused images. Reserve `image-position: full` for genuinely wide
 images that benefit from a panoramic band.
 
-Relative image paths work only when the deck directory is served beside Quire.
-If the user will choose the `.md` file directly in quiredeck.com, embed raster
-images as data URLs so the browser does not try to load them from the site.
+Keep relative images beside the working source and package them into the final
+`.quire` file. A single `.md` still opens, but it cannot carry sibling assets.
+
+## Verify the rendered deck
+
+Use Quire's own browser measurements after every meaningful revision:
+
+```text
+quireFit.report()       Return every slide's measured height and overflow.
+quireFit.overflowing()  Return only slides that overflow.
+quireFit.remeasure()    Measure again after changing the live DOM.
+```
+
+The viewer also records overflow on affected slides as `data-over` and exposes
+the same result through its overflow badge. Do not toggle `.active`, clone
+slides, or calculate slide heights independently. Those actions change the
+layout being measured and can return a false clean result.
 
 ## Verify the rendered deck
 

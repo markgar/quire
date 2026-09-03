@@ -60,6 +60,7 @@
  */
 
 import { MUTATIONS } from './mutations.js';
+import { packQuire } from '../skills/quire/package.js';
 
 // --- helpers ---------------------------------------------------------------
 
@@ -111,12 +112,17 @@ function tableDeck(rows) {
   return head + '| A cell with enough text to make a row of real height | Second cell |\n'.repeat(rows);
 }
 
-/** @param {string} name @param {string} text */
-async function writeOpfs(name, text) {
+/** @param {string} path @param {string | Blob} content */
+async function writeOpfs(path, content) {
   const root = await navigator.storage.getDirectory();
-  const fh = await root.getFileHandle(name, { create: true });
+  const parts = path.split('/');
+  let directory = root;
+  for (const part of parts.slice(0, -1)) {
+    directory = await directory.getDirectoryHandle(part, { create: true });
+  }
+  const fh = await directory.getFileHandle(parts.at(-1), { create: true });
   const w = await fh.createWritable();
-  await w.write(text);
+  await w.write(content);
   await w.close();
   return fh;
 }
@@ -128,7 +134,7 @@ async function clearState() {
   });
   const root = await navigator.storage.getDirectory();
   for await (const name of root.keys()) {
-    try { await root.removeEntry(name); } catch { /* still open */ }
+    try { await root.removeEntry(name, { recursive: true }); } catch { /* still open */ }
   }
 }
 
@@ -191,8 +197,8 @@ const slideCount = (f) => f.contentDocument.querySelectorAll('#scaler .slide').l
 const statusText = (f) => $(f, 'status').textContent;
 
 /**
- * Open a handle through the app's own picker path. Only the dialog is
- * substituted; `pickFile` and everything after it is the app's real code.
+ * Open a handle through the app's own file-picker path. Only the dialog
+ * is substituted; `pickDeck` and everything after it is the app's real code.
  */
 async function openViaPicker(f, fh) {
   f.contentWindow.showOpenFilePicker = async () => [fh];
@@ -226,7 +232,7 @@ const TESTS = [
       assert(/Teach your agent/.test(dialog.textContent), 'the explanation omits the agent handoff');
       assert(
         dialog.textContent.indexOf('Create your first deck') <
-          dialog.textContent.indexOf('QUIRE SOURCE'),
+          dialog.textContent.indexOf('Quire source'),
         'the getting-started instructions are buried below the demo',
       );
       assert(
@@ -250,7 +256,7 @@ const TESTS = [
         'the getting-started flow omits a concrete deck prompt',
       );
       assert(
-        /Go to quiredeck\.com, choose a deck, and open the generated \.md file/.test(
+        /Go to quiredeck\.com, choose a deck, and open the generated \.quire file/.test(
           dialog.textContent,
         ),
         'the getting-started flow omits the instruction to open the deck',
@@ -476,6 +482,57 @@ const TESTS = [
     },
   },
   {
+    name: 'a native package carries and watches relative images',
+    async fn() {
+      await clearState();
+      const source = [
+        '---',
+        'title: Folder assets',
+        '---',
+        '',
+        'image: ./images/square.png',
+        'image-position: right',
+        '',
+        '## Local image',
+        'Loaded from beside the deck.',
+      ].join('\n');
+      const red = Uint8Array.from(
+        atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII='),
+        (character) => character.charCodeAt(0),
+      );
+      const fh = await writeOpfs(
+        'folder.quire',
+        packQuire(source, [{ path: 'images/square.png', bytes: red, type: 'image/png' }]),
+      );
+      const f = await loadApp();
+      await openViaPicker(f, fh);
+      const image = f.contentDocument.querySelector('#scaler img');
+      assert(image, 'the packaged image did not render');
+      assert(/^data:image\/png;base64,/.test(image.src), `image source was "${image.src.slice(0, 60)}"`);
+      assert(await until(() => image.complete && image.naturalWidth === 1, 4000), 'the local image did not load');
+      const firstSource = image.src;
+
+      await wait(20);
+      const blue = new Uint8Array(red.length + 1);
+      blue.set(red);
+      await writeOpfs(
+        'folder.quire',
+        packQuire(source, [{ path: 'images/square.png', bytes: blue, type: 'image/png' }]),
+      );
+      assert(
+        await until(() => f.contentDocument.querySelector('#scaler img')?.src !== firstSource, 5000),
+        'changing the referenced image did not refresh the deck',
+      );
+      const html = f.contentWindow.quireExport.html();
+      assert(/data:image\/png;base64,/.test(html), 'the HTML export did not embed the packaged image');
+      assert(
+        f.contentDocument.getElementById('quire-source') === null && html.includes('image: ./images/square.png'),
+        'the live source path was changed instead of only embedding the exported asset',
+      );
+      return 'opened, refreshed, and exported a packaged image';
+    },
+  },
+  {
     name: 'a drop carrying a handle is watched',
     async fn() {
       await clearState();
@@ -608,7 +665,7 @@ const TESTS = [
         'image-position: right',
         '',
         '## Starts short',
-        'Image load events must trigger Quire\\'s own measurement.',
+        "Image load events must trigger Quire's own measurement.",
       ].join('\n');
       const fh = await writeOpfs('image-settlement.md', source);
       const f = await loadApp();
@@ -812,6 +869,7 @@ async function runSuite(tests, mutation) {
   activeMutation = mutation;
   const results = [];
   for (const t of tests) {
+    summary.textContent = `Running: ${t.name}`;
     try {
       results.push({ name: t.name, pass: true, detail: await t.fn() });
     } catch (err) {
@@ -824,7 +882,6 @@ async function runSuite(tests, mutation) {
     frames = [];
   }
   activeMutation = null;
-  await clearState();
   return results;
 }
 

@@ -2,8 +2,8 @@
 
 *A quire is a gathering of folded leaves — the unit a book is bound from.*
 
-Quire is an agent-native presentation builder: your agent writes Quire source,
-your browser reads that file directly, and browser JavaScript presents it.
+Quire is an agent-native presentation builder: your agent creates one `.quire`
+deck, your browser reads it directly, and browser JavaScript presents it.
 
 Quire source is a focused presentation dialect stored in a `.md` file. It uses
 familiar Markdown-shaped syntax, but its headings, lists, quotes, and metadata
@@ -13,9 +13,10 @@ Your deck content and rendering stay local. There is no upload, account,
 backend, or server-side processing. The viewer opens the Quire source from your own
 disk, watches it, and re-renders when it changes.
 
-Browsers do not let a picked `.md` file read sibling image files. Decks opened
-directly at quiredeck.com should embed raster images as data URLs; relative
-image paths work when the deck directory is served alongside Quire.
+A `.quire` deck is a ZIP package containing `deck.md`, image files, and a small
+manifest. It remains one file to create, open, and share, while keeping images
+as normal files internally instead of inflating them into base64 text. Single
+`.md` files and embedded data URLs remain supported.
 
 The app is plain HTML and JavaScript. Read the source if you want to verify
 exactly what it does.
@@ -39,7 +40,7 @@ exactly what it does.
 3. **Open the deck**
 
    Go to [quiredeck.com](https://quiredeck.com), choose a deck, and open the
-   generated `.md` file.
+   generated `.quire` file.
 
 ### Install the app
 
@@ -97,10 +98,10 @@ block.
 ## Status
 
 Working, and used for real decks. The format, parser, and renderer are covered
-by golden-file tests; the app opens a local deck, watches it, re-renders on
-change, reports which slides overflow the canvas, and exports one HTML file
-with the runtime and exact Quire source embedded. Referenced assets remain external
-unless they are embedded as data URLs. It is ready for static hosting.
+by golden-file tests; the app opens a local `.quire` deck, watches it,
+re-renders on change, reports which slides overflow the canvas, and can produce
+a self-contained HTML file with the runtime, exact Quire source, and packaged
+images embedded. It is ready for static hosting.
 
 ### Try it
 
@@ -108,18 +109,23 @@ unless they are embedded as data URLs. It is ready for static hosting.
     npm run serve
     # then open http://localhost:8931/quire.html?deck=test/fixtures/trusting-the-suite.md
 
-Or open `http://localhost:8931/quire.html` and pick a `.md` of your own. Editing
-that file re-renders it in about a second, with your position on the deck kept.
+Or open `http://localhost:8931/quire.html` and pick a `.quire` deck of your own.
+Replacing that file re-renders it in about a second, with your position kept.
 
 To see the complete native visual vocabulary—images, metrics, charts, diagrams,
 attribution, tone, and alignment—open:
 
     http://localhost:8931/quire.html?deck=test/fixtures/visual-language.md
 
-Keep each deck in its own directory with its images and source material.
-Relative image paths work when that directory is served with Quire. For a deck
-opened directly from disk, or an HTML export that must remain self-contained,
-embed images as raster data URLs.
+Agents can work with ordinary source and image files, then create the native
+deck package:
+
+    node src/cli.js pack path/to/deck.md path/to/deck.quire
+
+The package stores relative images as files and preserves the original
+Markdown. It can be unpacked for revision with:
+
+    node src/cli.js unpack path/to/deck.quire path/to/work
 
 Teach GitHub Copilot how to author the Quire dialect by installing the skill
 directly from this repository—no marketplace is required:
@@ -138,10 +144,10 @@ This test makes a live agent call, so it is intentionally separate from
 `npm test`. Set `QUIRE_SKILL_TEST_KEEP=1` to preserve the temporary project for
 inspection, or `QUIRE_SKILL_TEST_MODEL=<model>` to pin the evaluation model.
 
-Decks can also be built headlessly, which produces one HTML file containing
-the runtime and exact source for someone who does not have the app:
+Decks can also be built as standalone HTML for someone who does not have the
+app:
 
-    node src/cli.js out.html deck.md
+    node src/cli.js out.html deck.quire
 
 ### Deploy
 

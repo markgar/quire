@@ -19,6 +19,7 @@ import { dirname, join } from 'node:path';
 import { parseQuire } from '../src/deck.js';
 import { imageSource, renderSlides, page, readSource } from '../src/render.js';
 import { AUTHORING_GUIDE } from '../src/guide.js';
+import { packQuire, referencedAssetPaths, unpackQuire } from '../skills/quire/package.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtures = join(here, 'fixtures');
@@ -407,6 +408,34 @@ if (existsSync(shellPath)) {
   }
 }
 
+{
+  const markdown = '---\ntitle: Package\n---\n\nimage: ./images/pixel.png\n\n# One';
+  const image = new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]);
+  const packed = packQuire(markdown, [{ path: 'images/pixel.png', bytes: image, type: 'image/png' }]);
+  const unpacked = unpackQuire(packed);
+  const problems = [];
+  if (packed[0] !== 0x50 || packed[1] !== 0x4b) problems.push('package is not a ZIP file');
+  if (unpacked.markdown !== markdown) problems.push('deck.md did not round-trip');
+  if (unpacked.assets.length !== 1) problems.push(`expected one asset, got ${unpacked.assets.length}`);
+  if (unpacked.assets[0]?.path !== 'images/pixel.png') problems.push('asset path did not round-trip');
+  if (unpacked.assets[0]?.type !== 'image/png') problems.push('asset MIME type did not round-trip');
+  if (String(unpacked.assets[0]?.bytes) !== String(image)) problems.push('asset bytes did not round-trip');
+  if (String(referencedAssetPaths(markdown)) !== 'images/pixel.png') problems.push('relative asset was not discovered');
+  try {
+    packQuire(markdown, [{ path: '../escape.png', bytes: image }]);
+    problems.push('package accepted a traversal path');
+  } catch {
+    // Expected.
+  }
+  if (problems.length) {
+    failed += 1;
+    console.log('FAIL  native quire package');
+    for (const problem of problems) console.log(`   ${problem}`);
+  } else {
+    console.log('PASS  native quire package  ZIP container, source, assets, MIME types, and traversal guard');
+  }
+}
+
 // The app is assembled by concatenating modules into one script element. A
 // single closing script tag anywhere in that source truncates the app, and the
 // browser reports only "Invalid or unexpected token" — so assert the built
@@ -477,6 +506,8 @@ if (existsSync(appPath)) {
   if (!/rel="manifest" href="\/manifest\.webmanifest"/.test(app)) problems.push('no web app manifest link');
   if (!/serviceWorker\.register\('\/service-worker\.js'\)/.test(app)) problems.push('service worker is not registered');
   if (!/id="introDialog"/.test(app)) problems.push('no first-run explanation in quire.html');
+  if (!/getAsFileSystemHandle/.test(app)) problems.push('file drop handles are not present in quire.html');
+  if (!/unpackQuire/.test(app)) problems.push('native .quire package loading is not present in quire.html');
   if (!/quire:intro:v1/.test(app)) problems.push('first-run explanation is not remembered locally');
   if (!/\.diagram-process\s*\{[^}]*align-content:\s*center;[^}]*align-items:\s*stretch;/s.test(app)) {
     problems.push('process diagram nodes are not equalized as one multi-node visual');

@@ -16,6 +16,7 @@ import { parseQuire } from './deck.js';
 import { renderSlides } from './render.js';
 import { measureDeck, annotate, formatReport } from './fit.js';
 import { exportHtml, exportName, download } from './export.js';
+import { unpackQuire } from '../skills/quire/package.js';
 
 const scaler = /** @type {HTMLElement} */ (document.getElementById('scaler'));
 const status = /** @type {HTMLElement} */ (document.getElementById('status'));
@@ -37,6 +38,9 @@ const applyUpdateBtn = /** @type {HTMLButtonElement} */ (document.getElementById
 let deckName = '';
 /** @type {string | undefined} base URL for relative assets in a deck loaded through ?deck= */
 let assetBase;
+/** Embedded local assets keyed by the path written in Quire source. */
+/** @type {Record<string, string>} */
+let assetMap = {};
 
 const hasFSA = typeof window.showOpenFilePicker === 'function';
 const INTRO_KEY = 'quire:intro:v1';
@@ -179,7 +183,7 @@ function render(markdown, opts = {}) {
   let spec;
   let slidesHtml;
   try {
-    spec = parseQuire(markdown, { assetBase });
+    spec = parseQuire(markdown, { assetBase, assetMap });
     if (!spec.slides.length) {
       showFailure('That file has no slides', new Error('A deck needs at least one slide.'));
       return false;
@@ -314,9 +318,9 @@ window.quireFit = {
  * at.
  */
 window.quireExport = {
-  html: () => exportHtml(lastText, assetBase),
+  html: () => exportHtml(lastText, assetBase, assetMap),
   name: () => exportName(deckName),
-  save: () => download(exportName(deckName), exportHtml(lastText, assetBase)),
+  save: () => download(exportName(deckName), exportHtml(lastText, assetBase, assetMap)),
 };
 
 /**
@@ -393,7 +397,7 @@ async function reread() {
       setStatus(`${handle.name} · watching for changes`, 'live');
     }
     if (file.lastModified === lastModified) return;
-    const text = await file.text();
+    const deck = await readDeckFile(file);
     // Commit the timestamp only once the read has actually succeeded.
     // Advancing it first means a single failed read — a mid-save file, a
     // volume that blinked — permanently suppresses that save: every later poll
@@ -401,8 +405,9 @@ async function reread() {
     // never updates again and looks exactly like a file nobody edited, which
     // is the failure the backstop poll exists to prevent.
     lastModified = file.lastModified;
-    if (text === lastText && !showingFailure) return;
-    if (render(text, { keepPosition: true })) {
+    assetMap = deck.assets;
+    if (!/\.quire$/i.test(file.name) && deck.markdown === lastText && !showingFailure) return;
+    if (render(deck.markdown, { keepPosition: true })) {
       setStatus(`${handle.name} · updated ${timeNow()}`, 'live');
     }
   } catch (err) {
@@ -456,14 +461,49 @@ function startWatching() {
 // opening
 // ---------------------------------------------------------------------------
 
+/** @param {File} file */
+function fileDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error || new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** @param {{path: string, bytes: Uint8Array, type: string}[]} assets */
+async function packageAssetMap(assets) {
+  /** @type {Record<string, string>} */
+  const map = {};
+  for (const asset of assets) {
+    const copy = new Uint8Array(asset.bytes.length);
+    copy.set(asset.bytes);
+    const url = await fileDataUrl(new File([copy.buffer], asset.path, { type: asset.type }));
+    map[asset.path] = url;
+    map[`./${asset.path}`] = url;
+  }
+  return map;
+}
+
+/** @param {File} file */
+async function readDeckFile(file) {
+  if (/\.quire$/i.test(file.name)) {
+    const packaged = unpackQuire(await file.arrayBuffer());
+    return { markdown: packaged.markdown, assets: await packageAssetMap(packaged.assets) };
+  }
+  return { markdown: await file.text(), assets: {} };
+}
+
 /** @param {any} h */
 async function openHandle(h) {
   handle = h;
   deckName = h.name;
   assetBase = undefined;
   const file = await h.getFile();
+  const deck = await readDeckFile(file);
+  assetMap = deck.assets;
   lastModified = file.lastModified;
-  const ok = render(await file.text());
+  const ok = render(deck.markdown);
   // Watch either way: a deck that failed to parse is one the author is most
   // likely about to fix, and it should recover without being reopened.
   startWatching();
@@ -472,10 +512,10 @@ async function openHandle(h) {
   void rememberHandle(h);
 }
 
-async function pickFile() {
+async function pickDeck() {
   const picker = window.showOpenFilePicker;
   if (!picker) {
-    setStatus('This browser cannot open files directly — drop a .md onto the window', 'warn');
+    setStatus('This browser cannot open files directly — drop a .quire or .md file onto the window', 'warn');
     return;
   }
   if (pickingFile) return;
@@ -483,7 +523,10 @@ async function pickFile() {
   openIntent += 1;
   try {
     const [h] = await picker({
-      types: [{ description: 'Quire deck', accept: { 'text/markdown': ['.md', '.markdown'] } }],
+      types: [
+        { description: 'Quire deck', accept: { 'application/vnd.quire+zip': ['.quire'] } },
+        { description: 'Quire source', accept: { 'text/markdown': ['.md', '.markdown'] } },
+      ],
       multiple: false,
     });
     await openHandle(h);
@@ -510,8 +553,9 @@ async function openDroppedFile(file) {
   handle = null;
   deckName = file.name;
   assetBase = undefined;
-  const ok = render(await file.text());
-  if (ok) setStatus(`${file.name} · drag it again to refresh`, 'warn');
+  const deck = await readDeckFile(file);
+  assetMap = deck.assets;
+  if (render(deck.markdown)) setStatus(`${file.name} · drag it again to refresh`, 'warn');
   dropHint.hidden = true;
 }
 
@@ -680,7 +724,7 @@ async function tryStoredHandle() {
   if (!hasFSA || pickingFile) return false;
   const intent = openIntent;
   const h = await recallHandle();
-  if (!h || pickingFile || intent !== openIntent) return false;
+  if (!h || h.kind !== 'file' || pickingFile || intent !== openIntent) return false;
   try {
     const state = await h.queryPermission({ mode: 'read' });
     if (pickingFile || intent !== openIntent) return false;
@@ -693,10 +737,10 @@ async function tryStoredHandle() {
       try {
         if ((await h.requestPermission({ mode: 'read' })) === 'granted') {
           openBtn.textContent = 'Open deck…';
-          openBtn.onclick = () => void pickFile();
+          openBtn.onclick = () => void pickDeck();
           await openHandle(h);
         }
-      } catch (err) {
+      } catch {
         setStatus(`Could not reopen ${h.name}`, 'error');
       }
     };
@@ -728,7 +772,7 @@ function wireDragDrop() {
 
     try {
       // Chromium can give a real handle from a drop, which means the dropped
-      // file can be watched like a picked one. Try that before falling back.
+      // file can be watched like a picked one. Try that first.
       //
       // The catch covers acquiring the handle only. Wrapping openHandle too
       // meant a deck that failed to open fell through to the File path and
@@ -752,7 +796,7 @@ function wireDragDrop() {
       if (file) await openDroppedFile(file);
     } catch (err) {
       setStatus(
-        err instanceof Error ? `Could not open that file — ${err.message}` : 'Could not open that file',
+        err instanceof Error ? `Could not open that deck — ${err.message}` : 'Could not open that deck',
         'error',
       );
     }
@@ -760,7 +804,7 @@ function wireDragDrop() {
 }
 
 async function main() {
-  openBtn.onclick = () => void pickFile();
+  openBtn.onclick = () => void pickDeck();
   aboutBtn.onclick = showIntro;
   introClose.onclick = closeIntro;
   introDismiss.onclick = closeIntro;
@@ -770,7 +814,7 @@ async function main() {
   });
   introOpenBtn.onclick = () => {
     closeIntro();
-    if (hasFSA) void pickFile();
+    if (hasFSA) void pickDeck();
   };
   checkUpdateBtn.onclick = () => void checkForUpdates();
   applyUpdateBtn.onclick = () => {
@@ -814,7 +858,7 @@ async function main() {
   exportBtn.onclick = () => {
     if (!lastText) return;
     try {
-      const html = exportHtml(lastText, assetBase);
+      const html = exportHtml(lastText, assetBase, assetMap);
       download(exportName(deckName), html);
       setStatus(`${exportName(deckName)} · saved, runtime and source embedded`, 'live');
     } catch (err) {

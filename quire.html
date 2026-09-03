@@ -1147,12 +1147,12 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
           <span class="intro-step-number">2</span>
           <strong>Ask for a deck</strong>
           <p>Try this:</p>
-          <code class="intro-agent-prompt">Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon. Research accurate facts, cite sources, and use a timeline, process diagram, metrics, and a chart. Save the deck and nearby image assets in an apollo-11 folder.</code>
+          <code class="intro-agent-prompt">Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon. Research accurate facts, cite sources, and use a timeline, process diagram, metrics, and a chart. Save it as one apollo-11.quire file with its images packaged inside.</code>
         </div>
         <div class="intro-step">
           <span class="intro-step-number">3</span>
           <strong>Open the deck</strong>
-          <p>Go to <strong>quiredeck.com</strong>, choose a deck, and open the generated <code>.md</code> file.</p>
+          <p>Go to <strong>quiredeck.com</strong>, choose a deck, and open the generated <code>.quire</code> file.</p>
         </div>
       </div>
     </section>
@@ -1223,7 +1223,7 @@ Renders and presents it locally.
 <div class="drop-hint" id="dropHint">
   <h1>Quire</h1>
   <p class="drop-lede">100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.</p>
-  <p class="drop-detail">Open a deck, or drop a <code>.md</code> file here. Your file stays on this machine.</p>
+  <p class="drop-detail">Open or drop a <code>.quire</code> deck. Single <code>.md</code> files still work. Everything stays on this machine.</p>
   <p class="drop-proof">No upload. No account. Open-source HTML and JavaScript.</p>
 </div>
 </div>
@@ -1746,7 +1746,7 @@ function mapOutsideHtml(text, transform) {
  */
 
 /** @typedef {{title: string, theme?: 'light' | 'dark', slides: Slide[]}} Deck */
-/** @typedef {{assetBase?: string}} ParseOptions */
+/** @typedef {{assetBase?: string, assetMap?: Record<string, string>}} ParseOptions */
 
 const SEP = /^-{3,}\s*$/;
 const META = /^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)$/;
@@ -2066,7 +2066,9 @@ function buildSlide(chunk, first, opts = {}) {
   if (isTrue(meta.hidden)) slide.hidden = true;
   if (meta.image) {
     slide.image = meta.image;
-    if (opts.assetBase && !/^data:/i.test(meta.image)) {
+    if (opts.assetMap?.[meta.image]) {
+      slide.image = opts.assetMap[meta.image];
+    } else if (opts.assetBase && !/^data:/i.test(meta.image)) {
       try {
         const base = new URL(opts.assetBase);
         const resolved = new URL(meta.image, base);
@@ -3099,14 +3101,15 @@ function formatReport(report) {
  *
  * @param {string} markdown
  * @param {string} [assetBase]
+ * @param {Record<string, string>} [assetMap]
  * @returns {string} complete HTML document
  */
-function exportHtml(markdown, assetBase) {
+function exportHtml(markdown, assetBase, assetMap) {
   const shell = window.quireShell;
   if (!shell) {
     throw new Error('This build carries no shell template, so it cannot export.');
   }
-  const html = page(parseQuire(markdown, { assetBase }), shell, markdown);
+  const html = page(parseQuire(markdown, { assetBase, assetMap }), shell, markdown);
   const recovered = readSource(html);
   if (recovered !== markdown) {
     throw new Error('The exported file does not give its source back; refusing to save it.');
@@ -3117,7 +3120,7 @@ function exportHtml(markdown, assetBase) {
 /**
  * Name the export after the deck rather than the app.
  *
- * `renewal.md` becomes `renewal.html`. A deck opened by drop or by URL still
+ * `renewal.quire` becomes `renewal.html`. A deck opened by drop or by URL still
  * has a name; only a deck with none falls back.
  *
  * @param {string | undefined} deckName
@@ -3125,7 +3128,7 @@ function exportHtml(markdown, assetBase) {
  */
 function exportName(deckName) {
   if (!deckName) return 'deck.html';
-  return `${deckName.replace(/\.(md|markdown)$/i, '')}.html`;
+  return `${deckName.replace(/\.(quire|md|markdown)$/i, '')}.html`;
 }
 
 /**
@@ -3152,6 +3155,198 @@ function download(filename, html) {
 }
 
 // @ts-check
+// Shared by the installed Quire skill, browser viewer, and Node CLI.
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+const ZIP_LOCAL = 0x04034b50;
+const ZIP_CENTRAL = 0x02014b50;
+const ZIP_END = 0x06054b50;
+
+/** @type {Uint32Array | undefined} */
+let crcTable;
+
+function getCrcTable() {
+  if (crcTable) return crcTable;
+  crcTable = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let value = n;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    crcTable[n] = value >>> 0;
+  }
+  return crcTable;
+}
+
+/** @param {Uint8Array} bytes */
+function crc32(bytes) {
+  const table = getCrcTable();
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/** @param {string} path */
+function safeEntryPath(path) {
+  const normalized = path.replace(/\\/g, '/').replace(/^\.\//, '');
+  if (
+    !normalized ||
+    normalized.startsWith('/') ||
+    /^[a-z][a-z0-9+.-]*:/i.test(normalized) ||
+    normalized.split('/').some((part) => !part || part === '.' || part === '..')
+  ) {
+    throw new Error(`Unsafe Quire package path: ${path}`);
+  }
+  return normalized;
+}
+
+/** @param {number} size */
+function bufferPart(size) {
+  const bytes = new Uint8Array(size);
+  return { bytes, view: new DataView(bytes.buffer) };
+}
+
+/**
+ * Build a `.quire` ZIP package. Entries use ZIP's stored method: image formats
+ * are already compressed, while avoiding base64 makes them about 25% smaller
+ * than an equivalent self-contained Markdown file.
+ *
+ * @param {string} markdown
+ * @param {{path: string, bytes: Uint8Array, type?: string}[]} assets
+ */
+function packQuire(markdown, assets = []) {
+  const manifest = {
+    format: 'quire',
+    version: 1,
+    entry: 'deck.md',
+    assets: Object.fromEntries(assets.map((asset) => [safeEntryPath(asset.path), asset.type || ''])),
+  };
+  const entries = [
+    { path: 'manifest.json', bytes: encoder.encode(JSON.stringify(manifest, null, 2)) },
+    { path: 'deck.md', bytes: encoder.encode(markdown) },
+    ...assets.map((asset) => ({ ...asset, path: safeEntryPath(asset.path) })),
+  ];
+  const localParts = [];
+  const centralParts = [];
+  let localOffset = 0;
+
+  for (const entry of entries) {
+    const name = encoder.encode(entry.path);
+    const checksum = crc32(entry.bytes);
+    const local = bufferPart(30 + name.length + entry.bytes.length);
+    local.view.setUint32(0, ZIP_LOCAL, true);
+    local.view.setUint16(4, 20, true);
+    local.view.setUint16(6, 0x0800, true);
+    local.view.setUint16(8, 0, true);
+    local.view.setUint32(14, checksum, true);
+    local.view.setUint32(18, entry.bytes.length, true);
+    local.view.setUint32(22, entry.bytes.length, true);
+    local.view.setUint16(26, name.length, true);
+    local.bytes.set(name, 30);
+    local.bytes.set(entry.bytes, 30 + name.length);
+    localParts.push(local.bytes);
+
+    const central = bufferPart(46 + name.length);
+    central.view.setUint32(0, ZIP_CENTRAL, true);
+    central.view.setUint16(4, 20, true);
+    central.view.setUint16(6, 20, true);
+    central.view.setUint16(8, 0x0800, true);
+    central.view.setUint16(10, 0, true);
+    central.view.setUint32(16, checksum, true);
+    central.view.setUint32(20, entry.bytes.length, true);
+    central.view.setUint32(24, entry.bytes.length, true);
+    central.view.setUint16(28, name.length, true);
+    central.view.setUint32(42, localOffset, true);
+    central.bytes.set(name, 46);
+    centralParts.push(central.bytes);
+    localOffset += local.bytes.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const end = bufferPart(22);
+  end.view.setUint32(0, ZIP_END, true);
+  end.view.setUint16(8, entries.length, true);
+  end.view.setUint16(10, entries.length, true);
+  end.view.setUint32(12, centralSize, true);
+  end.view.setUint32(16, localOffset, true);
+
+  const total = localOffset + centralSize + end.bytes.length;
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const part of [...localParts, ...centralParts, end.bytes]) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
+
+/** @param {Uint8Array} bytes */
+function findEnd(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  for (let offset = bytes.length - 22; offset >= Math.max(0, bytes.length - 65557); offset -= 1) {
+    if (view.getUint32(offset, true) === ZIP_END) return offset;
+  }
+  throw new Error('Not a valid Quire package: ZIP directory not found.');
+}
+
+/**
+ * @param {ArrayBuffer | Uint8Array} input
+ * @returns {{markdown: string, assets: {path: string, bytes: Uint8Array, type: string}[]}}
+ */
+function unpackQuire(input) {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const end = findEnd(bytes);
+  const count = view.getUint16(end + 10, true);
+  let offset = view.getUint32(end + 16, true);
+  /** @type {Map<string, Uint8Array>} */
+  const files = new Map();
+
+  for (let index = 0; index < count; index += 1) {
+    if (view.getUint32(offset, true) !== ZIP_CENTRAL) throw new Error('Invalid Quire package directory.');
+    const method = view.getUint16(offset + 10, true);
+    if (method !== 0) throw new Error('This Quire package uses unsupported ZIP compression.');
+    const checksum = view.getUint32(offset + 16, true);
+    const size = view.getUint32(offset + 24, true);
+    const nameLength = view.getUint16(offset + 28, true);
+    const extraLength = view.getUint16(offset + 30, true);
+    const commentLength = view.getUint16(offset + 32, true);
+    const localOffset = view.getUint32(offset + 42, true);
+    const path = safeEntryPath(decoder.decode(bytes.subarray(offset + 46, offset + 46 + nameLength)));
+    if (view.getUint32(localOffset, true) !== ZIP_LOCAL) throw new Error('Invalid Quire package entry.');
+    const localNameLength = view.getUint16(localOffset + 26, true);
+    const localExtraLength = view.getUint16(localOffset + 28, true);
+    const start = localOffset + 30 + localNameLength + localExtraLength;
+    const content = bytes.slice(start, start + size);
+    if (crc32(content) !== checksum) throw new Error(`Corrupt Quire package entry: ${path}`);
+    files.set(path, content);
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+
+  const markdownBytes = files.get('deck.md');
+  const manifestBytes = files.get('manifest.json');
+  if (!markdownBytes || !manifestBytes) throw new Error('A Quire package must contain deck.md and manifest.json.');
+  const manifest = JSON.parse(decoder.decode(manifestBytes));
+  if (manifest?.format !== 'quire' || manifest?.version !== 1 || manifest?.entry !== 'deck.md') {
+    throw new Error('Unsupported Quire package manifest.');
+  }
+  const assetTypes = manifest.assets && typeof manifest.assets === 'object' ? manifest.assets : {};
+  const assets = [...files.entries()]
+    .filter(([path]) => path !== 'deck.md' && path !== 'manifest.json')
+    .map(([path, content]) => ({ path, bytes: content, type: String(assetTypes[path] || '') }));
+  return { markdown: decoder.decode(markdownBytes), assets };
+}
+
+/** @param {string} markdown */
+function referencedAssetPaths(markdown) {
+  return [...markdown.matchAll(/^image:[ \t]*(.+?)[ \t]*$/gm)]
+    .map((match) => match[1])
+    .filter((path) => !/^(?:data:|[a-z][a-z0-9+.-]*:|\/|\/\/)/i.test(path))
+    .map(safeEntryPath);
+}
+
+// @ts-check
 /**
  * The quire app: open local Quire source, watch it, render it.
  *
@@ -3164,6 +3359,7 @@ function download(filename, html) {
  */
 
 /* global quireNav */
+
 
 
 
@@ -3189,6 +3385,9 @@ const applyUpdateBtn = /** @type {HTMLButtonElement} */ (document.getElementById
 let deckName = '';
 /** @type {string | undefined} base URL for relative assets in a deck loaded through ?deck= */
 let assetBase;
+/** Embedded local assets keyed by the path written in Quire source. */
+/** @type {Record<string, string>} */
+let assetMap = {};
 
 const hasFSA = typeof window.showOpenFilePicker === 'function';
 const INTRO_KEY = 'quire:intro:v1';
@@ -3331,7 +3530,7 @@ function render(markdown, opts = {}) {
   let spec;
   let slidesHtml;
   try {
-    spec = parseQuire(markdown, { assetBase });
+    spec = parseQuire(markdown, { assetBase, assetMap });
     if (!spec.slides.length) {
       showFailure('That file has no slides', new Error('A deck needs at least one slide.'));
       return false;
@@ -3466,9 +3665,9 @@ window.quireFit = {
  * at.
  */
 window.quireExport = {
-  html: () => exportHtml(lastText, assetBase),
+  html: () => exportHtml(lastText, assetBase, assetMap),
   name: () => exportName(deckName),
-  save: () => download(exportName(deckName), exportHtml(lastText, assetBase)),
+  save: () => download(exportName(deckName), exportHtml(lastText, assetBase, assetMap)),
 };
 
 /**
@@ -3545,7 +3744,7 @@ async function reread() {
       setStatus(`${handle.name} · watching for changes`, 'live');
     }
     if (file.lastModified === lastModified) return;
-    const text = await file.text();
+    const deck = await readDeckFile(file);
     // Commit the timestamp only once the read has actually succeeded.
     // Advancing it first means a single failed read — a mid-save file, a
     // volume that blinked — permanently suppresses that save: every later poll
@@ -3553,8 +3752,9 @@ async function reread() {
     // never updates again and looks exactly like a file nobody edited, which
     // is the failure the backstop poll exists to prevent.
     lastModified = file.lastModified;
-    if (text === lastText && !showingFailure) return;
-    if (render(text, { keepPosition: true })) {
+    assetMap = deck.assets;
+    if (!/\.quire$/i.test(file.name) && deck.markdown === lastText && !showingFailure) return;
+    if (render(deck.markdown, { keepPosition: true })) {
       setStatus(`${handle.name} · updated ${timeNow()}`, 'live');
     }
   } catch (err) {
@@ -3608,14 +3808,49 @@ function startWatching() {
 // opening
 // ---------------------------------------------------------------------------
 
+/** @param {File} file */
+function fileDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error || new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** @param {{path: string, bytes: Uint8Array, type: string}[]} assets */
+async function packageAssetMap(assets) {
+  /** @type {Record<string, string>} */
+  const map = {};
+  for (const asset of assets) {
+    const copy = new Uint8Array(asset.bytes.length);
+    copy.set(asset.bytes);
+    const url = await fileDataUrl(new File([copy.buffer], asset.path, { type: asset.type }));
+    map[asset.path] = url;
+    map[`./${asset.path}`] = url;
+  }
+  return map;
+}
+
+/** @param {File} file */
+async function readDeckFile(file) {
+  if (/\.quire$/i.test(file.name)) {
+    const packaged = unpackQuire(await file.arrayBuffer());
+    return { markdown: packaged.markdown, assets: await packageAssetMap(packaged.assets) };
+  }
+  return { markdown: await file.text(), assets: {} };
+}
+
 /** @param {any} h */
 async function openHandle(h) {
   handle = h;
   deckName = h.name;
   assetBase = undefined;
   const file = await h.getFile();
+  const deck = await readDeckFile(file);
+  assetMap = deck.assets;
   lastModified = file.lastModified;
-  const ok = render(await file.text());
+  const ok = render(deck.markdown);
   // Watch either way: a deck that failed to parse is one the author is most
   // likely about to fix, and it should recover without being reopened.
   startWatching();
@@ -3624,10 +3859,10 @@ async function openHandle(h) {
   void rememberHandle(h);
 }
 
-async function pickFile() {
+async function pickDeck() {
   const picker = window.showOpenFilePicker;
   if (!picker) {
-    setStatus('This browser cannot open files directly — drop a .md onto the window', 'warn');
+    setStatus('This browser cannot open files directly — drop a .quire or .md file onto the window', 'warn');
     return;
   }
   if (pickingFile) return;
@@ -3635,7 +3870,10 @@ async function pickFile() {
   openIntent += 1;
   try {
     const [h] = await picker({
-      types: [{ description: 'Quire deck', accept: { 'text/markdown': ['.md', '.markdown'] } }],
+      types: [
+        { description: 'Quire deck', accept: { 'application/vnd.quire+zip': ['.quire'] } },
+        { description: 'Quire source', accept: { 'text/markdown': ['.md', '.markdown'] } },
+      ],
       multiple: false,
     });
     await openHandle(h);
@@ -3662,8 +3900,9 @@ async function openDroppedFile(file) {
   handle = null;
   deckName = file.name;
   assetBase = undefined;
-  const ok = render(await file.text());
-  if (ok) setStatus(`${file.name} · drag it again to refresh`, 'warn');
+  const deck = await readDeckFile(file);
+  assetMap = deck.assets;
+  if (render(deck.markdown)) setStatus(`${file.name} · drag it again to refresh`, 'warn');
   dropHint.hidden = true;
 }
 
@@ -3832,7 +4071,7 @@ async function tryStoredHandle() {
   if (!hasFSA || pickingFile) return false;
   const intent = openIntent;
   const h = await recallHandle();
-  if (!h || pickingFile || intent !== openIntent) return false;
+  if (!h || h.kind !== 'file' || pickingFile || intent !== openIntent) return false;
   try {
     const state = await h.queryPermission({ mode: 'read' });
     if (pickingFile || intent !== openIntent) return false;
@@ -3845,10 +4084,10 @@ async function tryStoredHandle() {
       try {
         if ((await h.requestPermission({ mode: 'read' })) === 'granted') {
           openBtn.textContent = 'Open deck…';
-          openBtn.onclick = () => void pickFile();
+          openBtn.onclick = () => void pickDeck();
           await openHandle(h);
         }
-      } catch (err) {
+      } catch {
         setStatus(`Could not reopen ${h.name}`, 'error');
       }
     };
@@ -3880,7 +4119,7 @@ function wireDragDrop() {
 
     try {
       // Chromium can give a real handle from a drop, which means the dropped
-      // file can be watched like a picked one. Try that before falling back.
+      // file can be watched like a picked one. Try that first.
       //
       // The catch covers acquiring the handle only. Wrapping openHandle too
       // meant a deck that failed to open fell through to the File path and
@@ -3904,7 +4143,7 @@ function wireDragDrop() {
       if (file) await openDroppedFile(file);
     } catch (err) {
       setStatus(
-        err instanceof Error ? `Could not open that file — ${err.message}` : 'Could not open that file',
+        err instanceof Error ? `Could not open that deck — ${err.message}` : 'Could not open that deck',
         'error',
       );
     }
@@ -3912,7 +4151,7 @@ function wireDragDrop() {
 }
 
 async function main() {
-  openBtn.onclick = () => void pickFile();
+  openBtn.onclick = () => void pickDeck();
   aboutBtn.onclick = showIntro;
   introClose.onclick = closeIntro;
   introDismiss.onclick = closeIntro;
@@ -3922,7 +4161,7 @@ async function main() {
   });
   introOpenBtn.onclick = () => {
     closeIntro();
-    if (hasFSA) void pickFile();
+    if (hasFSA) void pickDeck();
   };
   checkUpdateBtn.onclick = () => void checkForUpdates();
   applyUpdateBtn.onclick = () => {
@@ -3966,7 +4205,7 @@ async function main() {
   exportBtn.onclick = () => {
     if (!lastText) return;
     try {
-      const html = exportHtml(lastText, assetBase);
+      const html = exportHtml(lastText, assetBase, assetMap);
       download(exportName(deckName), html);
       setStatus(`${exportName(deckName)} · saved, runtime and source embedded`, 'live');
     } catch (err) {

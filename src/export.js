@@ -36,14 +36,15 @@ import { page, readSource } from './render.js';
  *
  * @param {string} markdown
  * @param {string} [assetBase]
+ * @param {Record<string, string>} [assetMap]
  * @returns {string} complete HTML document
  */
-export function exportHtml(markdown, assetBase) {
+export function exportHtml(markdown, assetBase, assetMap) {
   const shell = window.quireShell;
   if (!shell) {
     throw new Error('This build carries no shell template, so it cannot export.');
   }
-  const html = page(parseQuire(markdown, { assetBase }), shell, markdown);
+  const html = page(parseQuire(markdown, { assetBase, assetMap }), shell, markdown);
   const recovered = readSource(html);
   if (recovered !== markdown) {
     throw new Error('The exported file does not give its source back; refusing to save it.');
@@ -54,7 +55,7 @@ export function exportHtml(markdown, assetBase) {
 /**
  * Name the export after the deck rather than the app.
  *
- * `renewal.md` becomes `renewal.html`. A deck opened by drop or by URL still
+ * `renewal.quire` becomes `renewal.html`. A deck opened by drop or by URL still
  * has a name; only a deck with none falls back.
  *
  * @param {string | undefined} deckName
@@ -62,7 +63,7 @@ export function exportHtml(markdown, assetBase) {
  */
 export function exportName(deckName) {
   if (!deckName) return 'deck.html';
-  return `${deckName.replace(/\.(md|markdown)$/i, '')}.html`;
+  return `${deckName.replace(/\.(quire|md|markdown)$/i, '')}.html`;
 }
 
 /**

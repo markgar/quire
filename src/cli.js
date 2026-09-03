@@ -2,19 +2,20 @@
 /**
  * Build a deck from Quire source, or print the agent authoring guide.
  *
- * Usage: node src/cli.js <out.html> <deck.md>
+ * Usage: node src/cli.js <out.html> <deck.md|deck.quire>
  *
  * This exists so decks can still be built headlessly while the runtime that
  * renders in the browser is being written. It is deliberately thin: all the
  * behaviour lives in deck.js and render.js, which the browser will share.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
 import { parseQuire } from './deck.js';
 import { page, readSource } from './render.js';
 import { AUTHORING_GUIDE } from './guide.js';
+import { packQuire, referencedAssetPaths, unpackQuire } from '../skills/quire/package.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -25,12 +26,42 @@ export function loadShell() {
 
 /**
  * @param {string} markdown
- * @param {{embedSource?: boolean}} [opts]
+ * @param {{embedSource?: boolean, assetMap?: Record<string, string>}} [opts]
  * @returns {string}
  */
 export function buildHtml(markdown, opts = {}) {
   const embed = opts.embedSource !== false;
-  return page(parseQuire(markdown), loadShell(), embed ? markdown : undefined);
+  return page(parseQuire(markdown, { assetMap: opts.assetMap }), loadShell(), embed ? markdown : undefined);
+}
+
+const MIME = {
+  '.avif': 'image/avif',
+  '.gif': 'image/gif',
+  '.jpeg': 'image/jpeg',
+  '.jpg': 'image/jpeg',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
+};
+
+/** @param {string} path */
+function mimeFor(path) {
+  return MIME[/** @type {keyof typeof MIME} */ (extname(path).toLowerCase())] || 'application/octet-stream';
+}
+
+/** @param {Uint8Array} bytes */
+function base64(bytes) {
+  return Buffer.from(bytes).toString('base64');
+}
+
+/** @param {{path: string, bytes: Uint8Array, type: string}[]} assets */
+function assetMap(assets) {
+  return Object.fromEntries(
+    assets.flatMap((asset) => {
+      const url = `data:${asset.type || mimeFor(asset.path)};base64,${base64(asset.bytes)}`;
+      return [[asset.path, url], [`./${asset.path}`, url]];
+    }),
+  );
 }
 
 const invokedDirectly = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
@@ -41,14 +72,59 @@ if (invokedDirectly) {
     console.log(AUTHORING_GUIDE);
     process.exit(0);
   }
+  if (args[0] === 'pack') {
+    const [, src, out] = args;
+    if (!src || !out) {
+      console.error('usage: node src/cli.js pack <deck.md> <out.quire>');
+      process.exit(2);
+    }
+    const markdown = readFileSync(src, 'utf8');
+    const root = dirname(src);
+    const assets = referencedAssetPaths(markdown).map((path) => ({
+      path,
+      bytes: new Uint8Array(readFileSync(join(root, path))),
+      type: mimeFor(path),
+    }));
+    writeFileSync(out, packQuire(markdown, assets));
+    console.log(`wrote ${out}  (${assets.length} assets)`);
+    process.exit(0);
+  }
+  if (args[0] === 'unpack') {
+    const [, src, out] = args;
+    if (!src || !out) {
+      console.error('usage: node src/cli.js unpack <deck.quire> <directory>');
+      process.exit(2);
+    }
+    const packaged = unpackQuire(new Uint8Array(readFileSync(src)));
+    mkdirSync(out, { recursive: true });
+    writeFileSync(join(out, 'deck.md'), packaged.markdown);
+    for (const asset of packaged.assets) {
+      const target = join(out, asset.path);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, asset.bytes);
+    }
+    console.log(`wrote ${out}  (${packaged.assets.length} assets)`);
+    process.exit(0);
+  }
   const noSource = args.includes('--no-source');
   const [out, src] = args.filter((a) => !a.startsWith('--'));
   if (!out || !src) {
-    console.error('usage: node src/cli.js guide | [--no-source] <out.html> <deck.md>');
+    console.error(
+      'usage: node src/cli.js guide | pack <deck.md> <out.quire> | unpack <deck.quire> <directory> | [--no-source] <out.html> <deck.md|deck.quire>',
+    );
     process.exit(2);
   }
-  const markdown = readFileSync(src, 'utf8');
-  const html = buildHtml(markdown, { embedSource: !noSource });
+  let markdown;
+  /** @type {Record<string, string> | undefined} */
+  let assets;
+  if (/\.quire$/i.test(src)) {
+    const packaged = unpackQuire(new Uint8Array(readFileSync(src)));
+    markdown = packaged.markdown;
+    assets = assetMap(packaged.assets);
+  } else {
+    markdown = readFileSync(src, 'utf8');
+  }
+  const html = buildHtml(markdown, { embedSource: !noSource, assetMap: assets });
 
   // A deck that cannot give its source back is not self-describing, so verify
   // rather than assume. Costs a string compare per build.
