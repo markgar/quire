@@ -280,6 +280,6 @@
     fit();
   }
 
-  window.quireNav = { refresh, current: () => i, go };
+  window.quireNav = { refresh, sync: render, current: () => i, go };
   refresh();
 })();

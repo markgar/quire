@@ -592,6 +592,45 @@ const TESTS = [
     },
   },
   {
+    name: 'image settlement refreshes overflow annotations',
+    async fn() {
+      await clearState();
+      const source = [
+        '---',
+        'title: Image settlement',
+        '---',
+        '',
+        '# Image settlement',
+        '',
+        '---',
+        '',
+        'image: /quire-icon-512.png',
+        'image-position: right',
+        '',
+        '## Starts short',
+        'Image load events must trigger Quire\\'s own measurement.',
+      ].join('\n');
+      const fh = await writeOpfs('image-settlement.md', source);
+      const f = await loadApp();
+      await openViaPicker(f, fh);
+      assert(f.contentWindow.quireFit.overflowing().length === 0, 'the starting fixture already overflowed');
+      const slide = f.contentDocument.querySelectorAll('#scaler .slide')[1];
+      const image = slide.querySelector('img');
+      const tall = f.contentDocument.createElement('div');
+      tall.style.height = '900px';
+      tall.style.flex = '0 0 auto';
+      slide.querySelector('.mixed-content, .media-copy')?.appendChild(tall);
+      image.dispatchEvent(new f.contentWindow.Event('load'));
+      assert(
+        await until(() => f.contentWindow.quireFit.overflowing().length === 1, 4000),
+        'an image load did not refresh the overflow report',
+      );
+      assert(slide.dataset.over, 'the refreshed report did not annotate the slide');
+      assert(!$(f, 'fitBtn').hidden, 'the refreshed report did not show the badge');
+      return 'load event refreshed badge, data-over, and panel state';
+    },
+  },
+  {
     name: 'a remeasure clears a slide that no longer overflows',
     async fn() {
       // quireFit.remeasure() re-annotates the DOM in place, which is the only

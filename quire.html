@@ -1519,7 +1519,7 @@ Renders and presents it locally.
     fit();
   }
 
-  window.quireNav = { refresh, current: () => i, go };
+  window.quireNav = { refresh, sync: render, current: () => i, go };
   refresh();
 })();
 
@@ -3197,6 +3197,8 @@ const INTRO_KEY = 'quire:intro:v1';
 let handle = null;
 /** @type {string} last source we rendered, to skip no-op re-renders */
 let lastText = '';
+/** Incremented on each render so late image events cannot remeasure a newer deck. */
+let renderGeneration = 0;
 /** @type {number} */
 let lastModified = 0;
 /** @type {any} */
@@ -3355,12 +3357,46 @@ function render(markdown, opts = {}) {
   showingFailure = false;
   document.title = spec.title || 'quire';
   lastText = markdown;
-  reportFit();
+  const generation = ++renderGeneration;
   window.quireNav.refresh(keep);
+  reportFit();
+  window.quireNav.sync();
+  remeasureAfterAssets(generation);
   // Only a deck that rendered can be exported; the button is the affordance
   // for that, so it follows the deck rather than the file.
   exportBtn.hidden = !window.quireShell;
   return true;
+}
+
+/**
+ * Images can decode after the first layout pass. Remeasure when they settle so
+ * the badge, data-over annotations, and slide panel describe the rendered deck
+ * rather than its pre-image geometry.
+ *
+ * @param {number} generation
+ */
+function remeasureAfterAssets(generation) {
+  /** @type {number | undefined} */
+  let timer;
+  const settle = () => {
+    if (generation !== renderGeneration) return;
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      if (generation !== renderGeneration) return;
+      reportFit();
+      window.quireNav.sync();
+    }, 0);
+  };
+
+  scaler.querySelectorAll('img').forEach((image) => {
+    image.addEventListener('load', settle);
+    image.addEventListener('error', settle);
+    if (image.complete) {
+      if (typeof image.decode === 'function') image.decode().then(settle, settle);
+      else settle();
+    }
+  });
+  document.fonts?.ready.then(settle);
 }
 
 // ---------------------------------------------------------------------------
@@ -3373,8 +3409,8 @@ let fitReport = [];
 /**
  * Measure the deck and surface anything that overflows.
  *
- * Runs before `quireNav.refresh` so the panel can mark overflowing thumbnails
- * from the annotations rather than measuring a second time.
+ * `quireNav.sync` reflects the resulting annotations in the existing panel
+ * without rebuilding or measuring the deck a second time.
  *
  * Deliberately reports rather than scales. Silent shrinking would let a deck
  * drift dense and small one slide at a time; being told a slide is 97px over

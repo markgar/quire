@@ -442,6 +442,9 @@ if (existsSync(appPath)) {
   if (!/function fitMetricValues\b/.test(app)) {
     problems.push('app does not fit metric values to their individual cards');
   }
+  if (!/function remeasureAfterAssets\b/.test(app) || !/\.addEventListener\('load', settle\)/.test(app)) {
+    problems.push('app does not remeasure overflow after images settle');
+  }
 
   {
     checked += 1;
