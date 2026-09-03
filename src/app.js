@@ -53,6 +53,10 @@ let observer = null;
 let pollTimer;
 /** @type {boolean} guards reread against the observer and the poll overlapping */
 let rereading = false;
+/** Whether a user-driven picker is currently open. */
+let pickingFile = false;
+/** Invalidates asynchronous automatic restores when the user starts opening a file. */
+let openIntent = 0;
 /** Whether the stage currently shows a generated failure slide. */
 let showingFailure = false;
 /** Whether the active watcher most recently failed to read its source. */
@@ -438,6 +442,9 @@ async function pickFile() {
     setStatus('This browser cannot open files directly — drop a .md onto the window', 'warn');
     return;
   }
+  if (pickingFile) return;
+  pickingFile = true;
+  openIntent += 1;
   try {
     const [h] = await picker({
       types: [{ description: 'Quire deck', accept: { 'text/markdown': ['.md', '.markdown'] } }],
@@ -446,9 +453,13 @@ async function pickFile() {
     await openHandle(h);
   } catch (err) {
     // AbortError is the user closing the picker; not a failure.
-    if (!(err instanceof DOMException && err.name === 'AbortError')) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      setStatus(lastText ? `${deckName} · still open` : 'No deck selected');
+    } else {
       setStatus('Could not open that file', 'error');
     }
+  } finally {
+    pickingFile = false;
   }
 }
 
@@ -630,11 +641,13 @@ function watchUrl(name) {
  * offer a button rather than firing a dialog at someone who just opened a tab.
  */
 async function tryStoredHandle() {
-  if (!hasFSA) return false;
+  if (!hasFSA || pickingFile) return false;
+  const intent = openIntent;
   const h = await recallHandle();
-  if (!h) return false;
+  if (!h || pickingFile || intent !== openIntent) return false;
   try {
     const state = await h.queryPermission({ mode: 'read' });
+    if (pickingFile || intent !== openIntent) return false;
     if (state === 'granted') {
       await openHandle(h);
       return true;

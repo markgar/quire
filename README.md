@@ -32,9 +32,10 @@ exactly what it does.
    > metrics, and a chart. Save the deck and nearby image assets in an Apollo 11
    > folder.
 
-3. **Open in Quire**
+3. **Open the deck**
 
-   > Open this deck with quiredeck.com.
+   Go to [quiredeck.com](https://quiredeck.com), choose a deck, and open the
+   generated `.md` file.
 
 ### Install the app
 
