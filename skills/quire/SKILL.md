@@ -155,8 +155,10 @@ align: center               Center heading and framing text.
 ```
 
 Charts use the first two columns of a pipe table as labels and values. Diagrams
-use row questions as node headings and answers as descriptions. Metric slides
-use each `###` heading as the value and its body as the label.
+use one ordered or unordered list as a single multi-node visual: row questions
+become node headings, answers become descriptions, and Quire equalizes process
+node heights automatically. Metric slides use each `###` heading as the value
+and its body as the label.
 
 Images can accompany title, card, metric, table, row, chart, diagram, and
 pull-quote layouts; they do not replace the layout content. Use

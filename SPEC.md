@@ -240,7 +240,9 @@ A slide with `chart: bar`, `chart: line`, or `chart: donut` uses the first two
 columns of its pipe table as labels and numeric values.
 
 A slide with `diagram: process`, `diagram: timeline`, or `diagram: hierarchy`
-uses row questions as node headings and row answers as descriptions.
+uses one list as a single multi-node visual. Row questions become node headings
+and row answers become descriptions. Process nodes are equal height regardless
+of their individual text length.
 
 `layout: metrics` treats cards as metric-and-label pairs: the `###` heading is
 the value and the card body is its meaning.
