@@ -215,6 +215,7 @@ export function lPull(slide) {
   if (emph) text += ` <em>${h(emph)}</em>`;
   const out = [`<div class="pull">\n  ${text}\n</div>`];
   if (slide.cards) out.push(lCards(slide, or(slide.cols, 2)));
+  if (slide.items) out.push(lRows(slide));
   return out.join('\n');
 }
 
@@ -272,14 +273,18 @@ export function imageSource(value) {
 }
 
 /** @param {Slide} slide */
-export function lMedia(slide) {
+export function mediaFigure(slide) {
   const src = imageSource(slide.image);
   if (slide.imagePosition && !['left', 'right', 'full'].includes(slide.imagePosition)) {
     throw new Error(`unknown image position ${JSON.stringify(slide.imagePosition)}; choose left, right, or full`);
   }
+  if (slide.imageFit && !['cover', 'contain'].includes(slide.imageFit)) {
+    throw new Error(`unknown image fit ${JSON.stringify(slide.imageFit)}; choose cover or contain`);
+  }
   const position = slide.imagePosition || 'right';
+  const fit = slide.imageFit || 'cover';
   const figure = [
-    `<figure class="media-figure media-${position}">`,
+    `<figure class="media-figure media-${position} media-fit-${fit}">`,
     src
       ? `  <img src="${attr(src)}" alt="${attr(or(slide.imageAlt, ''))}">`
       : '  <div class="media-missing">Image unavailable</div>',
@@ -289,12 +294,40 @@ export function lMedia(slide) {
     figure.push(`  <figcaption>${caption}</figcaption>`);
   }
   figure.push('</figure>');
+  return figure.join('\n');
+}
 
-  if (position === 'full') return figure.join('\n');
+/**
+ * Add an image beside or below any native layout without replacing its content.
+ * @param {string} content
+ * @param {Slide} slide
+ */
+export function withMedia(content, slide) {
+  if (!slide.image) return content;
+  const position = slide.imagePosition || 'right';
+  const figure = mediaFigure(slide);
+  if (position === 'full') {
+    return [
+      '<div class="mixed-media mixed-media-full">',
+      `  <div class="mixed-content">\n${indent(content, 4)}\n  </div>`,
+      indent(figure, 2),
+      '</div>',
+    ].join('\n');
+  }
+  const body = `<div class="mixed-content">\n${indent(content, 2)}\n</div>`;
+  const pieces = position === 'left' ? [figure, body] : [body, figure];
+  return `<div class="mixed-media mixed-media-${position}">\n${indent(pieces.join('\n'), 2)}\n</div>`;
+}
+
+/** @param {Slide} slide */
+export function lMedia(slide) {
+  const position = slide.imagePosition || 'right';
+  const figure = mediaFigure(slide);
   const content = slide.cards?.length
     ? lCards(slide, Math.min(slide.cards.length, 2))
     : `<p class="media-copy">${h(or(slide.sub, ''))}</p>`;
-  const pieces = position === 'left' ? [figure.join('\n'), content] : [content, figure.join('\n')];
+  if (position === 'full') return slide.cards?.length ? withMedia(content, slide) : figure;
+  const pieces = position === 'left' ? [figure, content] : [content, figure];
   return `<div class="media-split">\n${indent(pieces.join('\n'), 2)}\n</div>`;
 }
 
@@ -436,19 +469,21 @@ export function renderSlide(slide, first) {
   const modifiers = [
     slide.tone === 'accent' || slide.tone === 'contrast' ? ` tone-${slide.tone}` : '',
     slide.align === 'center' ? ' align-center' : '',
-    layout === 'media' && ['left', 'right', 'full'].includes(slide.imagePosition || '')
+    slide.image && ['left', 'right', 'full'].includes(slide.imagePosition || '')
       ? ` media-position-${slide.imagePosition}`
-      : layout === 'media'
+      : slide.image
         ? ' media-position-right'
         : '',
   ].join('');
   if (layout === 'title') {
-    return `<section class="slide title-slide${modifiers}${active}"${hid}>\n${indent(lTitle(slide), 2)}\n</section>`;
+    const title = withMedia(lTitle(slide), slide);
+    return `<section class="slide title-slide${modifiers}${active}"${hid}>\n${indent(title, 2)}\n</section>`;
   }
 
   const fn = LAYOUTS[layout];
   if (!fn) throw new Error(`layout ${layout} has no renderer`);
-  const inner = wrapBody(fn(slide), slide);
+  const content = fn(slide);
+  const inner = wrapBody(layout === 'media' ? content : withMedia(content, slide), slide);
   const mediaUsesSub =
     layout === 'media' && slide.imagePosition !== 'full' && !(slide.cards && slide.cards.length);
   return `<section class="slide${modifiers}${active}"${hid}>\n${indent(head(slide, !mediaUsesSub), 2)}\n${indent(inner, 2)}\n</section>`;

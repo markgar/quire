@@ -38,6 +38,7 @@ import { mapOutsideHtml } from './html.js';
  * @property {string} [image]
  * @property {string} [imageAlt]
  * @property {string} [imagePosition]
+ * @property {string} [imageFit]
  * @property {string} [caption]
  * @property {string} [credit]
  * @property {string} [chart]
@@ -67,6 +68,7 @@ const META_KEYS = new Set([
   'image',
   'image-alt',
   'image-position',
+  'image-fit',
   'caption',
   'credit',
   'chart',
@@ -381,6 +383,7 @@ export function buildSlide(chunk, first, opts = {}) {
   }
   if (meta['image-alt']) slide.imageAlt = meta['image-alt'];
   if (meta['image-position']) slide.imagePosition = meta['image-position'].toLowerCase();
+  if (meta['image-fit']) slide.imageFit = meta['image-fit'].toLowerCase();
   if (meta.caption) slide.caption = inline(meta.caption);
   if (meta.credit) slide.credit = inline(meta.credit);
   if (meta.chart) slide.chart = meta.chart.toLowerCase();
@@ -396,6 +399,8 @@ export function buildSlide(chunk, first, opts = {}) {
   const quotes = bl.filter((b) => b[0] === 'quote').map((b) => b[1]);
   const paras = bl.filter((b) => b[0] === 'p').map((b) => b[1]);
   const hasGroups = bl.some((b) => b[0] === 'group');
+  const firstGroup = bl.findIndex((b) => b[0] === 'group');
+  const hasUngroupedCards = firstGroup >= 0 && bl.slice(0, firstGroup).some((b) => b[0] === 'card');
 
   const isTitle =
     meta.layout === 'title' ||
@@ -429,7 +434,21 @@ export function buildSlide(chunk, first, opts = {}) {
     if (remaining.length) leadQuote = remaining[0];
   }
 
+  if (tables.length > 1 || lists.length > 1) {
+    throw new Error('a slide can contain only one table or list block');
+  }
+
   if (isTitle) {
+    const unsupported = [
+      hasGroups || cards.length ? 'card' : '',
+      tables.length ? 'table' : '',
+      quotes.length ? 'quote' : '',
+      meta.chart ? 'chart' : '',
+      meta.diagram ? 'diagram' : '',
+    ].filter(Boolean);
+    if (unsupported.length) {
+      throw new Error(`title layout cannot render ${unsupported.join(', ')} content; move it to another slide`);
+    }
     slide.layout = 'title';
     if (heads.length) slide.headline = inline(heads[0][1]);
     if (paras.length) slide.lede = inline(paras[0]);
@@ -444,16 +463,53 @@ export function buildSlide(chunk, first, opts = {}) {
   if (!layout) {
     if (hasGroups) layout = 'groups';
     else if (leadQuote) layout = 'pull';
-    else if (meta.image) layout = 'media';
     else if (meta.chart) layout = 'chart';
     else if (meta.diagram) layout = 'diagram';
     else if (tables.length) layout = 'table';
     else if (cards.length) layout = cards.length >= 3 ? 'cards3' : 'cards2';
     else if (lists.length) layout = 'rows';
+    else if (meta.image) layout = 'media';
     else layout = 'blank';
   }
   slide.layout = layout;
 
+  const contentKinds = [
+    hasGroups ? 'groups' : '',
+    !hasGroups && cards.length ? 'cards' : '',
+    hasUngroupedCards ? 'cards' : '',
+    tables.length ? 'table' : '',
+    lists.length ? 'list' : '',
+    leadQuote ? 'pull-quote' : '',
+  ].filter(Boolean);
+  /** @type {Record<string, string[]>} */
+  const accepted = {
+    cards2: ['cards'],
+    cards3: ['cards'],
+    groups: ['groups'],
+    table: ['table'],
+    chart: ['table'],
+    rows: ['list'],
+    diagram: ['list'],
+    pull: ['pull-quote', 'cards', 'list'],
+    metrics: ['cards'],
+    media: ['cards'],
+    blank: [],
+  };
+  if (layout in accepted) {
+    const unsupported = contentKinds.filter((kind) => !accepted[layout].includes(kind));
+    if (unsupported.length) {
+      throw new Error(
+        `${layout} layout cannot render ${unsupported.join(', ')} content; ` +
+          'remove the conflicting setting or move that content to another slide',
+      );
+    }
+  }
+  if (meta.chart && layout !== 'chart') {
+    throw new Error(`chart: ${meta.chart} requires the chart layout`);
+  }
+  if (meta.diagram && layout !== 'diagram') {
+    throw new Error(`diagram: ${meta.diagram} requires the diagram layout`);
+  }
   /**
    * @param {string} head
    * @param {string} body
@@ -491,7 +547,7 @@ export function buildSlide(chunk, first, opts = {}) {
     slide.rows = body.map((r) => r.map(inline));
   }
 
-  if (lists.length && (layout === 'rows' || layout === 'diagram')) {
+  if (lists.length && (layout === 'rows' || layout === 'diagram' || layout === 'pull')) {
     /** @type {{q: string, a: string}[]} */
     const items = [];
     for (const raw of lists[0]) {

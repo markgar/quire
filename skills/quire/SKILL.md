@@ -143,7 +143,8 @@ Use native visual settings before reaching for raw HTML:
 layout: metrics             Render cards as large values and labels.
 image: ./image.png          Add a same-origin or embedded image.
 image-alt: Description      Describe meaningful images.
-image-position: right       Use left, right, or full.
+image-position: right       Place it left, right, or full-width below content.
+image-fit: contain          Preserve the whole image; cover crops to fill.
 caption: Caption text       Add an image caption.
 credit: Credit text         Add an image credit.
 chart: bar                  Render a table as bar, line, or donut.
@@ -156,6 +157,15 @@ align: center               Center heading and framing text.
 Charts use the first two columns of a pipe table as labels and values. Diagrams
 use row questions as node headings and answers as descriptions. Metric slides
 use each `###` heading as the value and its body as the label.
+
+Images can accompany title, card, metric, table, row, chart, diagram, and
+pull-quote layouts; they do not replace the layout content. Use
+`image-fit: contain` when faces, labels, or other edge content must not be
+cropped.
+
+Relative image paths work only when the deck directory is served beside Quire.
+If the user will choose the `.md` file directly in quiredeck.com, embed raster
+images as data URLs so the browser does not try to load them from the site.
 
 ## Quotes and closers
 
