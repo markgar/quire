@@ -225,7 +225,9 @@ const TESTS = [
         'the blank app does not capitalize the product name',
       );
       assert(
-        $(f, 'dropHint').textContent.includes('100% local. Agent-native presentations'),
+        $(f, 'dropHint').textContent.includes(
+          '100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.',
+        ),
         'the blank app does not foreground local operation',
       );
       assert(
