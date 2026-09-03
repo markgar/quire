@@ -16,6 +16,39 @@ disk, watches it, and re-renders when it changes.
 The app is plain HTML and JavaScript. Read the source if you want to verify
 exactly what it does.
 
+## Install Quire
+
+### Create your first deck
+
+1. **Teach your agent**
+
+   ```text
+   Run gh skill install markgar/quire quire --scope user, then reload your skills.
+   ```
+
+2. **Ask for a deck**
+
+   ```text
+   Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon. Research accurate facts, cite sources, and use a timeline, process diagram, metrics, and a chart. Save the deck and nearby image assets in an apollo-11 folder.
+   ```
+
+3. **Open in Quire**
+
+   ```text
+   Open this deck with quiredeck.com.
+   ```
+
+### Install the app
+
+On Chromium browsers, Quire can be installed as a standalone app from the
+**Install Quire** button when the browser makes installation available. The
+installed app caches its viewer shell and opens without a network connection;
+deck files still stay on your machine and are opened only with your permission.
+
+Quire checks its service worker when the browser is online. A new version waits
+until you choose **Restart to update**, so an update never interrupts a
+presentation. **Check for updates** in About requests a check immediately.
+
 ## Why not PowerPoint
 
 PowerPoint is built for direct manipulation. You drag a box, you nudge it, you

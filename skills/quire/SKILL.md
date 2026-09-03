@@ -96,8 +96,13 @@ A file may begin with document metadata:
 ```text
 ---
 title: Deck title
+theme: light
 ---
 ```
+
+Use `theme: light` or `theme: dark` so the deck carries its intended appearance.
+The viewer’s **T** shortcut previews the other theme temporarily; it does not
+edit the source file.
 
 ## Slides
 

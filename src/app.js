@@ -23,11 +23,15 @@ const openBtn = /** @type {HTMLButtonElement} */ (document.getElementById('openB
 const dropHint = /** @type {HTMLElement} */ (document.getElementById('dropHint'));
 const fitBtn = /** @type {HTMLButtonElement} */ (document.getElementById('fitBtn'));
 const exportBtn = /** @type {HTMLButtonElement} */ (document.getElementById('exportBtn'));
+const installBtn = /** @type {HTMLButtonElement} */ (document.getElementById('installBtn'));
 const aboutBtn = /** @type {HTMLButtonElement} */ (document.getElementById('aboutBtn'));
 const introDialog = /** @type {HTMLDialogElement} */ (document.getElementById('introDialog'));
 const introClose = /** @type {HTMLButtonElement} */ (document.getElementById('introClose'));
 const introOpenBtn = /** @type {HTMLButtonElement} */ (document.getElementById('introOpenBtn'));
 const introDismiss = /** @type {HTMLButtonElement} */ (document.getElementById('introDismiss'));
+const checkUpdateBtn = /** @type {HTMLButtonElement} */ (document.getElementById('checkUpdateBtn'));
+const updateNotice = /** @type {HTMLElement} */ (document.getElementById('updateNotice'));
+const applyUpdateBtn = /** @type {HTMLButtonElement} */ (document.getElementById('applyUpdateBtn'));
 
 /** @type {string} name of the open deck, for naming an export */
 let deckName = '';
@@ -53,6 +57,11 @@ let rereading = false;
 let showingFailure = false;
 /** Whether the active watcher most recently failed to read its source. */
 let watchFailed = false;
+/** @type {BeforeInstallPromptEvent | null} */
+let installPrompt = null;
+/** @type {ServiceWorkerRegistration | null} */
+let workerRegistration = null;
+let reloadingForUpdate = false;
 
 // ---------------------------------------------------------------------------
 // status line
@@ -94,6 +103,55 @@ function showIntroOnce() {
   showIntro();
 }
 
+function showUpdateReady() {
+  updateNotice.hidden = false;
+}
+
+async function checkForUpdates() {
+  if (!workerRegistration) {
+    setStatus('Update checks are available in the installed or hosted app', 'warn');
+    return;
+  }
+  setStatus('Checking for a Quire update…');
+  try {
+    await workerRegistration.update();
+    if (workerRegistration.waiting) {
+      showUpdateReady();
+      setStatus('A new Quire version is ready', 'live');
+    } else {
+      setStatus('Quire is up to date', 'live');
+    }
+  } catch (err) {
+    setStatus(err instanceof Error ? `Could not check for updates — ${err.message}` : 'Could not check for updates', 'error');
+  }
+}
+
+async function setupPwa() {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') {
+    checkUpdateBtn.hidden = true;
+    return;
+  }
+
+  try {
+    workerRegistration = await navigator.serviceWorker.register('/service-worker.js');
+    if (workerRegistration.waiting && navigator.serviceWorker.controller) showUpdateReady();
+    workerRegistration.addEventListener('updatefound', () => {
+      const installing = workerRegistration?.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) showUpdateReady();
+      });
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadingForUpdate) return;
+      reloadingForUpdate = true;
+      location.reload();
+    });
+  } catch (err) {
+    setStatus(err instanceof Error ? `Offline app setup failed — ${err.message}` : 'Offline app setup failed', 'warn');
+  }
+}
+
 // ---------------------------------------------------------------------------
 // rendering
 // ---------------------------------------------------------------------------
@@ -130,6 +188,13 @@ function render(markdown, opts = {}) {
     return false;
   }
 
+  const paramTheme = new URLSearchParams(location.search).get('theme');
+  const theme =
+    paramTheme === 'light' || paramTheme === 'dark'
+      ? paramTheme
+      : spec.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.deckTheme = spec.theme || '';
+  document.documentElement.setAttribute('data-theme', theme);
   scaler.innerHTML = slidesHtml;
   showingFailure = false;
   document.title = spec.title || 'quire';
@@ -658,8 +723,31 @@ async function main() {
     closeIntro();
     if (hasFSA) void pickFile();
   };
+  checkUpdateBtn.onclick = () => void checkForUpdates();
+  applyUpdateBtn.onclick = () => {
+    const waiting = workerRegistration?.waiting;
+    if (waiting) waiting.postMessage('SKIP_WAITING');
+  };
+  installBtn.onclick = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    installBtn.hidden = true;
+  };
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    installPrompt = /** @type {BeforeInstallPromptEvent} */ (event);
+    installBtn.hidden = false;
+  });
+  window.addEventListener('appinstalled', () => {
+    installPrompt = null;
+    installBtn.hidden = true;
+    setStatus('Quire installed', 'live');
+  });
   if (!hasFSA) introOpenBtn.textContent = 'Start exploring';
   showIntroOnce();
+  await setupPwa();
 
   // Jumping to the worst offender is the action an author wants next; the
   // full per-slide table is on the tooltip and in the console.

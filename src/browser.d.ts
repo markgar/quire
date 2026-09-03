@@ -28,6 +28,11 @@ interface OpenFilePickerOptions {
   excludeAcceptAllOption?: boolean;
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
 interface Window {
   showOpenFilePicker?(o?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
   showDirectoryPicker?(o?: object): Promise<FileSystemDirectoryHandle>;

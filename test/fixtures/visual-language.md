@@ -1,5 +1,6 @@
 ---
 title: The visual language of Quire
+theme: dark
 ---
 
 tone: contrast

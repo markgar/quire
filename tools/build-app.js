@@ -13,6 +13,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -86,6 +87,35 @@ const appCss = `
 #status[data-kind="live"]  { color: var(--q-accent); }
 #status[data-kind="warn"]  { color: var(--q-text); }
 #status[data-kind="error"] { color: var(--q-accent); font-weight: 600; }
+.update-notice {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(430px, calc(100vw - 36px));
+  padding: 12px 14px 12px 16px;
+  color: var(--q-text);
+  background: var(--q-panel-strong);
+  border: 1px solid var(--q-border-strong);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+}
+.update-notice[hidden] { display: none; }
+.update-notice span { line-height: 1.4; }
+.update-notice button {
+  flex: none;
+  font: inherit;
+  font-weight: 700;
+  padding: 7px 11px;
+  color: var(--q-accent-fg);
+  background: var(--q-accent);
+  border: 1px solid var(--q-accent);
+  border-radius: 8px;
+  cursor: pointer;
+}
 
 /* Overflow badge. Hidden unless something is actually over, so a deck that
    fits shows no editing chrome at all. */
@@ -175,7 +205,7 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   line-height: 1;
 }
 .intro h1 {
-  max-width: 14ch;
+  max-width: none;
   margin: 0 44px 14px 0;
   font-size: clamp(2rem, 6vw, 3.25rem);
   line-height: 0.98;
@@ -400,6 +430,10 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   font-weight: 650;
   text-underline-offset: 3px;
 }
+.intro-update {
+  color: var(--q-text);
+  background: transparent;
+}
 @keyframes intro-in {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
 }
@@ -445,6 +479,10 @@ const page = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#b11f4b">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/quire-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <!--
   A deck may contain raw HTML by design, and the app puts it in the DOM, so a
   deck is executable content. script-src therefore cannot be tightened without
@@ -474,19 +512,52 @@ ${chrome}
   <span id="status">Starting…</span>
   <button id="fitBtn" type="button" hidden>—</button>
   <button id="exportBtn" type="button" hidden>Export</button>
+  <button id="installBtn" type="button" hidden>Install Quire</button>
   <button id="aboutBtn" type="button">About</button>
   <button id="openBtn" type="button">Open deck…</button>
+</div>
+
+<div class="update-notice" id="updateNotice" role="status" hidden>
+  <span>A new version of Quire is ready.</span>
+  <button id="applyUpdateBtn" type="button">Restart to update</button>
 </div>
 
 <dialog class="intro" id="introDialog" aria-labelledby="introTitle">
   <div class="intro-inner">
     <button class="intro-close" id="introClose" type="button" aria-label="Close">&times;</button>
-    <h1 id="introTitle">Present from the source.</h1>
+    <h1 id="introTitle">Agent-created presentations.</h1>
     <p class="intro-lede">
-      Quire is an agent-native presentation builder. Your agent writes Quire
-      source—a focused, Markdown-shaped presentation dialect—and your browser
-      opens it directly and presents it with plain, inspectable JavaScript.
+      Quire is a 100% local presentation builder. Your agent writes Quire
+      source—a focused, Markdown-shaped presentation dialect stored on your
+      machine—and your browser opens it directly and presents it with plain,
+      inspectable JavaScript.
     </p>
+    <section class="intro-start" aria-labelledby="introStartTitle">
+      <div class="intro-start-header">
+        <h2 id="introStartTitle">Create your first deck</h2>
+        <span>Three steps. No marketplace required.</span>
+      </div>
+      <div class="intro-steps">
+        <div class="intro-step">
+          <span class="intro-step-number">1</span>
+          <strong>Teach your agent</strong>
+          <p>Tell your agent:</p>
+          <code class="intro-agent-prompt">Run gh skill install markgar/quire quire --scope user, then reload your skills.</code>
+        </div>
+        <div class="intro-step">
+          <span class="intro-step-number">2</span>
+          <strong>Ask for a deck</strong>
+          <p>Try this:</p>
+          <code class="intro-agent-prompt">Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon. Research accurate facts, cite sources, and use a timeline, process diagram, metrics, and a chart. Save the deck and nearby image assets in an apollo-11 folder.</code>
+        </div>
+        <div class="intro-step">
+          <span class="intro-step-number">3</span>
+          <strong>Open in Quire</strong>
+          <p>Then tell your agent:</p>
+          <code class="intro-agent-prompt">Open this deck with quiredeck.com.</code>
+        </div>
+      </div>
+    </section>
     <div class="intro-demo" aria-label="Quire source becomes a rendered slide">
       <section class="intro-pane intro-code-pane">
         <span class="intro-pane-label">Quire source</span>
@@ -524,30 +595,6 @@ Renders and presents it locally.
         </div>
       </section>
     </div>
-    <section class="intro-start" aria-labelledby="introStartTitle">
-      <div class="intro-start-header">
-        <h2 id="introStartTitle">How you’ll get going</h2>
-        <span>No marketplace required.</span>
-      </div>
-      <div class="intro-steps">
-        <div class="intro-step">
-          <span class="intro-step-number">1</span>
-          <strong>Teach your agent</strong>
-          <p>Tell your agent:</p>
-          <code class="intro-agent-prompt">Run gh skill install markgar/quire quire --scope user, reload your skills, then use /quire to create my presentation.</code>
-        </div>
-        <div class="intro-step">
-          <span class="intro-step-number">2</span>
-          <strong>Ask for a deck</strong>
-          <p>Your agent creates a local <code>.md</code> file using Quire source.</p>
-        </div>
-        <div class="intro-step">
-          <span class="intro-step-number">3</span>
-          <strong>Open and present</strong>
-          <p>Choose that file here. Quire watches it and refreshes as your agent edits.</p>
-        </div>
-      </div>
-    </section>
     <dl class="intro-points">
       <div class="intro-point">
         <dt>Local by design</dt>
@@ -559,12 +606,13 @@ Renders and presents it locally.
       </div>
       <div class="intro-point">
         <dt>Open source</dt>
-        <dd>The app is one HTML file. Read the code and verify exactly what runs in your browser.</dd>
+        <dd>The viewer is plain HTML and JavaScript. Read the code and verify exactly what runs in your browser.</dd>
       </div>
     </dl>
     <div class="intro-actions">
       <button class="intro-primary" id="introOpenBtn" type="button">Choose a Quire deck</button>
       <button id="introDismiss" type="button">Explore first</button>
+      <button class="intro-update" id="checkUpdateBtn" type="button">Check for updates</button>
       <a class="intro-source" href="https://github.com/markgar/quire" target="_blank" rel="noopener noreferrer">
         View source on GitHub
       </a>
@@ -575,8 +623,8 @@ Renders and presents it locally.
 <div class="stage" id="stage">
 <div class="scaler" id="scaler"></div>
 <div class="drop-hint" id="dropHint">
-  <h1>quire</h1>
-  <p class="drop-lede">Agent-native presentations, written in Quire source and rendered in your browser.</p>
+  <h1>Quire</h1>
+  <p class="drop-lede">100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.</p>
   <p class="drop-detail">Open a deck, or drop a <code>.md</code> file here. Your file stays on this machine.</p>
   <p class="drop-proof">No upload. No account. Open-source HTML and JavaScript.</p>
 </div>
@@ -613,3 +661,18 @@ ${inline('app.js')}
 const out = resolve(process.argv[2] || join(here, '..', 'quire.html'));
 writeFileSync(out, page);
 console.log(`wrote ${out}  (${(page.length / 1024).toFixed(1)} KB)`);
+
+const root = join(here, '..');
+const version = createHash('sha256')
+  .update(page)
+  .update(readFileSync(join(root, 'manifest.webmanifest')))
+  .update(readFileSync(join(root, 'quire-icon.svg')))
+  .update(readFileSync(join(root, 'quire-icon-192.png')))
+  .update(readFileSync(join(root, 'quire-icon-512.png')))
+  .update(readFileSync(join(root, 'apple-touch-icon.png')))
+  .digest('hex')
+  .slice(0, 12);
+const worker = read('service-worker.js').replace('__QUIRE_VERSION__', version);
+const workerOut = join(root, 'service-worker.js');
+writeFileSync(workerOut, worker);
+console.log(`wrote ${workerOut}  (${version})`);

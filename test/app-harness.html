@@ -211,17 +211,47 @@ const TESTS = [
       const dialog = $(f, 'introDialog');
       assert(dialog.open, 'the first-run explanation did not open');
       assert(
-        /agent-native presentation builder/.test(dialog.textContent),
+        $(f, 'introTitle').textContent.trim() === 'Agent-created presentations.',
+        'the explanation does not lead with agent-created presentations',
+      );
+      assert(
+        /100% local presentation builder/.test(dialog.textContent),
         'the explanation does not state the product purpose',
       );
       assert(/stays on your machine/.test(dialog.textContent), 'the explanation omits local operation');
+      assert(/100% local/.test(dialog.textContent), 'the explanation does not foreground local operation');
       assert(/Open source/.test(dialog.textContent), 'the explanation omits open source');
       assert(/Quire source/.test(dialog.textContent), 'the explanation omits a source example');
       assert(/Rendered presentation/.test(dialog.textContent), 'the explanation omits the rendered result');
       assert(/Teach your agent/.test(dialog.textContent), 'the explanation omits the agent handoff');
       assert(
+        dialog.textContent.indexOf('Create your first deck') <
+          dialog.textContent.indexOf('QUIRE SOURCE'),
+        'the getting-started instructions are buried below the demo',
+      );
+      assert(
+        $(f, 'dropHint').querySelector('h1').textContent.trim() === 'Quire',
+        'the blank app does not capitalize the product name',
+      );
+      assert(
+        $(f, 'dropHint').textContent.includes(
+          '100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.',
+        ),
+        'the blank app does not foreground local operation',
+      );
+      assert(
         /gh skill install markgar\/quire quire --scope user/.test(dialog.textContent),
         'the agent handoff omits the repository skill install command',
+      );
+      assert(
+        /Create a 10-slide Quire deck explaining how Apollo 11 reached the Moon/.test(
+          dialog.textContent,
+        ),
+        'the getting-started flow omits a concrete deck prompt',
+      );
+      assert(
+        /Open this deck with quiredeck\.com/.test(dialog.textContent),
+        'the getting-started flow omits the instruction to open the deck',
       );
       assert(
         f.contentWindow.localStorage.getItem('quire:intro:v1') === 'seen',
@@ -256,6 +286,25 @@ const TESTS = [
       assert(/watching for changes/.test(statusText(f)), `status was "${statusText(f)}"`);
       assert($(f, 'dropHint').hidden, 'drop hint left visible over the deck');
       return '3 slides, watching, hint dismissed';
+    },
+  },
+  {
+    name: 'the deck file controls the theme',
+    async fn() {
+      await clearState();
+      const source = deckOf(1).replace('title: Harness', 'title: Harness\ntheme: dark');
+      const fh = await writeOpfs('themed.md', source);
+      const f = await loadApp();
+      await openViaPicker(f, fh);
+      assert(
+        f.contentDocument.documentElement.getAttribute('data-theme') === 'dark',
+        'the document theme was not applied',
+      );
+      assert(
+        f.contentDocument.documentElement.dataset.deckTheme === 'dark',
+        'the document theme was not retained as deck state',
+      );
+      return 'dark theme read from document metadata';
     },
   },
   {
