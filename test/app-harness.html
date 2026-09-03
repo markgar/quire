@@ -250,7 +250,9 @@ const TESTS = [
         'the getting-started flow omits a concrete deck prompt',
       );
       assert(
-        /Open this deck with quiredeck\.com/.test(dialog.textContent),
+        /Go to quiredeck\.com, choose a deck, and open the generated \.md file/.test(
+          dialog.textContent,
+        ),
         'the getting-started flow omits the instruction to open the deck',
       );
       assert(
@@ -286,6 +288,21 @@ const TESTS = [
       assert(/watching for changes/.test(statusText(f)), `status was "${statusText(f)}"`);
       assert($(f, 'dropHint').hidden, 'drop hint left visible over the deck');
       return '3 slides, watching, hint dismissed';
+    },
+  },
+  {
+    name: 'cancelling the picker leaves the blank app blank',
+    async fn() {
+      await clearState();
+      const f = await loadApp();
+      f.contentWindow.showOpenFilePicker = async () => {
+        throw new f.contentWindow.DOMException('cancelled', 'AbortError');
+      };
+      $(f, 'openBtn').click();
+      await wait(100);
+      assert(slideCount(f) === 0, 'a deck appeared after the picker was cancelled');
+      assert(statusText(f) === 'No deck selected', `status was "${statusText(f)}"`);
+      return 'cancelled cleanly without loading a deck';
     },
   },
   {

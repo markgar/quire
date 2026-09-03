@@ -552,9 +552,8 @@ ${chrome}
         </div>
         <div class="intro-step">
           <span class="intro-step-number">3</span>
-          <strong>Open in Quire</strong>
-          <p>Then tell your agent:</p>
-          <code class="intro-agent-prompt">Open this deck with quiredeck.com.</code>
+          <strong>Open the deck</strong>
+          <p>Go to <strong>quiredeck.com</strong>, choose a deck, and open the generated <code>.md</code> file.</p>
         </div>
       </div>
     </section>
