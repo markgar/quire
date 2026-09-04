@@ -670,8 +670,8 @@ ${chrome}
     <h1 id="introTitle">Agent-created presentations.</h1>
     <p class="intro-lede">
       Quire is a 100% local presentation builder. Your agent writes Quire
-      source—a focused, Markdown-shaped presentation dialect stored on your
-      machine—and your browser opens it directly and presents it with plain,
+      source—a focused, Markdown-shaped presentation dialect packaged with its
+      images in one <code>.quire</code> file—and your browser opens it directly and presents it with plain,
       inspectable JavaScript.
     </p>
     <section class="intro-start" aria-labelledby="introStartTitle">
@@ -765,8 +765,8 @@ Renders and presents it locally.
 <div class="scaler" id="scaler"></div>
 <div class="drop-hint" id="dropHint">
   <h1>Quire</h1>
-  <p class="drop-lede">100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.</p>
-  <p class="drop-detail">Open or drop a <code>.quire</code> deck. Single <code>.md</code> files still work. Everything stays on this machine.</p>
+  <p class="drop-lede">100% local. Agent-native presentations, stored with their images in one <code>.quire</code> file and rendered locally in your browser.</p>
+  <p class="drop-detail">Open or drop a <code>.quire</code> deck. Everything stays on this machine.</p>
   <p class="drop-proof">No upload. No account. Open-source HTML and JavaScript.</p>
 </div>
 </div>

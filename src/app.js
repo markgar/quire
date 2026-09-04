@@ -50,6 +50,9 @@ let assetBase;
 /** Embedded local assets keyed by the path written in Quire source. */
 /** @type {Record<string, string>} */
 let assetMap = {};
+/** Last loaded package bytes, so watchers detect source and asset changes. */
+/** @type {Uint8Array | null} */
+let lastPackageBytes = null;
 
 const hasFSA = typeof window.showOpenFilePicker === 'function';
 const INTRO_KEY = 'quire:intro:v1';
@@ -541,7 +544,7 @@ async function reread() {
       setStatus(`${handle.name} · watching for changes`, 'live');
     }
     if (file.lastModified === lastModified) return;
-    const deck = await readDeckFile(file);
+    const bytes = new Uint8Array(await file.arrayBuffer());
     // Commit the timestamp only once the read has actually succeeded.
     // Advancing it first means a single failed read — a mid-save file, a
     // volume that blinked — permanently suppresses that save: every later poll
@@ -549,8 +552,10 @@ async function reread() {
     // never updates again and looks exactly like a file nobody edited, which
     // is the failure the backstop poll exists to prevent.
     lastModified = file.lastModified;
+    if (sameBytes(lastPackageBytes, bytes)) return;
+    const deck = await readDeckFile(new File([bytes], file.name));
     assetMap = deck.assets;
-    if (!/\.quire$/i.test(file.name) && deck.markdown === lastText && !showingFailure) return;
+    lastPackageBytes = bytes;
     if (render(deck.markdown, { keepPosition: true })) {
       setStatus(`${handle.name} · updated ${timeNow()}`, 'live');
     }
@@ -564,6 +569,11 @@ async function reread() {
 
 function timeNow() {
   return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+}
+
+/** @param {Uint8Array | null} left @param {Uint8Array} right */
+function sameBytes(left, right) {
+  return Boolean(left && left.length === right.length && left.every((byte, index) => byte === right[index]));
 }
 
 /**
@@ -611,8 +621,10 @@ async function openHandle(h) {
   deckName = h.name;
   assetBase = undefined;
   const file = await h.getFile();
-  const deck = await readDeckFile(file);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const deck = await readDeckFile(new File([bytes], file.name));
   assetMap = deck.assets;
+  lastPackageBytes = bytes;
   lastModified = file.lastModified;
   const ok = render(deck.markdown);
   // Watch either way: a deck that failed to parse is one the author is most
@@ -629,7 +641,7 @@ async function openHandle(h) {
 async function pickDeck() {
   const picker = window.showOpenFilePicker;
   if (!picker) {
-    setStatus('This browser cannot open files directly — drop a .quire or .md file onto the window', 'warn');
+    setStatus('This browser cannot open files directly — drop a .quire file onto the window', 'warn');
     return;
   }
   if (pickingFile) return;
@@ -639,7 +651,6 @@ async function pickDeck() {
     const [h] = await picker({
       types: [
         { description: 'Quire deck', accept: { 'application/vnd.quire+zip': ['.quire'] } },
-        { description: 'Quire source', accept: { 'text/markdown': ['.md', '.markdown'] } },
       ],
       multiple: false,
     });
@@ -667,8 +678,10 @@ async function openDroppedFile(file) {
   handle = null;
   deckName = file.name;
   assetBase = undefined;
-  const deck = await readDeckFile(file);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const deck = await readDeckFile(new File([bytes], file.name));
   assetMap = deck.assets;
+  lastPackageBytes = bytes;
   if (render(deck.markdown)) setStatus(`${file.name} · drag it again to refresh`, 'warn');
   dropHint.hidden = true;
 }
@@ -757,7 +770,7 @@ function wireLaunchQueue() {
 // ---------------------------------------------------------------------------
 
 /**
- * Same-origin deck by URL: ?deck=name.md. Only works when the app and the
+ * Same-origin deck by URL: ?deck=name.quire. Only works when the app and the
  * deck are served from the same place, which in practice means a dev server.
  */
 async function tryUrlDeck() {
@@ -777,9 +790,14 @@ async function tryUrlDeck() {
   try {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const fileName = new URL(url).pathname.split('/').pop() || 'deck.quire';
+    const deck = await readDeckFile(new File([bytes], fileName));
     deckName = name;
-    assetBase = new URL('.', url).href;
-    const ok = render(await res.text());
+    assetBase = undefined;
+    assetMap = deck.assets;
+    lastPackageBytes = bytes;
+    const ok = render(deck.markdown);
     if (ok) {
       restoreUpdateState();
       setStatus(`${name} · polling for changes`, 'live');
@@ -816,12 +834,17 @@ function watchUrl(name) {
         setStatus(`${deckName} · cannot read (showing last good version)`, 'warn');
         return;
       }
-      const text = await res.text();
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (sameBytes(lastPackageBytes, bytes)) return;
+      const fileName = new URL(name).pathname.split('/').pop() || 'deck.quire';
+      const deck = await readDeckFile(new File([bytes], fileName));
       if (watchFailed) {
         watchFailed = false;
         setStatus(`${deckName} · polling for changes`, 'live');
       }
-      if ((text !== lastText || showingFailure) && render(text, { keepPosition: true })) {
+      assetMap = deck.assets;
+      lastPackageBytes = bytes;
+      if (render(deck.markdown, { keepPosition: true })) {
         setStatus(`${deckName} · updated ${timeNow()}`, 'live');
       }
     } catch {
@@ -996,14 +1019,14 @@ async function main() {
 
   if (!hasFSA) {
     openBtn.hidden = true;
-    setStatus('Drop a .quire or .md file to open it — this browser cannot watch files', 'warn');
+    setStatus('Drop a .quire file to open it — this browser cannot watch files', 'warn');
   }
 
   if (launchedFile) return;
   if (await tryUrlDeck()) return;
   if (await tryStoredHandle()) return;
 
-  if (hasFSA) setStatus('Open a deck, or drop a .quire or .md file onto the window');
+  if (hasFSA) setStatus('Open a deck, or drop a .quire file onto the window');
 }
 
 void main();

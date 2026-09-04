@@ -63,7 +63,9 @@ export function exportHtml(markdown, assetBase, assetMap) {
  */
 export function exportName(deckName) {
   if (!deckName) return 'deck.html';
-  return `${deckName.replace(/\.(quire|md|markdown)$/i, '')}.html`;
+  const path = deckName.split(/[?#]/, 1)[0];
+  const base = path.split(/[\\/]/).pop() || 'deck.quire';
+  return `${base.replace(/\.quire$/i, '')}.html`;
 }
 
 /**

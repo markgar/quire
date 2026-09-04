@@ -47,12 +47,12 @@ permission decay across a browser restart, or local-disk observer delivery:
     # open http://localhost:8931/test/app-harness.html
 
 `test/quire-cli.js` copies the installed-skill files into an isolated temporary
-directory and exercises direct `.quire` creation and mutation, Markdown import,
-semantic validation, browser fit checks, contact-sheet and single-slide PNG
+directory and exercises direct `.quire` creation and mutation, semantic
+validation, browser fit checks, contact-sheet and single-slide PNG
 rendering, assets, inspection, `EPIPE` handling, and byte-for-byte rollback
 after rejected edits. `test/native-package.js` directly pins the package
-lifecycle boundary, including exact source and asset round trips, import,
-validation, temporary-file cleanup, and rollback. Both run as part of
+lifecycle boundary, including exact source and asset round trips, validation,
+temporary-file cleanup, and rollback. Both run as part of
 `npm test`.
 
 ## The bar for a test

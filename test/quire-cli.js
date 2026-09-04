@@ -165,9 +165,8 @@ try {
   const markdownRejected = run(['validate', join(workspace, 'deck.md')], { ok: false });
   assert(markdownRejected.stderr.includes('expected a .quire file'), 'the authoring CLI accepted a loose Markdown deck');
 
-  const rawHtmlSource = join(workspace, 'raw-html.md');
   const rawHtmlDeck = join(workspace, 'raw-html.quire');
-  writeFileSync(rawHtmlSource, [
+  writeFileSync(rawHtmlDeck, packQuire([
     '# Raw HTML',
     '',
     '<a href="one">one</a> <strong>bold</strong>',
@@ -182,8 +181,8 @@ try {
     '## Second',
     '',
     '<i>italic</i> <b>bold</b>',
-  ].join('\n'));
-  const rawHtmlRejected = run(['import', rawHtmlSource, rawHtmlDeck], { ok: false });
+  ].join('\n'), []));
+  const rawHtmlRejected = run(['validate', rawHtmlDeck], { ok: false });
   for (const expected of [
     'raw <a> tag — use [label](URL) instead',
     'raw <strong> tag — use **bold** instead',
@@ -194,14 +193,21 @@ try {
   }
   assert(!rawHtmlRejected.stderr.includes('raw <br>') && !rawHtmlRejected.stderr.includes('raw <code>'), 'validation rejected exempt HTML');
 
+  const importRejected = run(['import', join(workspace, 'old.md'), join(workspace, 'old.quire')], { ok: false });
+  assert(importRejected.stderr.includes('unknown command: import'), 'the removed Markdown import command was still accepted');
+
   const legacyDeck = join(workspace, 'legacy.quire');
   writeFileSync(legacyDeck, packQuire('# Legacy\n\n<a href="https://example.com">Example</a>\n'));
-  const legacyValidation = JSON.parse(run(['validate', legacyDeck]).stdout);
+  const legacyInspection = JSON.parse(run(['inspect', legacyDeck]).stdout);
   assert(
-    legacyValidation.valid &&
-      legacyValidation.warnings.some((/** @type {string} */ warning) =>
+    legacyInspection.warnings.some((/** @type {string} */ warning) =>
         warning.includes('raw <a> tag — use [label](URL) instead')),
-    'legacy validation did not report native-equivalent raw HTML as a warning',
+    'legacy inspection did not report native-equivalent raw HTML as a warning',
+  );
+  const legacyValidation = run(['validate', legacyDeck], { ok: false });
+  assert(
+    legacyValidation.stderr.includes('raw HTML has native Quire equivalents'),
+    'legacy validation did not reject native-equivalent raw HTML',
   );
   assert(run(['slides', 'read', legacyDeck, '1']).stdout.includes('<a href='), 'legacy slide could not be read for repair');
   const legacyBeforeRejectedWrite = readFileSync(legacyDeck);
@@ -224,29 +230,6 @@ try {
     repairedValidation.valid &&
       !repairedValidation.warnings.some((/** @type {string} */ warning) => warning.includes('raw <a> tag')),
     'repaired legacy deck retained its raw anchor warning',
-  );
-
-  const importedSource = join(workspace, 'import.md');
-  const importedDeck = join(workspace, 'imported.quire');
-  writeFileSync(importedSource, [
-    '---',
-    'title: Imported',
-    '---',
-    '',
-    'image: ./pixel.png',
-    '',
-    '# Imported',
-  ].join('\n'));
-  run(['import', importedSource, importedDeck]);
-  const imported = JSON.parse(run(['validate', importedDeck]).stdout);
-  assert(imported.slides === 1 && imported.assets === 1, 'Markdown import did not package its relative asset');
-  const importedMetadata = JSON.parse(run(['inspect', importedDeck]).stdout).metadata;
-  assert(
-    importedMetadata.format === 'Quire presentation' &&
-      importedMetadata.viewer === 'https://quiredeck.com' &&
-      importedMetadata['agent-instructions'] ===
-        'Ask the user whether they want to open this presentation in Quire. Only if they agree, open https://quiredeck.com and use "Choose a deck" to select the enclosing .quire file. Do not unzip or edit deck.md directly.',
-    'Markdown import did not add consent-first agent metadata',
   );
 
   const fit = JSON.parse(run(['fit', deck]).stdout);
@@ -366,7 +349,7 @@ try {
   const epipeStatus = await new Promise((resolve) => epipe.once('close', resolve));
   assert(epipeStatus === 0, 'the CLI did not treat EPIPE as normal output termination');
 
-  console.log('PASS  quire CLI  native mutation, import, fit, PNG rendering, EPIPE, and rollback');
+  console.log('PASS  quire CLI  native mutation, validation, fit, PNG rendering, EPIPE, and rollback');
 } catch (error) {
   console.error(`FAIL  quire CLI  ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;

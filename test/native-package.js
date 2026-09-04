@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   assetMap,
-  importedAssets,
   mimeFor,
   readDeck,
   requireQuirePath,
@@ -71,13 +70,6 @@ try {
     'a rejected native write left a temporary package behind',
   );
 
-  const importSource = join(workspace, 'import.md');
-  const importImage = join(workspace, 'pixel.png');
-  writeFileSync(importSource, 'image: ./pixel.png\n\n# Imported\n');
-  writeFileSync(importImage, pixel);
-  const imported = importedAssets(importSource);
-  assert(imported.assets.length === 1 && imported.assets[0].type === 'image/png', 'import did not collect its image');
-
   assertThrows(() => validateDeck(markdown, [...assets, ...assets]), 'duplicate packaged asset');
   assertThrows(() => requireQuirePath(join(workspace, 'deck.md')), 'expected a .quire file');
 
@@ -93,7 +85,7 @@ try {
   assertThrows(() => writeDeck(legacyPath, legacy.markdown, legacy.assets), 'raw HTML has native Quire equivalents');
   assert(legacyBytes.equals(readFileSync(legacyPath)), 'rejected legacy write changed the original package');
 
-  console.log('PASS  native package  validation, import, round-trip, asset mapping, and rollback');
+  console.log('PASS  native package  validation, repairable reads, round-trip, asset mapping, and rollback');
 } catch (error) {
   console.error(`FAIL  native package  ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;

@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { inline, parseQuire } from '../src/deck.js';
 import { imageSource, renderSlides, page, readSource } from '../src/render.js';
+import { exportName } from '../src/export.js';
 import { AUTHORING_GUIDE } from '../src/guide.js';
 import { safeDeckUrl } from '../src/deck-url.js';
 import { packQuire, referencedAssetPaths, unpackQuire } from '../skills/quire/package.js';
@@ -100,6 +101,21 @@ function lineDiff(expected, actual) {
 
 let failed = 0;
 let checked = 0;
+
+{
+  checked += 1;
+  const names = new Map([
+    ['renewal.quire', 'renewal.html'],
+    ['fixtures/visual-language.quire?raw=1#slide-2', 'visual-language.html'],
+  ]);
+  const problems = [...names].filter(([input, expected]) => exportName(input) !== expected);
+  if (problems.length) {
+    failed += 1;
+    console.log(`FAIL  export naming  ${JSON.stringify(problems)}`);
+  } else {
+    console.log('PASS  export naming  local files and URL paths');
+  }
+}
 
 {
   checked += 1;
@@ -218,11 +234,12 @@ let checked = 0;
   const base = 'https://quire.example/app/quire.html';
   const origin = 'https://quire.example';
   const allowed = new Map([
-    ['deck.md', 'https://quire.example/app/deck.md'],
     ['decks/demo.quire', 'https://quire.example/app/decks/demo.quire'],
-    ['./nearby.md?raw=1#slide-2', 'https://quire.example/app/nearby.md?raw=1#slide-2'],
+    ['./nearby.quire?raw=1#slide-2', 'https://quire.example/app/nearby.quire?raw=1#slide-2'],
   ]);
   const refused = [
+    'deck.md',
+    './nearby.markdown',
     'https://evil.example/x.md',
     'http://evil.example/x.md',
     '//evil.example/x.md',
@@ -663,7 +680,6 @@ if (existsSync(appPath)) {
       '[!ASIDE]',
       'executable content',
       'quire-package.mjs create',
-      'quire-package.mjs import',
       'quire-package.mjs fit',
       'quire-package.mjs render',
       'gh skill update quire --dry-run',

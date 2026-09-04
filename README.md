@@ -5,9 +5,10 @@
 Quire is an agent-native presentation builder: your agent creates one `.quire`
 deck, your browser reads it directly, and browser JavaScript presents it.
 
-Quire source is a focused presentation dialect stored in a `.md` file. It uses
-familiar Markdown-shaped syntax, but its headings, lists, quotes, and metadata
-map to specific slide layouts rather than to a general-purpose document.
+Quire source is a focused presentation dialect stored inside a `.quire` file.
+It uses familiar Markdown-shaped syntax, but its headings, lists, quotes, and
+metadata map to specific slide layouts rather than to a general-purpose
+document.
 
 Your deck content and rendering stay local. There is no upload, account,
 backend, or server-side processing. The viewer opens the `.quire` package from
@@ -15,8 +16,7 @@ your own disk, watches it, and re-renders when it changes.
 
 A `.quire` deck is a ZIP package containing `deck.md`, image files, and a small
 manifest. It remains one file to create, open, and share, while keeping images
-as normal files internally instead of inflating them into base64 text. Single
-`.md` files and embedded data URLs remain supported. New and imported native
+as normal files internally instead of inflating them into base64 text. Native
 decks include advisory frontmatter that identifies Quire, points to
 quiredeck.com, and tells an inspecting agent to ask before opening the file.
 
@@ -100,8 +100,8 @@ The format allows raw HTML on purpose, because the built-in Quire constructs are
 the typography a real slide needs. The viewer puts that HTML in the DOM, and
 one consequence follows directly:
 
-**Opening someone else's `.quire` or `.md` deck runs its JavaScript.** Open
-decks the way you would open a script — only from someone you trust.
+**Opening someone else's `.quire` deck runs its JavaScript.** Open decks the
+way you would open a script — only from someone you trust.
 
 The app limits quiet network channels rather than pretending deck script cannot
 run: a Content-Security-Policy blocks cross-origin requests, image beacons, and
@@ -121,7 +121,7 @@ images embedded. It is ready for static hosting.
 
     npm install
     npm run serve
-    # then open http://localhost:8931/quire.html?deck=test/fixtures/trusting-the-suite.md
+    # then open http://localhost:8931/quire.html?deck=test/fixtures/trusting-the-suite.quire
 
 Or open `http://localhost:8931/quire.html` and pick a `.quire` deck of your own.
 Replacing that file re-renders it in about a second, with your position kept.
@@ -129,7 +129,7 @@ Replacing that file re-renders it in about a second, with your position kept.
 To see the complete native visual vocabulary—images, metrics, charts, diagrams,
 attribution, tone, and alignment—open:
 
-    http://localhost:8931/quire.html?deck=test/fixtures/visual-language.md
+    http://localhost:8931/quire.html?deck=test/fixtures/visual-language.quire
 
 The bundled CLI creates and edits the native deck directly. The `.quire` file
 is the only persistent authoring artifact:
@@ -151,11 +151,6 @@ ordinary package entries and then referenced by the same path:
 Every mutation validates the complete source and its asset references, writes a
 temporary package, reopens and verifies it, and atomically replaces the deck.
 Failed edits leave the original `.quire` bytes unchanged.
-
-Existing Markdown decks can be migrated without adopting an unpacked authoring
-workflow:
-
-    node src/cli.js import old-deck.md deck.quire
 
 `validate` checks structure and assets without browser dependencies. `fit`
 launches an installed Chrome, Edge, or Chromium with the exact Quire renderer
@@ -232,7 +227,7 @@ contributors review, while TypeScript still provides a strict type gate.
 
 `src/app.js` coordinates browser UI state, rendering, navigation callbacks,
 watchers, and PWA lifecycle. Small modules keep its local-data boundaries
-explicit: `deck-file.js` decodes `.md` and `.quire` files plus packaged assets,
+explicit: `deck-file.js` decodes `.quire` files and their packaged assets,
 `handle-store.js` owns best-effort IndexedDB handle persistence, and
 `deck-url.js` enforces the relative same-origin `?deck=` policy. The app build
 inlines these plain modules into `quire.html`; they do not add a runtime build

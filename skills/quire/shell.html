@@ -762,7 +762,7 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
 
   // Hidden state starts from the Markdown (data-hidden) and can be flipped
   // for the current session from the panel. It is deliberately not persisted:
-  // the HTML is a build artifact, so the source of truth stays in the .md.
+  // the HTML is a build artifact, so the source of truth stays in the .quire package.
   const hidden = slides.map(s => s.dataset.hidden === "true");
   const isShown = n => !hidden[n];
   const shownIndexes = () => slides.map((_, n) => n).filter(isShown);

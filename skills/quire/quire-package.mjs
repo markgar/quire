@@ -18,11 +18,11 @@ import { spawnSync } from 'node:child_process';
 import { parseQuire } from './deck.js';
 import {
   assetMap,
-  importedAssets,
   mimeFor,
   readDeck,
   requireQuirePath,
   sortedAssets,
+  validateDeck,
   writeDeck,
 } from './native.js';
 import { page, renderSlide } from './render.js';
@@ -474,7 +474,6 @@ function usage() {
 
 Usage:
   quire-package.mjs create <deck.quire> --title <title> [--theme light|dark]
-  quire-package.mjs import <deck.md> <deck.quire>
   quire-package.mjs validate <deck.quire>
   quire-package.mjs inspect <deck.quire>
   quire-package.mjs fit <deck.quire> [--browser <executable>]
@@ -525,28 +524,12 @@ export function runCli(argv) {
     return;
   }
 
-  if (command === 'import') {
-    const source = args.shift();
-    const output = args.shift();
-    const force = takeFlag(args, '--force');
-    if (!source || !output || args.length) {
-      throw new Error('import requires <deck.md> <deck.quire> [--force]');
-    }
-    if (!/\.md$/i.test(source)) throw new Error(`expected a .md source file: ${source}`);
-    const file = requireQuirePath(output);
-    if (existsSync(file) && !force) throw new Error(`refusing to replace existing deck without --force: ${output}`);
-    const imported = importedAssets(source);
-    const report = writeDeck(file, addDefaultDocumentMetadata(imported.markdown), imported.assets);
-    printJson({ file, imported: resolve(source), ...report });
-    return;
-  }
-
   if (command === 'validate' || command === 'inspect') {
     const path = args.shift();
     if (!path || args.length) throw new Error(`${command} requires exactly one .quire file`);
     const deck = readDeck(path);
     if (command === 'validate') {
-      printJson({ file: deck.file, valid: true, ...deck.report });
+      printJson({ file: deck.file, valid: true, ...validateDeck(deck.markdown, deck.assets) });
     } else {
       const source = parseQuireSource(deck.markdown);
       printJson({

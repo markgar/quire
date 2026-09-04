@@ -1,14 +1,15 @@
 ---
 name: quire
-description: Author, revise, and review presentations written in Quire source. Use when creating a Quire deck, editing a .md presentation for Quire, or translating presentation content into Quire's slide patterns.
+description: Author, revise, and review native .quire presentations. Use when creating or editing a Quire deck or translating presentation content into Quire's slide patterns.
 license: MIT
 ---
 
 # Quire presentation authoring
 
-Quire source is a focused presentation dialect stored in `.md` files. It
-borrows familiar Markdown-shaped syntax, but its constructs map to specific
-slide layouts. Do not assume unsupported general Markdown behavior.
+Quire source is a focused presentation dialect stored as `deck.md` inside a
+native `.quire` package. It borrows familiar Markdown-shaped syntax, but its
+constructs map to specific slide layouts. Do not assume unsupported general
+Markdown behavior.
 
 When creating or revising a deck:
 
@@ -16,13 +17,12 @@ When creating or revising a deck:
 2. Use the smallest Quire construct that expresses the intended slide.
 3. Keep one idea per slide and prefer readable cards, rows, or tables over dense prose.
 4. Keep the deliverable as one `.quire` file and add images through the CLI.
-5. Preserve existing metadata and intentional raw HTML when editing a deck.
+5. Preserve existing metadata and legal, intentional raw HTML when editing a deck.
 6. Treat raw HTML as executable content and use it only in trusted decks.
 
 Deliver and maintain one native `.quire` deck. It is a ZIP package containing
 Quire source, normal image files, and a manifest, but those internals are owned
-by Quire's CLI. Do not create an unpacked deck directory or a duplicate
-standalone Markdown deck.
+by Quire's CLI. Do not create an unpacked deck directory or a duplicate loose source file.
 
 ## Check for skill updates
 
@@ -98,14 +98,6 @@ node <skill-dir>/quire-package.mjs assets add deck.quire photo.jpg images/photo.
 node <skill-dir>/quire-package.mjs assets replace deck.quire new.jpg images/photo.jpg
 node <skill-dir>/quire-package.mjs assets remove deck.quire images/photo.jpg
 node <skill-dir>/quire-package.mjs validate deck.quire
-```
-
-For a one-time migration from an existing source deck, import it directly into
-one native package. Relative images referenced by valid slide metadata are
-included automatically:
-
-```text
-node <skill-dir>/quire-package.mjs import deck.md deck.quire
 ```
 
 Selectors are one-based slide numbers or exact headings. If an exact heading is
@@ -225,8 +217,7 @@ subject-focused images. Reserve `image-position: full` for genuinely wide
 images that benefit from a panoramic band.
 
 Add relative images directly to the `.quire` package with `assets add`, then
-reference the same normalized package path from the slide. A standalone `.md`
-still opens for compatibility, but it is not the authoring deliverable.
+reference the same normalized package path from the slide.
 
 ## Verify the rendered deck
 
@@ -285,16 +276,23 @@ What follows.
 ```
 
 Supported layouts are `title`, `cards2`, `cards3`, `groups`, `table`, `rows`,
-`pull`, and `blank`. `eyebrow: Label` adds a section label, `layout: cards2`
-forces a layout, `hidden: true` removes a slide from normal navigation,
-`numbered: true` numbers cards, and `badge: Text` adds a badge to a rows slide.
+`pull`, `metrics`, `media`, `chart`, `diagram`, and `blank`. `eyebrow: Label`
+adds a section label, `layout: cards2` forces a layout, `hidden: true` removes a
+slide from normal navigation, `numbered: true` numbers cards, and `badge: Text`
+adds a badge to a rows slide.
 
 ## Inline content
 
 `**bold**`, `*italic*`, `` `code` ``, and `[label](URL)` links are supported.
+Their delimiters may span legal raw HTML, so `**bold with <br> inside**` works.
+
 Raw HTML passes through unchanged and is executable content. Do not use raw
 HTML for links, emphasis, code, headings, lists, tables, blockquotes, or images:
 Quire owns those roles natively, and package writes reject their HTML tags.
+Validation reports every violation in the deck at once and names the native
+replacement. Tag-shaped examples inside inline code spans or fenced code blocks
+are exempt. Raw `<br>`, `<span>`, `<sup>`, SVG, and other elements without
+native equivalents remain available for trusted decks.
 
 When working inside the Quire repository, consult `SPEC.md` for the normative
 format and `test/fixtures/` for complete examples.

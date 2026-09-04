@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Read browser-selected Quire sources without sending their contents anywhere.
+ * Read browser-selected Quire decks without sending their contents anywhere.
  *
  * Native `.quire` packages carry their referenced assets in the ZIP. The
  * browser renderer consumes URLs, so package bytes become local data URLs while
@@ -38,11 +38,9 @@ async function packageAssetMap(assets) {
  * @returns {Promise<{markdown: string, assets: Record<string, string>}>}
  */
 async function readDeckFile(file) {
-  if (/\.quire$/i.test(file.name)) {
-    const packaged = unpackQuire(await file.arrayBuffer());
-    return { markdown: packaged.markdown, assets: await packageAssetMap(packaged.assets) };
-  }
-  return { markdown: await file.text(), assets: {} };
+  if (!/\.quire$/i.test(file.name)) throw new Error(`expected a .quire file: ${file.name}`);
+  const packaged = unpackQuire(await file.arrayBuffer());
+  return { markdown: packaged.markdown, assets: await packageAssetMap(packaged.assets) };
 }
 
 export { readDeckFile };
