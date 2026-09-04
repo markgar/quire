@@ -1,6 +1,6 @@
 // @ts-check
 
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -11,6 +11,7 @@ import {
   validateDeck,
   writeDeck,
 } from '../skills/quire/native.js';
+import { packQuire } from '../skills/quire/package.js';
 
 const workspace = mkdtempSync(join(tmpdir(), 'quire-native-package-'));
 const deckPath = join(workspace, 'deck.quire');
@@ -72,7 +73,19 @@ try {
   assertThrows(() => validateDeck(markdown, [...assets, ...assets]), 'duplicate packaged asset');
   assertThrows(() => requireQuirePath(join(workspace, 'deck.md')), 'expected a .quire file');
 
-  console.log('PASS  native package  validation, round-trip, asset mapping, and rollback');
+  const legacyPath = join(workspace, 'legacy.quire');
+  const legacyMarkdown = '# Legacy\n\n<a href="https://example.com">Example</a>\n';
+  writeFileSync(legacyPath, packQuire(legacyMarkdown));
+  const legacy = readDeck(legacyPath);
+  assert(
+    legacy.report.warnings.some((warning) => warning.includes('raw <a> tag — use [label](URL) instead')),
+    'read did not warn about native-equivalent raw HTML',
+  );
+  const legacyBytes = readFileSync(legacyPath);
+  assertThrows(() => writeDeck(legacyPath, legacy.markdown, legacy.assets), 'raw HTML has native Quire equivalents');
+  assert(legacyBytes.equals(readFileSync(legacyPath)), 'rejected legacy write changed the original package');
+
+  console.log('PASS  native package  validation, repairable reads, round-trip, asset mapping, and rollback');
 } catch (error) {
   console.error(`FAIL  native package  ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;

@@ -105,6 +105,9 @@ duplicated, the CLI refuses to guess and requires a number. Every mutation
 parses the resulting source, verifies referenced assets, writes a temporary
 package, reopens it, verifies the round trip, and only then atomically replaces
 the `.quire` file. An invalid operation leaves the original bytes unchanged.
+Existing decks with raw HTML that has a native Markdown equivalent remain
+readable and report each violation as a warning. Those violations must all be
+repaired before a mutation can persist the deck.
 
 `validate` checks package integrity, Quire semantics, and asset references.
 `fit` additionally launches an installed standalone headless Chromium, Chrome,

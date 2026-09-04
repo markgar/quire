@@ -22,6 +22,7 @@ import {
   readDeck,
   requireQuirePath,
   sortedAssets,
+  validateDeck,
   writeDeck,
 } from './native.js';
 import { page, renderSlide } from './render.js';
@@ -528,7 +529,7 @@ export function runCli(argv) {
     if (!path || args.length) throw new Error(`${command} requires exactly one .quire file`);
     const deck = readDeck(path);
     if (command === 'validate') {
-      printJson({ file: deck.file, valid: true, ...deck.report });
+      printJson({ file: deck.file, valid: true, ...validateDeck(deck.markdown, deck.assets) });
     } else {
       const source = parseQuireSource(deck.markdown);
       printJson({

@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { packQuire, referencedAssetPaths, safeEntryPath, unpackQuire } from './package.js';
-import { sourceWarnings, validateQuireSource } from './source.js';
+import { readQuireSource, sourceWarnings, validateQuireSource } from './source.js';
 
 const MIME = {
   '.avif': 'image/avif',
@@ -57,9 +57,10 @@ export function assetMap(assets) {
 /**
  * @param {string} markdown
  * @param {NativeAsset[]} assets
+ * @param {boolean} strict
  */
-export function validateDeck(markdown, assets) {
-  const parsed = validateQuireSource(markdown);
+function deckReport(markdown, assets, strict) {
+  const parsed = strict ? validateQuireSource(markdown) : readQuireSource(markdown);
   const byPath = new Map();
   for (const asset of assets) {
     const path = safeEntryPath(asset.path);
@@ -76,10 +77,19 @@ export function validateDeck(markdown, assets) {
     slides: parsed.deck.slides.length,
     assets: assets.length,
     warnings: [
+      ...parsed.warnings,
       ...unreferenced.map((path) => `unreferenced packaged asset: ${path}`),
       ...sourceWarnings(markdown),
     ],
   };
+}
+
+/**
+ * @param {string} markdown
+ * @param {NativeAsset[]} assets
+ */
+export function validateDeck(markdown, assets) {
+  return deckReport(markdown, assets, true);
 }
 
 /** @param {string} path */
@@ -87,7 +97,7 @@ export function readDeck(path) {
   const file = requireQuirePath(path);
   if (!existsSync(file)) throw new Error(`Quire deck does not exist: ${path}`);
   const packaged = unpackQuire(new Uint8Array(readFileSync(file)));
-  const report = validateDeck(packaged.markdown, packaged.assets);
+  const report = deckReport(packaged.markdown, packaged.assets, false);
   return { file, ...packaged, report };
 }
 

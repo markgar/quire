@@ -196,6 +196,42 @@ try {
   const importRejected = run(['import', join(workspace, 'old.md'), join(workspace, 'old.quire')], { ok: false });
   assert(importRejected.stderr.includes('unknown command: import'), 'the removed Markdown import command was still accepted');
 
+  const legacyDeck = join(workspace, 'legacy.quire');
+  writeFileSync(legacyDeck, packQuire('# Legacy\n\n<a href="https://example.com">Example</a>\n'));
+  const legacyInspection = JSON.parse(run(['inspect', legacyDeck]).stdout);
+  assert(
+    legacyInspection.warnings.some((/** @type {string} */ warning) =>
+        warning.includes('raw <a> tag — use [label](URL) instead')),
+    'legacy inspection did not report native-equivalent raw HTML as a warning',
+  );
+  const legacyValidation = run(['validate', legacyDeck], { ok: false });
+  assert(
+    legacyValidation.stderr.includes('raw HTML has native Quire equivalents'),
+    'legacy validation did not reject native-equivalent raw HTML',
+  );
+  assert(run(['slides', 'read', legacyDeck, '1']).stdout.includes('<a href='), 'legacy slide could not be read for repair');
+  const legacyBeforeRejectedWrite = readFileSync(legacyDeck);
+  const legacyWriteRejected = run(['metadata', 'set', legacyDeck, 'title', 'Still invalid'], { ok: false });
+  assert(
+    legacyWriteRejected.stderr.includes('raw HTML has native Quire equivalents'),
+    'persisting an unrepaired legacy deck did not fail',
+  );
+  assert(legacyBeforeRejectedWrite.equals(readFileSync(legacyDeck)), 'rejected legacy mutation changed the package');
+  run([
+    'slides',
+    'replace',
+    legacyDeck,
+    '1',
+    '--content',
+    '# Legacy\n\n[Example](https://example.com)',
+  ]);
+  const repairedValidation = JSON.parse(run(['validate', legacyDeck]).stdout);
+  assert(
+    repairedValidation.valid &&
+      !repairedValidation.warnings.some((/** @type {string} */ warning) => warning.includes('raw <a> tag')),
+    'repaired legacy deck retained its raw anchor warning',
+  );
+
   const fit = JSON.parse(run(['fit', deck]).stdout);
   assert(fit.slides === 2 && fit.overflowing === 0, 'a compact deck failed the browser fit check');
 
