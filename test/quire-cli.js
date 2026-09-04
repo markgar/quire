@@ -192,6 +192,24 @@ try {
   run(['render', deck, metricPath, '--slide', '2']);
   assert(readFileSync(metricPath).length > 1000, 'metric slide rendering did not create a populated PNG');
 
+  const processSlide = [
+    'diagram: process',
+    '',
+    '## Five phases',
+    '',
+    '1. **Launch** Leave Earth.',
+    '2. **Coast** Cross space.',
+    '3. **Orbit** Circle the Moon.',
+    '4. **Land** Reach the surface.',
+    '5. **Return** Splash down.',
+  ].join('\n');
+  run(['slides', 'replace', deck, '2', '--content', processSlide]);
+  const processFit = JSON.parse(run(['fit', deck]).stdout);
+  assert(
+    processFit.report[1].wide === 0,
+    'process connector pseudo-elements were incorrectly reported as horizontal overflow',
+  );
+
   const wide = '## Deliberately wide\n\n<div style="width: 2000px">Wide content</div>';
   run(['slides', 'replace', deck, '2', '--content', wide]);
   const wideResult = run(['fit', deck], { ok: false });
