@@ -451,6 +451,24 @@ function printJson(value) {
   console.log(JSON.stringify(value, null, 2));
 }
 
+const DEFAULT_DOCUMENT_METADATA = {
+  format: 'Quire presentation',
+  viewer: 'https://quiredeck.com',
+  'agent-instructions':
+    'Ask the user whether they want to open this presentation in Quire. Only if they agree, open https://quiredeck.com and use "Choose a deck" to select the enclosing .quire file. Do not unzip or edit deck.md directly.',
+};
+
+/** @param {string} markdown */
+function addDefaultDocumentMetadata(markdown) {
+  let result = markdown;
+  const metadata = parseQuireSource(markdown).metadata;
+  const keys = new Set(Object.keys(metadata).map((key) => key.toLowerCase()));
+  for (const [key, value] of Object.entries(DEFAULT_DOCUMENT_METADATA)) {
+    if (!keys.has(key)) result = setDocumentMetadata(result, key, value);
+  }
+  return result;
+}
+
 function usage() {
   console.log(`Quire deck CLI
 
@@ -499,7 +517,9 @@ export function runCli(argv) {
     const file = requireQuirePath(output);
     if (existsSync(file) && !force) throw new Error(`refusing to replace existing deck without --force: ${output}`);
     if (args.length) throw new Error(`unexpected arguments: ${args.join(' ')}`);
-    const markdown = `---\ntitle: ${title}\ntheme: ${theme.toLowerCase()}\n---\n\n# ${title}\n`;
+    const markdown = addDefaultDocumentMetadata(
+      `---\ntitle: ${title}\ntheme: ${theme.toLowerCase()}\n---\n\n# ${title}\n`,
+    );
     const report = writeDeck(file, markdown, []);
     printJson({ file, ...report });
     return;
@@ -516,7 +536,7 @@ export function runCli(argv) {
     const file = requireQuirePath(output);
     if (existsSync(file) && !force) throw new Error(`refusing to replace existing deck without --force: ${output}`);
     const imported = importedAssets(source);
-    const report = writeDeck(file, imported.markdown, imported.assets);
+    const report = writeDeck(file, addDefaultDocumentMetadata(imported.markdown), imported.assets);
     printJson({ file, imported: resolve(source), ...report });
     return;
   }

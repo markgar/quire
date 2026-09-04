@@ -16,7 +16,9 @@ your own disk, watches it, and re-renders when it changes.
 A `.quire` deck is a ZIP package containing `deck.md`, image files, and a small
 manifest. It remains one file to create, open, and share, while keeping images
 as normal files internally instead of inflating them into base64 text. Single
-`.md` files and embedded data URLs remain supported.
+`.md` files and embedded data URLs remain supported. New and imported native
+decks include advisory frontmatter that identifies Quire, points to
+quiredeck.com, and tells an inspecting agent to ask before opening the file.
 
 The app is plain HTML and JavaScript. Read the source if you want to verify
 exactly what it does.
