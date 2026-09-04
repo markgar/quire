@@ -30,13 +30,13 @@ Once per agent session, before starting the first Quire task, run this read-only
 check:
 
 ```text
-gh skill update quire --dry-run
+gh skill update quire --dry-run --dir "$HOME/.copilot/skills"
 ```
 
 If it reports that an update is available, tell the user:
 
-> A newer version of the Quire skill is available. Run `gh skill update quire`,
-> then `/skills reload`.
+> A newer version of the Quire skill is available. Run
+> `gh skill update quire --dir "$HOME/.copilot/skills"`, then `/skills reload`.
 
 Do not install the update for the user. If Quire is current, say nothing about
 the check. If the check cannot run, continue the requested Quire work without
