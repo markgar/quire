@@ -19,6 +19,7 @@ import { dirname, join } from 'node:path';
 import { parseQuire } from '../src/deck.js';
 import { imageSource, renderSlides, page, readSource } from '../src/render.js';
 import { AUTHORING_GUIDE } from '../src/guide.js';
+import { safeDeckUrl } from '../src/deck-url.js';
 import { packQuire, referencedAssetPaths, unpackQuire } from '../skills/quire/package.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -98,6 +99,40 @@ function lineDiff(expected, actual) {
 
 let failed = 0;
 let checked = 0;
+
+{
+  checked += 1;
+  const base = 'https://quire.example/app/quire.html';
+  const origin = 'https://quire.example';
+  const allowed = new Map([
+    ['deck.md', 'https://quire.example/app/deck.md'],
+    ['decks/demo.quire', 'https://quire.example/app/decks/demo.quire'],
+    ['./nearby.md?raw=1#slide-2', 'https://quire.example/app/nearby.md?raw=1#slide-2'],
+  ]);
+  const refused = [
+    'https://evil.example/x.md',
+    'http://evil.example/x.md',
+    '//evil.example/x.md',
+    '/outside.md',
+    'javascript:alert(1)',
+    'data:text/markdown,## hi',
+  ];
+  const problems = [];
+  for (const [value, expected] of allowed) {
+    const actual = safeDeckUrl(value, base, origin);
+    if (actual !== expected) problems.push(`${value}: expected ${expected}, got ${actual}`);
+  }
+  for (const value of refused) {
+    if (safeDeckUrl(value, base, origin) !== null) problems.push(`${value}: unsafe URL was accepted`);
+  }
+  if (problems.length) {
+    failed += 1;
+    console.log('FAIL  browser deck URL policy');
+    for (const problem of problems) console.log(`   ${problem}`);
+  } else {
+    console.log('PASS  browser deck URL policy  relative same-origin paths only');
+  }
+}
 
 for (const name of readdirSync(fixtures).filter((/** @type {string} */ f) => f.endsWith('.md')).sort()) {
   const base = name.replace(/\.md$/, '');
@@ -474,7 +509,15 @@ if (existsSync(appPath)) {
     // name passes when a module fails to inline but its call site survives:
     // dropping fit.js leaves app.js still calling measureDeck, which read as
     // green while the app threw ReferenceError on first render.
-    for (const symbol of ['parseQuire', 'renderSlides', 'measureDeck', 'exportHtml']) {
+    for (const symbol of [
+      'parseQuire',
+      'renderSlides',
+      'measureDeck',
+      'exportHtml',
+      'readDeckFile',
+      'rememberHandle',
+      'safeDeckUrl',
+    ]) {
       if (!new RegExp(`function ${symbol}\\b`).test(module[1])) {
         problems.push(`module does not define ${symbol} — a module failed to inline, or was truncated`);
       }
