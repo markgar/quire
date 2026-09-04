@@ -674,6 +674,9 @@ if (existsSync(appPath)) {
       ) {
         problems.push('app does not proactively check for updates on launch, focus, and an interval');
       }
+      if (!app.includes("'window-controls-overlay'") || !app.includes("'minimal-ui'")) {
+        problems.push('app does not recognize all installed PWA display modes');
+      }
       if (worker.includes('__QUIRE_VERSION__')) problems.push('service worker version was not generated');
       if (!worker.includes("'/manifest.webmanifest'") || !worker.includes("'/quire-icon-512.png'")) {
         problems.push('service worker does not cache the PWA assets');
