@@ -48,6 +48,16 @@ On Chromium browsers, Quire can be installed as a standalone app from the
 **Install Quire** button when the browser makes installation available. The
 installed app caches its viewer shell and opens without a network connection;
 deck files still stay on your machine and are opened only with your permission.
+The installed app registers as a handler for `.quire` files, so opening a deck
+from the desktop or command line launches it in Quire's standalone window.
+Different decks open in separate windows; opening the same deck again focuses
+its existing Quire window instead of keeping a duplicate.
+
+The hosted viewer keeps deck opening available without installation, while
+promoting the installed experience through its toolbar, first-use guidance,
+and a contextual prompt after the first deck opens. When the browser cannot
+offer installation directly, Quire points users to the Chrome or Edge install
+menu instead of blocking the viewer.
 
 Quire checks its service worker when the browser is online. A new version waits
 until you choose **Restart to update**, so an update never interrupts a
@@ -157,7 +167,11 @@ directly from this repository—no marketplace is required:
     gh skill install markgar/quire quire --scope user
 
 Reload skills in an active Copilot CLI session with `/skills reload`, then ask
-it to use `/quire` to create or revise a presentation.
+it to use `/quire` to create or revise a presentation. The skill checks once
+per agent session for a newer published version and, when one is available,
+asks before directing you to run `gh skill update quire`. When asked to open a
+deck, the agent launches the `.quire` file through the operating system so an
+installed Quire PWA receives it.
 
 The skill has an opt-in end-to-end test that installs it into a temporary
 project, starts a fresh Copilot context, and checks the native `.quire` deck the

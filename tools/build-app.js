@@ -79,6 +79,8 @@ const appCss = `
 }
 .toolbar button:hover { background: var(--q-accent); border-color: var(--q-accent); color: var(--q-accent-fg); }
 .toolbar button:focus-visible,
+.install-banner button:focus-visible,
+.install-dialog button:focus-visible,
 .intro button:focus-visible,
 .intro a:focus-visible {
   outline: 3px solid var(--q-accent);
@@ -88,6 +90,107 @@ const appCss = `
 #status[data-kind="live"]  { color: var(--q-accent); }
 #status[data-kind="warn"]  { color: var(--q-text); }
 #status[data-kind="error"] { color: var(--q-accent); font-weight: 600; }
+.install-banner {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 35;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 18px;
+  width: min(520px, calc(100vw - 36px));
+  padding: 16px 18px;
+  color: var(--q-text);
+  background: var(--q-panel-strong);
+  border: 1px solid var(--q-border-strong);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+}
+.install-banner[hidden] { display: none; }
+.install-banner strong {
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+}
+.install-banner p {
+  grid-column: 1;
+  margin: 0;
+  color: var(--q-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.install-banner-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.install-banner button,
+.install-dialog button {
+  font: inherit;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.install-banner-primary,
+.install-dialog-primary {
+  padding: 8px 12px;
+  color: var(--q-accent-fg);
+  background: var(--q-accent);
+  border: 1px solid var(--q-accent);
+}
+.install-banner-close {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--q-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 18px;
+}
+.install-dialog {
+  width: min(520px, calc(100vw - 32px));
+  margin: auto;
+  padding: 28px;
+  color: var(--q-text);
+  background: var(--q-bg-elevated);
+  border: 1px solid var(--q-border);
+  border-radius: 16px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.3);
+}
+.install-dialog::backdrop { background: rgba(15, 15, 15, 0.7); }
+.install-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 1.65rem;
+  letter-spacing: -0.03em;
+}
+.install-dialog p {
+  margin: 0;
+  color: var(--q-text-muted);
+  line-height: 1.55;
+}
+.install-dialog ul {
+  margin: 18px 0;
+  padding-left: 20px;
+  line-height: 1.7;
+}
+.install-dialog-help {
+  padding-top: 14px;
+  border-top: 1px solid var(--q-border);
+  font-size: 0.8rem;
+}
+.install-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+.install-dialog-secondary {
+  padding: 8px 12px;
+  color: var(--q-text);
+  background: transparent;
+  border: 1px solid var(--q-border);
+}
 .update-notice {
   position: fixed;
   right: 18px;
@@ -439,6 +542,17 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
 }
 @media (max-width: 560px) {
+  .toolbar { left: 12px; right: 12px; justify-content: flex-end; flex-wrap: wrap; }
+  #status { width: 100%; max-width: none; text-align: right; }
+  .install-banner {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .install-banner-actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: space-between;
+  }
   .intro-demo { grid-template-columns: 1fr; }
   .intro-code-pane { border-radius: 14px 14px 0 0; }
   .intro-slide-pane { border-radius: 0 0 14px 14px; }
@@ -513,15 +627,39 @@ ${chrome}
   <span id="status">Starting…</span>
   <button id="fitBtn" type="button" hidden>—</button>
   <button id="exportBtn" type="button" hidden>Export</button>
-  <button id="installBtn" type="button" hidden>Install Quire</button>
+  <button id="installBtn" type="button">Install Quire</button>
   <button id="aboutBtn" type="button">About</button>
   <button id="openBtn" type="button">Open deck…</button>
 </div>
+
+<section class="install-banner" id="installBanner" aria-labelledby="installBannerTitle" hidden>
+  <strong id="installBannerTitle">Install Quire for the full desktop experience</strong>
+  <p>Open multiple decks in separate windows and launch <code>.quire</code> files directly from your computer.</p>
+  <div class="install-banner-actions">
+    <button class="install-banner-primary" id="installBannerBtn" type="button">Install Quire</button>
+    <button class="install-banner-close" id="installBannerClose" type="button" aria-label="Dismiss install suggestion">&times;</button>
+  </div>
+</section>
 
 <div class="update-notice" id="updateNotice" role="status" hidden>
   <span>A new version of Quire is ready.</span>
   <button id="applyUpdateBtn" type="button">Restart to update</button>
 </div>
+
+<dialog class="install-dialog" id="installDialog" aria-labelledby="installDialogTitle">
+  <h2 id="installDialogTitle">Keep every deck in its own Quire window</h2>
+  <p>You have seen the browser viewer. Install Quire to make decks feel like files, not tabs.</p>
+  <ul>
+    <li>Open several presentations in separate windows.</li>
+    <li>Launch <code>.quire</code> files directly from your desktop or agent.</li>
+    <li>Keep presenting when the network is unavailable.</li>
+  </ul>
+  <p class="install-dialog-help" id="installDialogHelp"></p>
+  <div class="install-dialog-actions">
+    <button class="install-dialog-primary" id="installDialogBtn" type="button">Install Quire</button>
+    <button class="install-dialog-secondary" id="installDialogLater" type="button">Not now</button>
+  </div>
+</dialog>
 
 <dialog class="intro" id="introDialog" aria-labelledby="introTitle">
   <div class="intro-inner">
@@ -553,8 +691,8 @@ ${chrome}
         </div>
         <div class="intro-step">
           <span class="intro-step-number">3</span>
-          <strong>Open the deck</strong>
-          <p>Go to <strong>quiredeck.com</strong>, choose a deck, and open the generated <code>.quire</code> file.</p>
+          <strong>Open it in Quire</strong>
+          <p>Choose the generated <code>.quire</code> file here. Install the app for separate windows and direct file opening.</p>
         </div>
       </div>
     </section>
