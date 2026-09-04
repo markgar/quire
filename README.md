@@ -59,9 +59,10 @@ and a contextual prompt after the first deck opens. When the browser cannot
 offer installation directly, Quire points users to the Chrome or Edge install
 menu instead of blocking the viewer.
 
-Quire checks its service worker when the browser is online. A new version waits
-until you choose **Restart to update**, so an update never interrupts a
-presentation. **Check for updates** in About requests a check immediately.
+Quire checks its service worker on launch, when the app regains focus, and
+hourly while it remains open and online. A new version waits until you choose
+**Restart to update**, so an update never interrupts a presentation. **Check
+for updates** in About requests a check immediately.
 
 ## Why not PowerPoint
 
