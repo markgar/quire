@@ -3,15 +3,40 @@
 import { inline, parseQuire } from '../src/deck.js';
 import { parseQuireSource, validateQuireSource } from '../skills/quire/source.js';
 
+/** @type {Record<string, {replacement: string, consequence?: string}>} */
 const forbidden = {
-  a: '[label](URL)',
-  b: '**bold**',
-  strong: '**bold**',
-  i: '*italic*',
-  em: '*italic*',
-  code: '`code`',
+  a: { replacement: '[label](URL)' },
+  b: { replacement: '**bold**' },
+  strong: { replacement: '**bold**' },
+  i: { replacement: '*italic*' },
+  em: { replacement: '*italic*' },
+  code: { replacement: '`code`' },
+  h1: { replacement: '# Title heading', consequence: 'raw headings do not create native title headings' },
+  h2: { replacement: '## Slide heading', consequence: 'raw headings do not create native slide headings' },
+  h3: { replacement: '### Card heading', consequence: 'raw headings do not create cards' },
+  ul: { replacement: '- rows', consequence: 'raw lists do not create rows or diagram nodes' },
+  ol: { replacement: '1. rows', consequence: 'raw lists do not create rows or diagram nodes' },
+  li: { replacement: '- or 1. row syntax', consequence: 'raw list items do not create rows or diagram nodes' },
+  table: { replacement: 'a pipe table', consequence: 'raw tables do not create Quire tables or chart data' },
+  thead: { replacement: 'a pipe table', consequence: 'raw table sections do not create Quire tables or chart data' },
+  tbody: { replacement: 'a pipe table', consequence: 'raw table sections do not create Quire tables or chart data' },
+  tr: { replacement: 'a pipe table row', consequence: 'raw table rows do not create Quire tables or chart data' },
+  th: { replacement: 'a pipe table header', consequence: 'raw table headers do not create Quire tables or chart data' },
+  td: { replacement: 'a pipe table cell', consequence: 'raw table cells do not create Quire tables or chart data' },
+  blockquote: { replacement: '> quote syntax', consequence: 'raw blockquotes do not create pull quotes, notes, or kickers' },
+  pre: { replacement: 'a ``` fenced code block', consequence: 'raw preformatted blocks do not create Quire code blocks' },
+  img: { replacement: 'an image: setting with assets add', consequence: 'raw images bypass packaged assets and asset validation' },
 };
-const allowed = ['<br>', '<span>x</span>', '<sup>2</sup>', '<img src="x">', '<svg><path></path></svg>'];
+const allowed = [
+  '<br>',
+  '<span>x</span>',
+  '<div>x</div>',
+  '<sup>2</sup>',
+  '<sub>2</sub>',
+  '<svg><path></path></svg>',
+  '<small>x</small>',
+  '<mark>x</mark>',
+];
 let checked = 0;
 
 /** @param {string} source */
@@ -24,7 +49,7 @@ function validationError(source) {
   }
 }
 
-for (const [tag, replacement] of Object.entries(forbidden)) {
+for (const [tag, native] of Object.entries(forbidden)) {
   const openings = [`<${tag}>`, `<${tag.toUpperCase()} class="x">`, `<${tag}\n data-x="1">`];
   for (const opening of openings) {
     for (const source of [
@@ -34,8 +59,11 @@ for (const [tag, replacement] of Object.entries(forbidden)) {
     ]) {
       checked += 1;
       const error = validationError(source);
-      if (!error.includes(`raw <${tag}> tag — use ${replacement} instead`)) {
+      if (!error.includes(`raw <${tag}> tag — use ${native.replacement} instead`)) {
         throw new Error(`missed forbidden HTML in ${JSON.stringify(source)}: ${error || 'validation passed'}`);
+      }
+      if (native.consequence && !error.includes(`(${native.consequence}`)) {
+        throw new Error(`missing consequence for ${JSON.stringify(source)}: ${error}`);
       }
     }
   }

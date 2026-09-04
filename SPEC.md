@@ -252,11 +252,15 @@ surprise every author who already knows Markdown.
 `**bold**`, `*italic*`, `` `code` ``, and `[label](URL)` links. Their delimiters
 may span raw HTML elements. Raw HTML elements, attributes, comments, and their
 contents pass through unchanged, so HTML is available where Quire is too
-blunt. Readers warn about raw `<a>`, `<b>`, `<strong>`, `<i>`, `<em>`, and
-`<code>` because they have native inline equivalents, and report every
-violation in the deck. Package writes reject those violations, so an existing
-deck can be inspected and repaired but cannot be persisted while they remain.
-Inline code spans and fenced code blocks are exempt.
+blunt. Readers warn about raw HTML whose rendered role Quire owns natively:
+links; emphasis; code; headings; lists; tables; blockquotes; and images.
+Diagnostics name the native syntax, with a consequence for structural tags
+that Quire would otherwise silently ignore. Package writes reject those
+violations, so an existing deck can be inspected and repaired but cannot be
+persisted while they remain. Inline code spans and fenced code blocks are
+exempt. Styling and extension hooks without native equivalents, including
+`<br>`, `<span>`, `<div>`, `<sup>`, `<sub>`, `<svg>`, `<small>`, and `<mark>`,
+remain available.
 
 ### 3.8 Images
 
