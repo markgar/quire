@@ -16,13 +16,13 @@ import { parseQuire } from './deck.js';
 import { page, readSource } from './render.js';
 import { AUTHORING_GUIDE } from './guide.js';
 import { unpackQuire } from '../skills/quire/package.js';
-import { runCli as runDeckCli } from '../skills/quire/quire-package.mjs';
+import { installEpipeHandler, runCli as runDeckCli } from '../skills/quire/quire-package.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 /** @returns {string} */
 export function loadShell() {
-  return readFileSync(join(here, 'shell.html'), 'utf8');
+  return readFileSync(join(here, '..', 'skills', 'quire', 'shell.html'), 'utf8');
 }
 
 /**
@@ -67,28 +67,29 @@ function assetMap(assets) {
 
 const invokedDirectly = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 
-if (invokedDirectly) {
-  const args = process.argv.slice(2);
+/** @param {string[]} args */
+function main(args) {
   if (args[0] === 'guide' || args.includes('--guide')) {
     console.log(AUTHORING_GUIDE);
-    process.exit(0);
+    return;
   }
-  if (new Set(['create', 'validate', 'inspect', 'metadata', 'slides', 'assets']).has(args[0])) {
+  if (new Set(['create', 'import', 'validate', 'inspect', 'fit', 'render', 'metadata', 'slides', 'assets']).has(args[0])) {
     try {
       runDeckCli(args);
-      process.exit(0);
     } catch (error) {
       console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
-      process.exit(1);
+      process.exitCode = 1;
     }
+    return;
   }
   const noSource = args.includes('--no-source');
   const [out, src] = args.filter((a) => !a.startsWith('--'));
   if (!out || !src) {
     console.error(
-      'usage: node src/cli.js guide | create|validate|inspect|metadata|slides|assets ... | [--no-source] <out.html> <deck.md|deck.quire>',
+      'usage: node src/cli.js guide | create|import|validate|inspect|fit|render|metadata|slides|assets ... | [--no-source] <out.html> <deck.md|deck.quire>',
     );
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
   let markdown;
   /** @type {Record<string, string> | undefined} */
@@ -108,7 +109,8 @@ if (invokedDirectly) {
     const recovered = readSource(html);
     if (recovered !== markdown) {
       console.error('error: embedded source does not round-trip; refusing to write');
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
   }
 
@@ -116,4 +118,9 @@ if (invokedDirectly) {
   const count = (html.match(/<section class="slide/g) || []).length;
   const note = noSource ? '' : ', source embedded';
   console.log(`wrote ${out}  (${count} slides${note})`);
+}
+
+if (invokedDirectly) {
+  installEpipeHandler();
+  main(process.argv.slice(2));
 }

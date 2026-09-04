@@ -131,7 +131,7 @@ for (const name of readdirSync(fixtures).filter((/** @type {string} */ f) => f.e
 }
 
 // Page assembly is small enough to assert inline rather than by golden.
-const shellPath = join(here, '..', 'src', 'shell.html');
+const shellPath = join(here, '..', 'skills', 'quire', 'shell.html');
 if (existsSync(shellPath)) {
   const shell = readFileSync(shellPath, 'utf8');
   const html = page(
@@ -226,6 +226,8 @@ if (existsSync(shellPath)) {
     if (imageSource('javascript:alert(1)')) problems.push('accepted a script URL as an image');
     if (imageSource('//example.com/image.png')) problems.push('accepted a protocol-relative image');
     if (imageSource('data:image/svg+xml,<svg onload=alert(1)>')) problems.push('accepted executable image data');
+    if (!imageSource('data:image/svg+xml;base64,PHN2Zy8+')) problems.push('rejected packaged SVG image data');
+    if (!imageSource('data:image/avif;base64,AAAA')) problems.push('rejected embedded AVIF image data');
     if (!imageSource('./image.png')) problems.push('rejected a relative same-origin image');
     if (imageSource('https://example.com/image.png')) problems.push('accepted an unresolved hosted image URL');
     if (!imageSource('data:image/png;base64,iVBORw0KGgo=')) problems.push('rejected embedded raster data');
@@ -403,7 +405,7 @@ if (existsSync(shellPath)) {
       console.log('FAIL  native image sources');
       for (const problem of problems) console.log(`   ${problem}`);
     } else {
-      console.log('PASS  native image sources  same-origin paths, deck-relative URLs, and embedded raster');
+      console.log('PASS  native image sources  same-origin paths, deck-relative URLs, and embedded image data');
     }
   }
 }
@@ -498,6 +500,9 @@ if (existsSync(appPath)) {
       '[!ASIDE]',
       'executable content',
       'quire-package.mjs create',
+      'quire-package.mjs import',
+      'quire-package.mjs fit',
+      'quire-package.mjs render',
       'slides replace',
       'atomically replaces',
       'Never edit ZIP bytes',
@@ -533,7 +538,7 @@ if (existsSync(appPath)) {
   }
 
   // The shell is embedded so the app can export offline through the same
-  // page() the CLI uses. If it drifts from src/shell.html, an export stops
+  // page() the CLI uses. If it drifts from skills/quire/shell.html, an export stops
   // matching a CLI build and the difference is invisible until someone opens
   // an exported file.
   const embedded = /<script>\nwindow\.quireShell = ([\s\S]*?);\n<\/script>/.exec(app);
@@ -547,9 +552,9 @@ if (existsSync(appPath)) {
       problems.push(`embedded shell is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
     }
     if (shellText !== null) {
-      const source = readFileSync(join(here, '..', 'src', 'shell.html'), 'utf8');
+      const source = readFileSync(join(here, '..', 'skills', 'quire', 'shell.html'), 'utf8');
       if (shellText !== source) {
-        problems.push('embedded shell does not match src/shell.html — an export would differ from a CLI build');
+        problems.push('embedded shell does not match skills/quire/shell.html — an export would differ from a CLI build');
       }
       if (!/function fitMetricValues\b/.test(source)) {
         problems.push('exported decks do not fit metric values to their individual cards');

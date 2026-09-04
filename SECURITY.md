@@ -39,6 +39,12 @@ a real local file before the check existed.
 server, and no code path that sends deck text anywhere. This is a design
 constraint, not a setting.
 
+**CLI fit checks isolate network access.** `quire-package.mjs fit` executes the
+deck in a temporary headless browser because accurate overflow measurement
+requires layout. The browser is launched behind an unreachable proxy with host
+resolution disabled, and the temporary page restricts network-capable resource
+types. Raw deck scripts still execute locally, so the trusted-deck rule remains.
+
 ## What it does not do
 
 **Exported decks carry no CSP.** An export is a standalone file built for

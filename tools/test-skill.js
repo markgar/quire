@@ -7,15 +7,16 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { parseQuire } from '../src/deck.js';
 import { renderSlides } from '../src/render.js';
+import { unpackQuire } from '../skills/quire/package.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const workspace = mkdtempSync(join(tmpdir(), 'quire-skill-eval-'));
-const deckPath = join(workspace, 'deck.md');
+const deckPath = join(workspace, 'project-lantern.quire');
 const keep = process.env.QUIRE_SKILL_TEST_KEEP === '1';
 
 const prompt = [
-  'Use the /quire skill to create deck.md in the current directory.',
+  'Use the /quire skill and its bundled CLI to create project-lantern.quire in the current directory.',
   'Do not inspect any repository outside this temporary project and do not explain your work.',
   '',
   'Create an eleven-slide presentation titled "Project Lantern" for an internal product strategy review:',
@@ -31,6 +32,8 @@ const prompt = [
   '10. A three-step process diagram.',
   '11. A right-positioned image slide with two cards. Create a nearby lantern.svg asset and reference it with a relative path and useful alt text.',
   '',
+  'Keep only the native .quire deck; do not leave an unpacked deck directory or standalone Markdown copy.',
+  'Remove temporary source and image files after they have been added to the package.',
   'Use only Quire source. Do not use raw HTML.',
 ].join('\n');
 
@@ -93,9 +96,12 @@ try {
   }
 
   run('copilot', args, { timeout: Number(process.env.QUIRE_SKILL_TEST_TIMEOUT_MS || 300000) });
-  assert(existsSync(deckPath), 'the fresh agent did not create deck.md');
+  assert(existsSync(deckPath), 'the fresh agent did not create project-lantern.quire');
+  assert(!existsSync(join(workspace, 'deck.md')), 'the fresh agent left a standalone deck.md');
+  assert(!existsSync(join(workspace, 'lantern.svg')), 'the fresh agent left an unpackaged image beside the deck');
 
-  const source = readFileSync(deckPath, 'utf8');
+  const packaged = unpackQuire(new Uint8Array(readFileSync(deckPath)));
+  const source = packaged.markdown;
   const deck = parseQuire(source);
   const [title, cards, groups, rows, table, closers, pull, metrics, chart, diagram, media] = deck.slides;
   const cardList = cards?.cards || [];
@@ -135,7 +141,8 @@ try {
   assert(diagram.items?.length === 3, 'slide 10 needs exactly three process steps');
   assert(media?.layout === 'media' && media.imagePosition === 'right', 'slide 11 is not a right-positioned media slide');
   assert(media.cards?.length === 2 && media.imageAlt, 'slide 11 needs two cards and image alt text');
-  assert(media.image && existsSync(join(workspace, media.image)), 'slide 11 does not reference a nearby image asset');
+  const mediaPath = media?.image?.replace(/^\.\//, '');
+  assert(mediaPath && packaged.assets.some((asset) => asset.path === mediaPath), 'slide 11 does not reference a packaged image asset');
   assert(!/<[a-z][\s\S]*>/i.test(source), 'the deck used raw HTML despite the prompt');
   renderSlides(deck);
   console.log(`PASS  quire skill  fresh agent created ${deck.slides.length} valid slides`);

@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -129,7 +129,67 @@ try {
   const markdownRejected = run(['validate', join(workspace, 'deck.md')], { ok: false });
   assert(markdownRejected.stderr.includes('expected a .quire file'), 'the authoring CLI accepted a loose Markdown deck');
 
-  console.log('PASS  quire CLI  direct native-deck operations validate and roll back safely');
+  const importedSource = join(workspace, 'import.md');
+  const importedDeck = join(workspace, 'imported.quire');
+  writeFileSync(importedSource, [
+    '---',
+    'title: Imported',
+    '---',
+    '',
+    'image: ./pixel.png',
+    '',
+    '# Imported',
+  ].join('\n'));
+  run(['import', importedSource, importedDeck]);
+  const imported = JSON.parse(run(['validate', importedDeck]).stdout);
+  assert(imported.slides === 1 && imported.assets === 1, 'Markdown import did not package its relative asset');
+
+  const fit = JSON.parse(run(['fit', deck]).stdout);
+  assert(fit.slides === 2 && fit.overflowing === 0, 'a compact deck failed the browser fit check');
+
+  const contactPath = join(workspace, 'contact.png');
+  const contact = JSON.parse(run(['render', deck, contactPath, '--columns', '2']).stdout);
+  assert(
+    contact.mode === 'contact-sheet' &&
+      contact.slides === 2 &&
+      contact.width === 706 &&
+      contact.height === 262 &&
+      readFileSync(contactPath).subarray(0, 8).toString('hex') === '89504e470d0a1a0a',
+    'contact-sheet rendering did not create the expected PNG',
+  );
+  const slidePath = join(workspace, 'slide.png');
+  const slideImage = JSON.parse(run(['render', deck, slidePath, '--slide', 'Three guarantees']).stdout);
+  assert(
+    slideImage.mode === 'slide' &&
+      slideImage.slides === 1 &&
+      slideImage.width === 1280 &&
+      slideImage.height === 720 &&
+      readFileSync(slidePath).subarray(0, 8).toString('hex') === '89504e470d0a1a0a',
+    'single-slide rendering did not create a full-size PNG',
+  );
+
+  const overflowing = [
+    'layout: rows',
+    '',
+    '## Deliberate overflow',
+    '',
+    ...Array.from({ length: 30 }, (_, index) => `${index + 1}. **Row ${index + 1}** Deliberately too many rows.`),
+  ].join('\n');
+  run(['slides', 'replace', deck, '2', '--content', overflowing]);
+  const over = run(['fit', deck], { ok: false });
+  const overReport = JSON.parse(over.stdout);
+  assert(overReport.overflowing === 1, 'browser fit did not report deliberate overflow');
+
+  const large = `## Pipe test\n\n${'content '.repeat(50000)}`;
+  run(['slides', 'replace', deck, '2', '--stdin'], { input: large });
+  const epipe = spawn(process.execPath, [cli, 'slides', 'read', deck, '2'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  epipe.stdout.once('data', () => epipe.stdout.destroy());
+  const epipeStatus = await new Promise((resolve) => epipe.once('close', resolve));
+  assert(epipeStatus === 0, 'the CLI did not treat EPIPE as normal output termination');
+
+  console.log('PASS  quire CLI  native mutation, import, fit, PNG rendering, EPIPE, and rollback');
 } catch (error) {
   console.error(`FAIL  quire CLI  ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;

@@ -2567,15 +2567,15 @@ function lMetrics(slide) {
 }
 
 /**
- * Image sources are deliberately limited to same-origin paths and embedded
- * raster data. Raw HTML remains the explicit escape hatch for anything else.
+ * Image sources are deliberately limited to same-origin paths and base64 image
+ * data. Raw HTML remains the explicit escape hatch for anything else.
  *
  * @param {string | undefined} value
  * @returns {string}
  */
 function imageSource(value) {
   const source = String(value || '').trim();
-  if (/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(source)) return source;
+  if (/^data:image\/(?:png|jpe?g|gif|webp|avif|svg\+xml);base64,[a-z0-9+/=\s]+$/i.test(source)) return source;
   if (/^(?:\/(?!\/)|\.{1,2}\/)[^\s]*$/i.test(source)) return source;
   if (/^[a-z0-9][a-z0-9._/-]*$/i.test(source)) return source;
   return '';

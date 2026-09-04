@@ -7,13 +7,14 @@
     npm run serve      # http://localhost:8931/quire.html
 
 There is no build step for the source. Runtime modules are plain JavaScript with
-`// @ts-check` and JSDoc, checked by `tsc --noEmit`. The canonical parser and
-native-deck CLI live in `skills/quire/` so an installed skill carries the same
-implementation as the app.
+`// @ts-check` and JSDoc, checked by `tsc --noEmit`. The canonical parser,
+renderer, shell, fit measurement, and native-deck CLI live in `skills/quire/`
+so an installed skill carries the same implementation as the app.
 
 `quire.html` **is** generated, by `tools/build-app.js`, and is committed
 because it is the deployable. `npm run check` rebuilds it, so commit the result
-when you change anything in `src/`. CI fails if it has drifted.
+when you change runtime files in `src/` or `skills/quire/`. CI fails if it has
+drifted.
 
 ## Tests
 
@@ -35,9 +36,10 @@ run in a browser:
     # open http://localhost:8931/test/app-harness.html
 
 `test/quire-cli.js` copies the installed-skill files into an isolated temporary
-directory and exercises direct `.quire` creation and mutation, semantic
-validation, assets, inspection, and byte-for-byte rollback after rejected
-edits. It runs as part of `npm test`.
+directory and exercises direct `.quire` creation and mutation, Markdown import,
+semantic validation, browser fit checks, contact-sheet and single-slide PNG
+rendering, assets, inspection, `EPIPE` handling, and byte-for-byte rollback
+after rejected edits. It runs as part of `npm test`.
 
 ## The bar for a test
 
