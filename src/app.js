@@ -311,12 +311,14 @@ function reportFit() {
   }
   annotate(scaler, fitReport);
 
-  const over = fitReport.filter((r) => r.over > 0);
+  const over = fitReport.filter((r) => r.over > 0 || r.wide > 0);
   fitBtn.hidden = over.length === 0;
   if (over.length) {
-    const worst = over.reduce((a, b) => (b.over > a.over ? b : a));
+    const worst = over.reduce((a, b) => (Math.max(b.over, b.wide) > Math.max(a.over, a.wide) ? b : a));
     fitBtn.textContent =
-      over.length === 1 ? `1 slide ${worst.over}px over` : `${over.length} slides over`;
+      over.length === 1
+        ? `1 slide ${worst.over > 0 ? `${worst.over}px tall` : `${worst.wide}px wide`}`
+        : `${over.length} slides over`;
     fitBtn.title = formatReport(fitReport);
     console.warn('[quire] ' + formatReport(fitReport));
   }
@@ -333,7 +335,7 @@ function reportFit() {
  */
 window.quireFit = {
   report: () => fitReport,
-  overflowing: () => fitReport.filter((r) => r.over > 0),
+  overflowing: () => fitReport.filter((r) => r.over > 0 || r.wide > 0),
   format: () => formatReport(fitReport),
   remeasure: () => {
     reportFit();
@@ -897,9 +899,9 @@ async function main() {
   // Jumping to the worst offender is the action an author wants next; the
   // full per-slide table is on the tooltip and in the console.
   fitBtn.onclick = () => {
-    const over = fitReport.filter((r) => r.over > 0);
+    const over = fitReport.filter((r) => r.over > 0 || r.wide > 0);
     if (!over.length) return;
-    const worst = over.reduce((a, b) => (b.over > a.over ? b : a));
+    const worst = over.reduce((a, b) => (Math.max(b.over, b.wide) > Math.max(a.over, a.wide) ? b : a));
     window.quireNav.go(worst.index);
     console.warn('[quire] ' + formatReport(fitReport));
   };

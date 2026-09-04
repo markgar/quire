@@ -69,6 +69,8 @@ const CLONE_STYLE = [
  * @property {boolean} hidden  excluded from the running order
  * @property {number} natural  height the content needs, in px
  * @property {number} over     natural − 720; negative means headroom
+ * @property {number} wide     horizontal overflow in px
+ * @property {string} [wideElement] first overflowing element
  */
 
 /**
@@ -108,6 +110,23 @@ export function measureDeck(scaler) {
     return clones.map((clone, index) => {
       const slide = slides[index];
       const natural = clone.offsetHeight;
+      const cloneRect = clone.getBoundingClientRect();
+      let wide = Math.max(0, clone.scrollWidth - clone.clientWidth);
+      let wideElement = '';
+      for (const element of Array.from(clone.querySelectorAll('*'))) {
+        const node = /** @type {HTMLElement} */ (element);
+        const rect = node.getBoundingClientRect();
+        const elementWide = Math.max(
+          0,
+          node.scrollWidth - node.clientWidth,
+          rect.right - cloneRect.right,
+          cloneRect.left - rect.left,
+        );
+        if (elementWide > wide) {
+          wide = Math.ceil(elementWide);
+          wideElement = node.className ? `.${String(node.className).trim().replace(/\s+/g, '.')}` : node.tagName.toLowerCase();
+        }
+      }
       return {
         index,
         number: index + 1,
@@ -115,6 +134,8 @@ export function measureDeck(scaler) {
         hidden: slide.dataset.hidden === 'true',
         natural,
         over: natural - SLIDE_H,
+        wide,
+        ...(wideElement ? { wideElement } : {}),
       };
     });
   } finally {
@@ -152,6 +173,8 @@ export function annotate(scaler, report) {
     if (!slide) continue;
     if (fit.over > 0) slide.dataset.over = String(fit.over);
     else delete slide.dataset.over;
+    if (fit.wide > 0) slide.dataset.wide = String(fit.wide);
+    else delete slide.dataset.wide;
   }
 }
 
@@ -162,7 +185,7 @@ export function annotate(scaler, report) {
  * @returns {string}
  */
 export function formatReport(report) {
-  const over = report.filter((r) => r.over > 0);
+  const over = report.filter((r) => r.over > 0 || r.wide > 0);
   if (!over.length) {
     const tightest = [...report].sort((a, b) => b.natural - a.natural)[0];
     if (!tightest) return 'No slides.';
@@ -171,8 +194,11 @@ export function formatReport(report) {
       `${tightest.title} — ${-tightest.over}px of headroom.`
     );
   }
-  const lines = over.map(
-    (r) => `  ${String(r.number).padStart(3)}. ${r.title} — ${r.over}px over` + (r.hidden ? ' (hidden)' : ''),
-  );
-  return `${over.length} of ${report.length} slides overflow the 720px canvas:\n${lines.join('\n')}`;
+  const lines = over.map((r) => {
+    const problems = [];
+    if (r.over > 0) problems.push(`${r.over}px tall`);
+    if (r.wide > 0) problems.push(`${r.wide}px wide${r.wideElement ? ` at ${r.wideElement}` : ''}`);
+    return `  ${String(r.number).padStart(3)}. ${r.title} — ${problems.join(', ')}` + (r.hidden ? ' (hidden)' : '');
+  });
+  return `${over.length} of ${report.length} slides overflow the canvas:\n${lines.join('\n')}`;
 }

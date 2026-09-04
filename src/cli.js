@@ -22,7 +22,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** @returns {string} */
 export function loadShell() {
-  return readFileSync(join(here, '..', 'skills', 'quire', 'shell.html'), 'utf8');
+  const shell = readFileSync(join(here, '..', 'skills', 'quire', 'shell.html'), 'utf8');
+  const metrics = readFileSync(join(here, '..', 'skills', 'quire', 'metrics.js'), 'utf8')
+    .replace(/^export (function|const|class)/gm, '$1');
+  return shell.replace('/*__QUIRE_METRICS__*/', metrics);
 }
 
 /**

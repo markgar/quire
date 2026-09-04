@@ -40,7 +40,7 @@ import { page, readSource } from './render.js';
  * @returns {string} complete HTML document
  */
 export function exportHtml(markdown, assetBase, assetMap) {
-  const shell = window.quireShell;
+  const shell = window.quireShell?.replace('/*__QUIRE_METRICS__*/', window.quireMetricSource || '');
   if (!shell) {
     throw new Error('This build carries no shell template, so it cannot export.');
   }

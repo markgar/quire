@@ -736,37 +736,7 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
   const isShown = n => !hidden[n];
   const shownIndexes = () => slides.map((_, n) => n).filter(isShown);
 
-  function fitMetricValues() {
-    slides.forEach(slide => {
-      const wasActive = slide.classList.contains("active");
-      if (!wasActive) {
-        slide.style.display = "flex";
-        slide.style.visibility = "hidden";
-      }
-      slide.querySelectorAll(".metric-value").forEach(value => {
-        value.style.fontSize = "76px";
-        const available = value.clientWidth * 0.8;
-        const range = document.createRange();
-        range.selectNodeContents(value);
-        const scale = scaler.getBoundingClientRect().width / scaler.offsetWidth || 1;
-        const textWidth = () => range.getBoundingClientRect().width / scale;
-        if (available > 0 && textWidth() > available) {
-          let low = 24, high = 76;
-          while (high - low > 0.5) {
-            const size = (low + high) / 2;
-            value.style.fontSize = size + "px";
-            if (textWidth() <= available) low = size;
-            else high = size;
-          }
-          value.style.fontSize = low.toFixed(1) + "px";
-        }
-      });
-      if (!wasActive) {
-        slide.style.removeProperty("display");
-        slide.style.removeProperty("visibility");
-      }
-    });
-  }
+  /*__QUIRE_METRICS__*/
 
   function fit() {
     const cs = getComputedStyle(stage);
@@ -959,7 +929,7 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
     new ResizeObserver(fit).observe(stage);
     new ResizeObserver(sizeThumbs).observe(panelList);
   }
-  fitMetricValues();
+  fitMetricValuesAfterFonts(slides);
   fit();
   buildPanel();
   go(fromHash());

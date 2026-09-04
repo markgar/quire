@@ -147,6 +147,17 @@ try {
   const fit = JSON.parse(run(['fit', deck]).stdout);
   assert(fit.slides === 2 && fit.overflowing === 0, 'a compact deck failed the browser fit check');
 
+  run(['slides', 'replace', deck, '2', '--content', '## Settings typo\n\n# hidden: true']);
+  const settingWarning = JSON.parse(run(['validate', deck]).stdout);
+  assert(
+    settingWarning.warnings.some((/** @type {string} */ warning) => warning.includes('misplaced hidden setting')),
+    'validate did not warn about a setting-like heading after slide content',
+  );
+  run(['slides', 'replace', deck, '2', '--content', '## Documented setting\n\n```\n# hidden: true\n```']);
+  const fencedSetting = JSON.parse(run(['validate', deck]).stdout);
+  assert(fencedSetting.warnings.length === 0, 'validate warned about a setting example inside a code fence');
+  run(['slides', 'replace', deck, '2', '--stdin'], { input: cards });
+
   const contactPath = join(workspace, 'contact.png');
   const contact = JSON.parse(run(['render', deck, contactPath, '--columns', '2']).stdout);
   assert(
@@ -166,6 +177,28 @@ try {
       slideImage.height === 720 &&
       readFileSync(slidePath).subarray(0, 8).toString('hex') === '89504e470d0a1a0a',
     'single-slide rendering did not create a full-size PNG',
+  );
+
+  const metric = [
+    'layout: metrics',
+    '',
+    '## Metric fitting',
+    '',
+    '### 953,054 extraordinarily long',
+    'Rows processed',
+  ].join('\n');
+  run(['slides', 'replace', deck, '2', '--content', metric]);
+  const metricPath = join(workspace, 'metric.png');
+  run(['render', deck, metricPath, '--slide', '2']);
+  assert(readFileSync(metricPath).length > 1000, 'metric slide rendering did not create a populated PNG');
+
+  const wide = '## Deliberately wide\n\n<div style="width: 2000px">Wide content</div>';
+  run(['slides', 'replace', deck, '2', '--content', wide]);
+  const wideResult = run(['fit', deck], { ok: false });
+  const wideReport = JSON.parse(wideResult.stdout);
+  assert(
+    wideReport.overflowing === 1 && wideReport.report[1].wide > 0,
+    'browser fit did not report deliberate horizontal overflow',
   );
 
   const overflowing = [

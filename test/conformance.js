@@ -556,8 +556,17 @@ if (existsSync(appPath)) {
       if (shellText !== source) {
         problems.push('embedded shell does not match skills/quire/shell.html — an export would differ from a CLI build');
       }
-      if (!/function fitMetricValues\b/.test(source)) {
-        problems.push('exported decks do not fit metric values to their individual cards');
+      const metricSource = readFileSync(join(here, '..', 'skills', 'quire', 'metrics.js'), 'utf8');
+      if (!source.includes('/*__QUIRE_METRICS__*/') || !/function fitMetricValues\b/.test(metricSource)) {
+        problems.push('exported decks do not include the shared metric fitting runtime');
+      }
+      if (!/document\.fonts\?\.ready/.test(metricSource)) {
+        problems.push('metric fitting does not rerun after fonts load');
+      }
+      const packageSource = readFileSync(join(here, '..', 'skills', 'quire', 'quire-package.mjs'), 'utf8');
+      if (!/contactSheetHtml[\s\S]*fitMetricValuesAfterFonts/.test(packageSource) ||
+          !/singleSlideHtml[\s\S]*fitMetricValuesAfterFonts/.test(packageSource)) {
+        problems.push('PNG render paths do not run the shared metric fitting runtime');
       }
       // Escaping `</script` is what keeps the embedded template from closing
       // its own element. Losing it truncates the app with a syntax error whose

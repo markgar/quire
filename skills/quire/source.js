@@ -4,6 +4,7 @@ import { parseQuire } from './deck.js';
 
 const SEP = /^-{3,}\s*$/;
 const META = /^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)$/;
+const SETTING_HEADING = /^#+\s*(eyebrow|layout|hidden|numbered|badge|image|image-alt|image-position|image-fit|caption|credit|chart|diagram|source|tone|align):\s*(.*)$/i;
 
 /** @param {string} value */
 const strip = (value) => value.replace(/^\s+|\s+$/g, '');
@@ -108,7 +109,37 @@ export function validateQuireSource(markdown) {
   if (source.metadata.theme && !/^(?:light|dark)$/i.test(source.metadata.theme)) {
     throw new Error(`document metadata theme must be light or dark, got ${source.metadata.theme}`);
   }
+
   return { deck: parseQuire(markdown), source };
+}
+
+/** @param {string} markdown */
+export function sourceWarnings(markdown) {
+  const source = parseQuireSource(markdown);
+  /** @type {string[]} */
+  const warnings = [];
+  for (const [index, slide] of source.slides.entries()) {
+    let contentSeen = false;
+    let fenced = false;
+    for (const [lineIndex, line] of slide.source.split('\n').entries()) {
+      const text = strip(line);
+      if (!text) continue;
+      if (text.startsWith('```')) {
+        fenced = !fenced;
+        contentSeen = true;
+        continue;
+      }
+      if (fenced) continue;
+      const setting = SETTING_HEADING.exec(text);
+      if (setting && contentSeen) {
+        warnings.push(
+          `slide ${index + 1}, line ${slide.line + lineIndex}: heading looks like misplaced ${setting[1]} setting`,
+        );
+      }
+      if (!setting) contentSeen = true;
+    }
+  }
+  return warnings;
 }
 
 /** @param {string} markdown */
