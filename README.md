@@ -99,7 +99,7 @@ block.
 
 Working, and used for real decks. The format, parser, and renderer are covered
 by golden-file tests; the app opens a local `.quire` deck, watches it,
-re-renders on change, reports which slides overflow the canvas, and can produce
+re-renders on change, reports which slides overflow the canvas vertically or horizontally, and can produce
 a self-contained HTML file with the runtime, exact Quire source, and packaged
 images embedded. It is ready for static hosting.
 

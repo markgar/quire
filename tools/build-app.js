@@ -22,6 +22,7 @@ const src = join(here, '..', 'src');
 
 const read = (/** @type {string} */ name) => readFileSync(join(src, name), 'utf8');
 
+const metricSource = inline('../skills/quire/metrics.js');
 const shell = readFileSync(join(here, '..', 'skills', 'quire', 'shell.html'), 'utf8');
 
 /**
@@ -638,11 +639,15 @@ Renders and presents it locally.
 </nav>
 
 <script>
+${metricSource}
 ${read('nav.js')}
 </script>
 
 <script>
 window.quireShell = ${embedShell()};
+</script>
+<script>
+window.quireMetricSource = ${JSON.stringify(metricSource)};
 </script>
 
 <script type="module">

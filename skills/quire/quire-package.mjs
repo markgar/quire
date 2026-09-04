@@ -28,6 +28,7 @@ import {
   replaceSlide,
   resolveSlide,
   setDocumentMetadata,
+  sourceWarnings,
   validateQuireSource,
 } from './source.js';
 
@@ -116,7 +117,10 @@ function validateDeck(markdown, assets) {
     theme: parsed.deck.theme,
     slides: parsed.deck.slides.length,
     assets: assets.length,
-    warnings: unreferenced.map((path) => `unreferenced packaged asset: ${path}`),
+    warnings: [
+      ...unreferenced.map((path) => `unreferenced packaged asset: ${path}`),
+      ...sourceWarnings(markdown),
+    ],
   };
 }
 
@@ -289,13 +293,16 @@ function runBrowser(browser, args, workspace) {
  * @param {{path: string, bytes: Uint8Array, type: string}[]} assets
  */
 function fitHtml(markdown, assets) {
-  const shell = readFileSync(new URL('./shell.html', import.meta.url), 'utf8');
+  const metricSource = inlineBrowserModule(readFileSync(new URL('./metrics.js', import.meta.url), 'utf8'));
+  const shell = readFileSync(new URL('./shell.html', import.meta.url), 'utf8')
+    .replace('/*__QUIRE_METRICS__*/', metricSource);
   const fitSource = inlineBrowserModule(readFileSync(new URL('./fit.js', import.meta.url), 'utf8'));
   const html = page(parseQuire(markdown, { assetMap: assetMap(assets) }), shell).replace(
     '<meta charset="UTF-8">',
     `<meta charset="UTF-8">\n${FIT_CSP}`,
   );
   const runner = `<script>
+${metricSource}
 ${fitSource}
 (() => {
   const encode = (value) => {
@@ -304,12 +311,17 @@ ${fitSource}
     for (const byte of bytes) binary += String.fromCharCode(byte);
     return btoa(binary);
   };
-  try {
-    const report = measureDeck(document.getElementById('scaler'));
-    document.documentElement.setAttribute('data-quire-fit', encode(report));
-  } catch (error) {
-    document.documentElement.setAttribute('data-quire-fit-error', encode(String(error && error.message || error)));
-  }
+  const run = () => {
+    try {
+      fitMetricValues(document.querySelectorAll('.slide'));
+      const report = measureDeck(document.getElementById('scaler'));
+      document.documentElement.setAttribute('data-quire-fit', encode(report));
+    } catch (error) {
+      document.documentElement.setAttribute('data-quire-fit-error', encode(String(error && error.message || error)));
+    }
+  };
+  run();
+  document.fonts?.ready.then(run);
 })();
 </script>`;
   return html.replace('</body>', `${runner}\n</body>`);
@@ -337,7 +349,7 @@ function measureDeckFile(path, explicitBrowser) {
     const match = result.stdout.match(/\sdata-quire-fit="([^"]+)"/);
     if (!match) throw new Error('headless browser did not produce a fit report');
     const report = JSON.parse(Buffer.from(match[1], 'base64').toString('utf8'));
-    const overflowing = report.filter((/** @type {{over: number}} */ slide) => slide.over > 0);
+    const overflowing = report.filter((/** @type {{over: number, wide: number}} */ slide) => slide.over > 0 || slide.wide > 0);
     return { browser, slides: report.length, overflowing: overflowing.length, report };
   } finally {
     rmSync(workspace, { recursive: true, force: true });
@@ -350,6 +362,7 @@ function measureDeckFile(path, explicitBrowser) {
  * @param {number} columns
  */
 function contactSheetHtml(deck, slides, columns) {
+  const metricSource = inlineBrowserModule(readFileSync(new URL('./metrics.js', import.meta.url), 'utf8'));
   const shell = readFileSync(new URL('./shell.html', import.meta.url), 'utf8');
   const spec = parseQuire(deck.markdown, { assetMap: assetMap(deck.assets) });
   const thumbWidth = 320;
@@ -391,7 +404,8 @@ body { display: block; padding: ${padding}px; background: var(--q-bg); }
 }
 </style>
 </head>
-<body><main class="sheet">${items}</main></body>
+<body><main class="sheet">${items}</main><script>${metricSource}
+fitMetricValuesAfterFonts(document.querySelectorAll('.slide'));</script></body>
 </html>`;
   return { html, width, height };
 }
@@ -401,6 +415,7 @@ body { display: block; padding: ${padding}px; background: var(--q-bg); }
  * @param {number} index
  */
 function singleSlideHtml(deck, index) {
+  const metricSource = inlineBrowserModule(readFileSync(new URL('./metrics.js', import.meta.url), 'utf8'));
   const shell = readFileSync(new URL('./shell.html', import.meta.url), 'utf8');
   const spec = parseQuire(deck.markdown, { assetMap: assetMap(deck.assets) });
   const rendered = renderSlide(spec.slides[index], true);
@@ -416,7 +431,8 @@ body { display: block; background: var(--q-bg); }
 .slide { display: flex !important; position: absolute; inset: 0; box-shadow: none; }
 </style>
 </head>
-<body>${rendered}</body>
+<body>${rendered}<script>${metricSource}
+fitMetricValuesAfterFonts(document.querySelectorAll('.slide'));</script></body>
 </html>`;
   return { html, width: 1280, height: 720 };
 }

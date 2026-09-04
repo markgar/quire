@@ -69,6 +69,7 @@ interface Window {
    * which is why export.js checks for it rather than assuming.
    */
   quireShell?: string;
+  quireMetricSource?: string;
   /**
    * Export, defined by app.js from src/export.js. A global for the same
    * reason as quireFit: it makes the result assertable rather than something
