@@ -102,13 +102,14 @@ function isStandalone() {
 function installHelp() {
   return installPrompt
     ? 'Your browser is ready to install Quire.'
-    : 'If no prompt appears, open quiredeck.com in desktop Chrome or Edge and choose Install Quire from the browser menu.';
+    : 'Chrome did not offer an install prompt. Use the Install icon at the right of the address bar, or open the browser menu and choose Install Quire. If Quire is already installed, open it from Applications instead.';
 }
 
 function refreshInstallUi() {
   const standalone = isStandalone();
   installBtn.hidden = standalone;
   installDialogHelp.textContent = installHelp();
+  installDialogBtn.hidden = !installPrompt;
   if (standalone) {
     installBanner.hidden = true;
     if (installDialog.open) installDialog.close();
@@ -150,6 +151,7 @@ function showInstallOfferOnce() {
 async function requestInstall() {
   if (!installPrompt) {
     showInstallDialog();
+    installDialogHelp.focus();
     return;
   }
   const prompt = installPrompt;

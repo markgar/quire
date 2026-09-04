@@ -805,9 +805,12 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
   line-height: 1.7;
 }
 .install-dialog-help {
-  padding-top: 14px;
-  border-top: 1px solid var(--q-border);
-  font-size: 0.8rem;
+  padding: 12px 14px;
+  color: var(--q-text);
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+  border-radius: 9px;
+  font-size: 0.82rem;
 }
 .install-dialog-actions {
   display: flex;
@@ -1252,9 +1255,9 @@ body.dragging .stage { outline: 2px dashed var(--q-accent); outline-offset: -10p
     <li>Launch <code>.quire</code> files directly from your desktop or agent.</li>
     <li>Keep presenting when the network is unavailable.</li>
   </ul>
-  <p class="install-dialog-help" id="installDialogHelp"></p>
+  <p class="install-dialog-help" id="installDialogHelp" tabindex="-1"></p>
   <div class="install-dialog-actions">
-    <button class="install-dialog-primary" id="installDialogBtn" type="button">Install Quire</button>
+    <button class="install-dialog-primary" id="installDialogBtn" type="button" hidden>Install Quire</button>
     <button class="install-dialog-secondary" id="installDialogLater" type="button">Not now</button>
   </div>
 </dialog>
@@ -3884,13 +3887,14 @@ function isStandalone() {
 function installHelp() {
   return installPrompt
     ? 'Your browser is ready to install Quire.'
-    : 'If no prompt appears, open quiredeck.com in desktop Chrome or Edge and choose Install Quire from the browser menu.';
+    : 'Chrome did not offer an install prompt. Use the Install icon at the right of the address bar, or open the browser menu and choose Install Quire. If Quire is already installed, open it from Applications instead.';
 }
 
 function refreshInstallUi() {
   const standalone = isStandalone();
   installBtn.hidden = standalone;
   installDialogHelp.textContent = installHelp();
+  installDialogBtn.hidden = !installPrompt;
   if (standalone) {
     installBanner.hidden = true;
     if (installDialog.open) installDialog.close();
@@ -3932,6 +3936,7 @@ function showInstallOfferOnce() {
 async function requestInstall() {
   if (!installPrompt) {
     showInstallDialog();
+    installDialogHelp.focus();
     return;
   }
   const prompt = installPrompt;

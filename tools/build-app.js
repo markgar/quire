@@ -175,9 +175,12 @@ const appCss = `
   line-height: 1.7;
 }
 .install-dialog-help {
-  padding-top: 14px;
-  border-top: 1px solid var(--q-border);
-  font-size: 0.8rem;
+  padding: 12px 14px;
+  color: var(--q-text);
+  background: var(--q-surface-soft);
+  border: 1px solid var(--q-border);
+  border-radius: 9px;
+  font-size: 0.82rem;
 }
 .install-dialog-actions {
   display: flex;
@@ -654,9 +657,9 @@ ${chrome}
     <li>Launch <code>.quire</code> files directly from your desktop or agent.</li>
     <li>Keep presenting when the network is unavailable.</li>
   </ul>
-  <p class="install-dialog-help" id="installDialogHelp"></p>
+  <p class="install-dialog-help" id="installDialogHelp" tabindex="-1"></p>
   <div class="install-dialog-actions">
-    <button class="install-dialog-primary" id="installDialogBtn" type="button">Install Quire</button>
+    <button class="install-dialog-primary" id="installDialogBtn" type="button" hidden>Install Quire</button>
     <button class="install-dialog-secondary" id="installDialogLater" type="button">Not now</button>
   </div>
 </dialog>
