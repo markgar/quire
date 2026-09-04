@@ -252,9 +252,11 @@ surprise every author who already knows Markdown.
 `**bold**`, `*italic*`, `` `code` ``, and `[label](URL)` links. Their delimiters
 may span raw HTML elements. Raw HTML elements, attributes, comments, and their
 contents pass through unchanged, so HTML is available where Quire is too
-blunt. Validation rejects raw `<a>`, `<b>`, `<strong>`, `<i>`, `<em>`, and
-`<code>` because they have native inline equivalents, and reports every
-violation in the deck. Inline code spans and fenced code blocks are exempt.
+blunt. Readers warn about raw `<a>`, `<b>`, `<strong>`, `<i>`, `<em>`, and
+`<code>` because they have native inline equivalents, and report every
+violation in the deck. Package writes reject those violations, so an existing
+deck can be inspected and repaired but cannot be persisted while they remain.
+Inline code spans and fenced code blocks are exempt.
 
 ### 3.8 Images
 

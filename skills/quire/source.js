@@ -127,20 +127,32 @@ export function serializeQuireSource(document) {
 
 /**
  * @param {string} markdown
- * @returns {{deck: import('./deck.js').Deck, source: ReturnType<typeof parseQuireSource>}}
+ * @returns {{
+ *   deck: import('./deck.js').Deck,
+ *   source: ReturnType<typeof parseQuireSource>,
+ *   warnings: string[]
+ * }}
  */
-export function validateQuireSource(markdown) {
+export function readQuireSource(markdown) {
   const source = parseQuireSource(markdown);
   if (source.slides.length === 0) throw new Error('a Quire deck must contain at least one slide');
   if (source.metadata.theme && !/^(?:light|dark)$/i.test(source.metadata.theme)) {
     throw new Error(`document metadata theme must be light or dark, got ${source.metadata.theme}`);
   }
-  const rawHtmlErrors = nativeEquivalentHtmlErrors(source);
-  if (rawHtmlErrors.length) {
-    throw new Error(`raw HTML has native Quire equivalents:\n${rawHtmlErrors.join('\n')}`);
-  }
 
-  return { deck: parseQuire(markdown), source };
+  return { deck: parseQuire(markdown), source, warnings: nativeEquivalentHtmlErrors(source) };
+}
+
+/**
+ * @param {string} markdown
+ * @returns {ReturnType<typeof readQuireSource>}
+ */
+export function validateQuireSource(markdown) {
+  const parsed = readQuireSource(markdown);
+  if (parsed.warnings.length) {
+    throw new Error(`raw HTML has native Quire equivalents:\n${parsed.warnings.join('\n')}`);
+  }
+  return parsed;
 }
 
 /** @param {ReturnType<typeof parseQuireSource>} source */
@@ -206,7 +218,7 @@ export function sourceWarnings(markdown) {
 
 /** @param {string} markdown */
 export function listSlides(markdown) {
-  const { deck, source } = validateQuireSource(markdown);
+  const { deck, source } = readQuireSource(markdown);
   return source.slides.map((slide, index) => ({
     number: index + 1,
     title: sourceTitle(slide.source),
