@@ -292,7 +292,9 @@ forces a layout, `hidden: true` removes a slide from normal navigation,
 ## Inline content
 
 `**bold**`, `*italic*`, `` `code` ``, and `[label](URL)` links are supported.
-Raw HTML passes through unchanged and is executable content.
+Raw HTML passes through unchanged and is executable content. Do not use raw
+HTML for links, emphasis, code, headings, lists, tables, blockquotes, or images:
+Quire owns those roles natively, and package writes reject their HTML tags.
 
 When working inside the Quire repository, consult `SPEC.md` for the normative
 format and `test/fixtures/` for complete examples.

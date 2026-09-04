@@ -139,6 +139,10 @@ let checked = 0;
     ' href="two">multiline link</a>',
     '<span',
     ' title="```">safe</span><b>visible after attribute backticks</b>',
+    '<h3>Card via HTML</h3>',
+    '<ul><li>Lost row</li></ul>',
+    '<blockquote>Lost quote</blockquote>',
+    '<img src="unpackaged.png">',
     '',
     '---',
     '',
@@ -158,8 +162,13 @@ let checked = 0;
     'slide 1, line 5: raw <em> tag — use *italic* instead',
     'slide 1, line 6: raw <a> tag — use [label](URL) instead',
     'slide 1, line 9: raw <b> tag — use **bold** instead',
-    'slide 2, line 15: raw <i> tag — use *italic* instead',
-    'slide 2, line 15: raw <code> tag — use `code` instead',
+    'slide 1, line 10: raw <h3> tag — use ### Card heading instead\n  (raw headings do not create cards or affect layout selection)',
+    'slide 1, line 11: raw <ul> tag — use - rows instead\n  (raw lists do not create rows or diagram nodes)',
+    'slide 1, line 11: raw <li> tag — use - or 1. row syntax instead\n  (raw list items do not create rows or diagram nodes)',
+    'slide 1, line 12: raw <blockquote> tag — use > quote syntax instead\n  (raw blockquotes do not create pull quotes, notes, or kickers)',
+    'slide 1, line 13: raw <img> tag — use an image: setting with assets add instead\n  (raw images bypass packaged assets and asset validation)',
+    'slide 2, line 19: raw <i> tag — use *italic* instead',
+    'slide 2, line 19: raw <code> tag — use `code` instead',
   ];
   let message = '';
   try {
@@ -170,7 +179,7 @@ let checked = 0;
   const legal = [
     '# Legal HTML',
     '',
-    '**bold with <br> inside** <span title="<i>example</i>">span</span> <sup>2</sup> <img src="x"> <svg></svg>',
+    '**bold with <br> inside** <span title="<i>example</i>">span</span> <div>div</div> <sup>2</sup> <sub>2</sub> <svg></svg> <small>small</small> <mark>mark</mark>',
     '<!--',
     '<strong>comment example</strong>',
     '-->',
@@ -192,12 +201,13 @@ let checked = 0;
     legalError = error instanceof Error ? error.message : String(error);
   }
   const missing = expected.filter((violation) => !message.includes(violation));
-  if (missing.length || legalError || message.split('\n').length !== expected.length + 1) {
+  const actualViolations = message.split('\n').filter((line) => line.startsWith('slide '));
+  if (missing.length || legalError || actualViolations.length !== expected.length) {
     failed += 1;
     console.log('FAIL  raw HTML validation errors');
     if (missing.length) console.log(`   missing ${JSON.stringify(missing)} from ${JSON.stringify(message)}`);
     if (legalError) console.log(`   legal HTML failed validation: ${legalError}`);
-    if (message.split('\n').length !== expected.length + 1) console.log(`   unexpected error count: ${JSON.stringify(message)}`);
+    if (actualViolations.length !== expected.length) console.log(`   unexpected error count: ${JSON.stringify(message)}`);
   } else {
     console.log('PASS  raw HTML validation errors  aggregate violations and exempt code and native-less tags');
   }
