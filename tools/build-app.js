@@ -22,7 +22,7 @@ const src = join(here, '..', 'src');
 
 const read = (/** @type {string} */ name) => readFileSync(join(src, name), 'utf8');
 
-const shell = read('shell.html');
+const shell = readFileSync(join(here, '..', 'skills', 'quire', 'shell.html'), 'utf8');
 
 /**
  * Pull one delimited region out of the shell.
@@ -648,8 +648,8 @@ window.quireShell = ${embedShell()};
 <script type="module">
 ${inline('../skills/quire/html.js')}
 ${inline('../skills/quire/deck.js')}
-${inline('render.js')}
-${inline('fit.js')}
+${inline('../skills/quire/render.js')}
+${inline('../skills/quire/fit.js')}
 ${inline('export.js')}
 ${inline('../skills/quire/package.js')}
 ${inline('app.js')}

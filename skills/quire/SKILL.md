@@ -36,6 +36,7 @@ For a new deck:
 node <skill-dir>/quire-package.mjs create deck.quire --title "Deck title" --theme dark
 node <skill-dir>/quire-package.mjs slides replace deck.quire 1 --content "# Deck title"
 node <skill-dir>/quire-package.mjs validate deck.quire
+node <skill-dir>/quire-package.mjs fit deck.quire
 ```
 
 Pass longer slide source through standard input so shell quoting cannot alter
@@ -49,6 +50,9 @@ Useful commands:
 
 ```text
 node <skill-dir>/quire-package.mjs inspect deck.quire
+node <skill-dir>/quire-package.mjs fit deck.quire
+node <skill-dir>/quire-package.mjs render deck.quire deck-contact-sheet.png
+node <skill-dir>/quire-package.mjs render deck.quire slide-3.png --slide 3
 node <skill-dir>/quire-package.mjs slides list deck.quire
 node <skill-dir>/quire-package.mjs slides read deck.quire 3
 node <skill-dir>/quire-package.mjs slides replace deck.quire 3 --stdin
@@ -62,11 +66,31 @@ node <skill-dir>/quire-package.mjs assets remove deck.quire images/photo.jpg
 node <skill-dir>/quire-package.mjs validate deck.quire
 ```
 
+For a one-time migration from an existing source deck, import it directly into
+one native package. Relative images referenced by valid slide metadata are
+included automatically:
+
+```text
+node <skill-dir>/quire-package.mjs import deck.md deck.quire
+```
+
 Selectors are one-based slide numbers or exact headings. If an exact heading is
 duplicated, the CLI refuses to guess and requires a number. Every mutation
 parses the resulting source, verifies referenced assets, writes a temporary
 package, reopens it, verifies the round trip, and only then atomically replaces
 the `.quire` file. An invalid operation leaves the original bytes unchanged.
+
+`validate` checks package integrity, Quire semantics, and asset references.
+`fit` additionally launches an installed Chrome, Edge, or Chromium browser,
+renders with Quire's real HTML and CSS, and exits unsuccessfully if any slide
+exceeds the 720px canvas. Set `QUIRE_BROWSER` or pass `--browser` when the
+browser executable is not in a standard location.
+
+Use `render` when you need to look at the deck. Without `--slide`, it creates a
+labelled contact-sheet PNG containing every slide. With `--slide`, it creates a
+full-size 1280×720 PNG for one slide selected by number or exact heading. Inspect
+those local images with the agent's image-viewing tool; do not automate
+quiredeck.com with Playwright just to review the deck.
 
 Never edit ZIP bytes, `manifest.json`, embedded `deck.md`, or slide separators
 directly. Do not unpack a deck as an authoring workflow. The CLI is Quire's
@@ -166,22 +190,14 @@ still opens for compatibility, but it is not the authoring deliverable.
 
 ## Verify the rendered deck
 
-Use Quire's own browser measurements after every meaningful revision:
+Run the CLI fit check after every meaningful revision:
 
 ```text
-quireFit.report()       Return every slide's measured height and overflow.
-quireFit.overflowing()  Return only slides that overflow.
-quireFit.remeasure()    Measure again after changing the live DOM.
+node <skill-dir>/quire-package.mjs fit deck.quire
 ```
 
-The viewer also records overflow on affected slides as `data-over` and exposes
-the same result through its overflow badge. Do not toggle `.active`, clone
-slides, or calculate slide heights independently. Those actions change the
-layout being measured and can return a false clean result.
-
-## Verify the rendered deck
-
-Use Quire's own browser measurements after every meaningful revision:
+For interactive investigation in the viewer, Quire exposes the same browser
+measurements:
 
 ```text
 quireFit.report()       Return every slide's measured height and overflow.

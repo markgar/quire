@@ -124,6 +124,9 @@ is the only persistent authoring artifact:
     node src/cli.js slides list deck.quire
     node src/cli.js slides replace deck.quire 1 --content "# Quarterly review"
     node src/cli.js validate deck.quire
+    node src/cli.js fit deck.quire
+    node src/cli.js render deck.quire deck-contact-sheet.png
+    node src/cli.js render deck.quire slide-3.png --slide 3
 
 Longer slide source can be supplied through standard input. Images are added as
 ordinary package entries and then referenced by the same path:
@@ -135,6 +138,19 @@ Every mutation validates the complete source and its asset references, writes a
 temporary package, reopens and verifies it, and atomically replaces the deck.
 Failed edits leave the original `.quire` bytes unchanged.
 
+Existing Markdown decks can be migrated without adopting an unpacked authoring
+workflow:
+
+    node src/cli.js import old-deck.md deck.quire
+
+`validate` checks structure and assets without browser dependencies. `fit`
+launches an installed Chrome, Edge, or Chromium with the exact Quire renderer
+and exits unsuccessfully when any slide exceeds the 720px canvas.
+
+`render` creates local PNGs for visual review without Playwright or opening
+quiredeck.com. Its default output is a labelled contact sheet of the complete
+deck; `--slide` renders one selected slide at the native 1280×720 resolution.
+
 Teach GitHub Copilot how to author the Quire dialect by installing the skill
 directly from this repository—no marketplace is required:
 
@@ -144,7 +160,8 @@ Reload skills in an active Copilot CLI session with `/skills reload`, then ask
 it to use `/quire` to create or revise a presentation.
 
 The skill has an opt-in end-to-end test that installs it into a temporary
-project, starts a fresh Copilot context, and checks the deck the agent creates:
+project, starts a fresh Copilot context, and checks the native `.quire` deck the
+agent creates:
 
     npm run test:skill
 

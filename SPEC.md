@@ -32,6 +32,13 @@ package by reopening it, and atomically replaces the destination only after the
 round trip succeeds. Slide selectors are either one-based numbers or exact
 headings; duplicate exact headings are rejected rather than guessed.
 
+The CLI's `validate` command is structural. Its `fit` command performs the
+separate visual-fit gate by rendering through Quire's actual HTML, CSS, and
+browser measurement code. A deck can therefore be structurally valid while
+still failing `fit` because content exceeds the fixed 1280×720 slide canvas.
+The CLI's `render` command uses the same renderer to produce a labelled
+contact-sheet PNG or one native-size slide PNG for local visual inspection.
+
 ---
 
 ## 1. Document
@@ -91,7 +98,7 @@ begins with `#`, `>`, `|`, `-`, or `*`.
 | `hidden` | `true`/`yes`/`1` | Omit from the running order and page count. |
 | `numbered` | `true`/`yes`/`1` | Number the cards. |
 | `badge` | text | Corner label on `rows` layouts. |
-| `image` | URL | Path relative to the package root, same-origin URL, or embedded raster data URL. |
+| `image` | URL | Path relative to the package root, same-origin URL, or supported base64 image data URL. |
 | `image-alt` | text | Accessible description of the image. |
 | `image-position` | `left`/`right`/`full` | Place an image beside or below the slide’s native content. |
 | `image-fit` | `cover`/`contain` | Crop to fill the image frame, or preserve the complete image. |
@@ -244,8 +251,8 @@ is too blunt.
 
 `image:` adds native media without requiring HTML. In a `.quire` package, a
 relative path refers to an asset entry at that normalized path. A same-origin
-path may also refer to an asset served beside a standalone deck. A raster image
-may instead be embedded as a `data:image/...;base64,...` URL.
+path may also refer to an asset served beside a standalone deck. PNG, JPEG,
+GIF, WebP, AVIF, and SVG images may instead be embedded as base64 data URLs.
 
 An image can accompany title, card, metric, table, row, chart, diagram, and
 pull-quote layouts. It does not replace those layouts or their content.
@@ -259,7 +266,7 @@ inside that frame.
 
 When the browser opens a standalone local `.md` through a file picker, it
 cannot read sibling image files. Package the source and assets as `.quire`, use
-embedded raster data URLs, or serve the directory through a same-origin
+embedded base64 image data, or serve the directory through a same-origin
 `?deck=` URL.
 
 ### 3.9 Charts, diagrams, and metrics
