@@ -210,6 +210,27 @@ try {
     'process connector pseudo-elements were incorrectly reported as horizontal overflow',
   );
 
+  const fractional = '## Fractional layout\n\n<div style="width:100%; transform:translateX(.5px)">Aligned content</div>';
+  run(['slides', 'replace', deck, '2', '--content', fractional]);
+  const fractionalFit = JSON.parse(run(['fit', deck]).stdout);
+  assert(
+    fractionalFit.report[1].wide === 0,
+    'sub-pixel layout rounding was incorrectly reported as horizontal overflow',
+  );
+
+  const clipped = [
+    '## Clipped content',
+    '',
+    '<div style="width:100px;overflow:hidden">ThisUnbreakableTextMustBeReportedAsClipped</div>',
+  ].join('\n');
+  run(['slides', 'replace', deck, '2', '--content', clipped]);
+  const clippedResult = run(['fit', deck], { ok: false });
+  const clippedReport = JSON.parse(clippedResult.stdout);
+  assert(
+    clippedReport.report[1].wide > 0,
+    'text clipped by its own element was not reported as horizontal overflow',
+  );
+
   const wide = '## Deliberately wide\n\n<div style="width: 2000px">Wide content</div>';
   run(['slides', 'replace', deck, '2', '--content', wide]);
   const wideResult = run(['fit', deck], { ok: false });

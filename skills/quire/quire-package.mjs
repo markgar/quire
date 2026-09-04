@@ -167,7 +167,7 @@ function writeDeck(path, markdown, assets) {
 }
 
 /** @param {string | undefined} explicit */
-function findBrowser(explicit) {
+export function findBrowser(explicit) {
   const configured = explicit || process.env.QUIRE_BROWSER || process.env.CHROME_PATH;
   if (configured) {
     const path = resolve(configured);
