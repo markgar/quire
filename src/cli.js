@@ -11,10 +11,11 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, extname, join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parseQuire } from './deck.js';
 import { page, readSource } from './render.js';
 import { AUTHORING_GUIDE } from './guide.js';
+import { assetMap } from '../skills/quire/native.js';
 import { unpackQuire } from '../skills/quire/package.js';
 import { installEpipeHandler, runCli as runDeckCli } from '../skills/quire/quire-package.mjs';
 
@@ -36,36 +37,6 @@ export function loadShell() {
 export function buildHtml(markdown, opts = {}) {
   const embed = opts.embedSource !== false;
   return page(parseQuire(markdown, { assetMap: opts.assetMap }), loadShell(), embed ? markdown : undefined);
-}
-
-const MIME = {
-  '.avif': 'image/avif',
-  '.gif': 'image/gif',
-  '.jpeg': 'image/jpeg',
-  '.jpg': 'image/jpeg',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-  '.webp': 'image/webp',
-};
-
-/** @param {string} path */
-function mimeFor(path) {
-  return MIME[/** @type {keyof typeof MIME} */ (extname(path).toLowerCase())] || 'application/octet-stream';
-}
-
-/** @param {Uint8Array} bytes */
-function base64(bytes) {
-  return Buffer.from(bytes).toString('base64');
-}
-
-/** @param {{path: string, bytes: Uint8Array, type: string}[]} assets */
-function assetMap(assets) {
-  return Object.fromEntries(
-    assets.flatMap((asset) => {
-      const url = `data:${asset.type || mimeFor(asset.path)};base64,${base64(asset.bytes)}`;
-      return [[asset.path, url], [`./${asset.path}`, url]];
-    }),
-  );
 }
 
 const invokedDirectly = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
