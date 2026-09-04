@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
+import { packQuire } from '../skills/quire/package.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -192,6 +193,38 @@ try {
     assert(rawHtmlRejected.stderr.includes(expected), `validation did not report ${expected}`);
   }
   assert(!rawHtmlRejected.stderr.includes('raw <br>') && !rawHtmlRejected.stderr.includes('raw <code>'), 'validation rejected exempt HTML');
+
+  const legacyDeck = join(workspace, 'legacy.quire');
+  writeFileSync(legacyDeck, packQuire('# Legacy\n\n<a href="https://example.com">Example</a>\n'));
+  const legacyValidation = JSON.parse(run(['validate', legacyDeck]).stdout);
+  assert(
+    legacyValidation.valid &&
+      legacyValidation.warnings.some((/** @type {string} */ warning) =>
+        warning.includes('raw <a> tag — use [label](URL) instead')),
+    'legacy validation did not report native-equivalent raw HTML as a warning',
+  );
+  assert(run(['slides', 'read', legacyDeck, '1']).stdout.includes('<a href='), 'legacy slide could not be read for repair');
+  const legacyBeforeRejectedWrite = readFileSync(legacyDeck);
+  const legacyWriteRejected = run(['metadata', 'set', legacyDeck, 'title', 'Still invalid'], { ok: false });
+  assert(
+    legacyWriteRejected.stderr.includes('raw HTML has native Quire equivalents'),
+    'persisting an unrepaired legacy deck did not fail',
+  );
+  assert(legacyBeforeRejectedWrite.equals(readFileSync(legacyDeck)), 'rejected legacy mutation changed the package');
+  run([
+    'slides',
+    'replace',
+    legacyDeck,
+    '1',
+    '--content',
+    '# Legacy\n\n[Example](https://example.com)',
+  ]);
+  const repairedValidation = JSON.parse(run(['validate', legacyDeck]).stdout);
+  assert(
+    repairedValidation.valid &&
+      !repairedValidation.warnings.some((/** @type {string} */ warning) => warning.includes('raw <a> tag')),
+    'repaired legacy deck retained its raw anchor warning',
+  );
 
   const importedSource = join(workspace, 'import.md');
   const importedDeck = join(workspace, 'imported.quire');
