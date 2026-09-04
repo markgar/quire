@@ -81,11 +81,13 @@ package, reopens it, verifies the round trip, and only then atomically replaces
 the `.quire` file. An invalid operation leaves the original bytes unchanged.
 
 `validate` checks package integrity, Quire semantics, and asset references.
-`fit` additionally launches an installed Chrome, Edge, or Chromium browser,
-renders with Quire's real HTML, CSS, font-ready metric sizing, and exits
+`fit` additionally launches an installed standalone headless Chromium, Chrome,
+Edge, or Chromium browser, renders with Quire's real HTML, CSS, font-ready metric sizing, and exits
 unsuccessfully if any slide exceeds the 1280x720 canvas vertically or
 horizontally. Set `QUIRE_BROWSER` or pass `--browser` when the browser
-executable is not in a standard location.
+executable is not in a standard location. Quire prefers a standalone headless
+browser from `PATH` or common Playwright/Puppeteer caches so macOS does not
+activate the full Chrome app in the Dock.
 
 Use `render` when you need to look at the deck. Without `--slide`, it creates a
 labelled contact-sheet PNG containing every slide. With `--slide`, it creates a
