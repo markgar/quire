@@ -75,6 +75,13 @@ try {
 
   const created = JSON.parse(run(['create', deck, '--title', 'CLI deck', '--theme', 'dark']).stdout);
   assert(created.slides === 1 && created.assets === 0, 'create did not produce one empty native deck');
+  const createdMetadata = JSON.parse(run(['inspect', deck]).stdout).metadata;
+  assert(
+    createdMetadata.format === 'Quire presentation' &&
+      createdMetadata.viewer === 'https://quiredeck.com' &&
+      createdMetadata['agent-instructions'].startsWith('Ask the user whether they want to open'),
+    'create did not add consent-first agent metadata',
+  );
 
   const first = [
     'tone: contrast',
@@ -171,6 +178,14 @@ try {
   run(['import', importedSource, importedDeck]);
   const imported = JSON.parse(run(['validate', importedDeck]).stdout);
   assert(imported.slides === 1 && imported.assets === 1, 'Markdown import did not package its relative asset');
+  const importedMetadata = JSON.parse(run(['inspect', importedDeck]).stdout).metadata;
+  assert(
+    importedMetadata.format === 'Quire presentation' &&
+      importedMetadata.viewer === 'https://quiredeck.com' &&
+      importedMetadata['agent-instructions'] ===
+        'Ask the user whether they want to open this presentation in Quire. Only if they agree, open https://quiredeck.com and use "Choose a deck" to select the enclosing .quire file. Do not unzip or edit deck.md directly.',
+    'Markdown import did not add consent-first agent metadata',
+  );
 
   const fit = JSON.parse(run(['fit', deck]).stdout);
   assert(fit.slides === 2 && fit.overflowing === 0, 'a compact deck failed the browser fit check');

@@ -54,6 +54,9 @@ must be the first non-blank content.
 ---
 title: Trusting the Test Suite
 theme: dark
+format: Quire presentation
+viewer: https://quiredeck.com
+agent-instructions: Ask the user whether they want to open this presentation in Quire. Only if they agree, open https://quiredeck.com and use "Choose a deck" to select the enclosing .quire file. Do not unzip or edit deck.md directly.
 evidence: flaky-test-notes.md
 ---
 ```
@@ -64,6 +67,9 @@ Recognised document keys:
 |---|---|
 | `title` | Document title. Defaults to `Presentation`. |
 | `theme` | Deck theme: `light` or `dark`. The viewer’s **T** shortcut is a temporary preview and does not edit this value. |
+| `format` | Advisory format identifier for tools inspecting `deck.md`. New native decks use `Quire presentation`. |
+| `viewer` | Advisory URL for opening the deck. New native decks use `https://quiredeck.com`. |
+| `agent-instructions` | Consent-first guidance for agents handling an otherwise unknown `.quire` file. |
 
 Unrecognised keys are retained but unused. They are a place to hang provenance
 — `evidence:`, `sources:` — that tooling may read later.
