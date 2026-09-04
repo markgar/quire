@@ -33,6 +33,9 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
+/** Global emitted ahead of nav.js in the built app. */
+declare function fitMetricValuesAfterFonts(slides: Iterable<Element>): void;
+
 interface Window {
   showOpenFilePicker?(o?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
   /** Change notification without polling. Newer than File System Access itself. */

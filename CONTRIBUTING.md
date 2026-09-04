@@ -2,7 +2,7 @@
 
 ## Getting it running
 
-    npm install
+    npm install          # Node 22 (see .node-version)
     npm run check      # type gate, app build, conformance suite
     npm run serve      # http://localhost:8931/quire.html
 
@@ -18,19 +18,21 @@ drifted.
 
 ## Tests
 
-Two suites, because they can reach different things.
+The test suite combines process-level conformance checks with a Chromium app
+harness.
 
 `npm run check` runs the headless gates: parse and render conformance against
-golden files, page assembly, source round-trip, and app-build integrity.
+golden files, page assembly, source round-trip, app-build integrity, CLI/browser
+visual parity, and the app harness against real origin-private file handles.
 
 When the format or renderer changes intentionally, update the snapshots with
 `npm run update:goldens` and review every generated diff.
 
-`test/app-harness.html` covers what the headless suite cannot reach — the file
-picker, handle persistence, permission re-grant, watching, drag-and-drop,
-native `.quire` package assets, overflow, and export. Those need a real file
-handle, and a handle needs a user gesture no automation can produce, so they
-run in a browser:
+`npm run test:harness` drives `test/app-harness.html` in headless Chromium. It
+uses real origin-private file handles to cover handle persistence, the
+permission branch, watching, drag-and-drop, native `.quire` package assets,
+overflow, and export. It does not replace a manual check of the OS picker,
+permission decay across a browser restart, or local-disk observer delivery:
 
     npm run serve
     # open http://localhost:8931/test/app-harness.html
