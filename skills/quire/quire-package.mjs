@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -166,6 +167,41 @@ function writeDeck(path, markdown, assets) {
   }
 }
 
+/** @param {string} root @param {number} depth */
+function executableFiles(root, depth) {
+  if (!root || !existsSync(root) || depth < 0) return [];
+  /** @type {string[]} */
+  const matches = [];
+  let entries;
+  try {
+    entries = readdirSync(root, { withFileTypes: true });
+  } catch (error) {
+    const code = /** @type {NodeJS.ErrnoException} */ (error).code;
+    if (code === 'EACCES' || code === 'ENOTDIR' || code === 'ENOENT' || code === 'EPERM') return [];
+    throw error;
+  }
+  for (const entry of entries) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) matches.push(...executableFiles(path, depth - 1));
+    else if (/^(?:chrome-headless-shell|headless_shell)(?:\.exe)?$/i.test(entry.name)) matches.push(path);
+  }
+  return matches;
+}
+
+function cachedHeadlessBrowsers() {
+  const home = homedir();
+  const roots = [
+    process.env.PLAYWRIGHT_BROWSERS_PATH,
+    process.platform === 'darwin' ? join(home, 'Library', 'Caches', 'ms-playwright') : '',
+    process.platform === 'win32' ? join(process.env.LOCALAPPDATA || '', 'ms-playwright') : '',
+    process.platform === 'linux' ? join(home, '.cache', 'ms-playwright') : '',
+    join(home, '.cache', 'puppeteer'),
+  ].filter(Boolean);
+  return [...new Set(roots.flatMap((root) => executableFiles(/** @type {string} */ (root), 3)))]
+    .sort()
+    .reverse();
+}
+
 /** @param {string | undefined} explicit */
 export function findBrowser(explicit) {
   const configured = explicit || process.env.QUIRE_BROWSER || process.env.CHROME_PATH;
@@ -173,6 +209,19 @@ export function findBrowser(explicit) {
     const path = resolve(configured);
     if (!existsSync(path)) throw new Error(`browser executable does not exist: ${configured}`);
     return path;
+  }
+
+  const headlessNames = process.platform === 'win32'
+    ? ['chrome-headless-shell.exe', 'headless_shell.exe']
+    : ['chrome-headless-shell', 'chromium-headless-shell', 'headless_shell'];
+  for (const directory of (process.env.PATH || '').split(delimiter)) {
+    for (const name of headlessNames) {
+      const path = join(directory, name);
+      if (existsSync(path)) return path;
+    }
+  }
+  for (const path of cachedHeadlessBrowsers()) {
+    if (existsSync(path)) return path;
   }
 
   const candidates = process.platform === 'darwin'
@@ -213,7 +262,7 @@ export function findBrowser(explicit) {
       if (existsSync(path)) return path;
     }
   }
-  throw new Error('no Chrome, Edge, or Chromium executable found; set QUIRE_BROWSER to its path');
+  throw new Error('no headless Chromium, Chrome, Edge, or Chromium executable found; set QUIRE_BROWSER to its path');
 }
 
 /** @param {string} source */

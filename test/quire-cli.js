@@ -1,7 +1,9 @@
 // @ts-check
 
 import {
+  chmodSync,
   cpSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -9,7 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -44,6 +46,32 @@ function run(args, options = {}) {
 
 try {
   cpSync(join(root, 'skills', 'quire'), skill, { recursive: true });
+
+  const browserCache = join(workspace, 'browsers');
+  const headlessBrowser = join(browserCache, 'chromium_headless_shell-9999', 'chrome-headless-shell-test', 'chrome-headless-shell');
+  mkdirSync(dirname(headlessBrowser), { recursive: true });
+  writeFileSync(headlessBrowser, '');
+  chmodSync(headlessBrowser, 0o755);
+  const discovery = spawnSync(
+    process.execPath,
+    ['--input-type=module', '--eval', `import { findBrowser } from ${JSON.stringify(pathToFileURL(cli).href)}; console.log(findBrowser());`],
+    {
+      encoding: 'utf8',
+      env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: browserCache, PATH: '' },
+    },
+  );
+  assert(discovery.status === 0 && discovery.stdout.trim() === headlessBrowser, 'browser discovery did not prefer a cached headless shell');
+  const invalidCache = join(workspace, 'not-a-browser-directory');
+  writeFileSync(invalidCache, '');
+  const fallbackDiscovery = spawnSync(
+    process.execPath,
+    ['--input-type=module', '--eval', `import { findBrowser } from ${JSON.stringify(pathToFileURL(cli).href)}; console.log(findBrowser());`],
+    {
+      encoding: 'utf8',
+      env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: invalidCache },
+    },
+  );
+  assert(fallbackDiscovery.status === 0, 'an unreadable browser cache blocked normal browser fallback');
 
   const created = JSON.parse(run(['create', deck, '--title', 'CLI deck', '--theme', 'dark']).stdout);
   assert(created.slides === 1 && created.assets === 0, 'create did not produce one empty native deck');
