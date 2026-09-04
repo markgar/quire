@@ -361,6 +361,40 @@ const TESTS = [
     },
   },
   {
+    name: 'slide links preview their destination on hover and focus',
+    async fn() {
+      await clearState();
+      const source = [
+        '---',
+        'title: Links',
+        '---',
+        '',
+        '## Follow the evidence',
+        '[Quire source](https://github.com/markgar/quire?tab=readme-ov-file#readme)',
+      ].join('\n');
+      const fh = await writeOpfs('links.md', source);
+      const f = await loadApp();
+      await openViaPicker(f, fh);
+      const link = f.contentDocument.querySelector('#scaler .slide.active a');
+      const preview = $(f, 'linkPreview');
+      assert(link, 'the slide link did not render');
+
+      link.dispatchEvent(new f.contentWindow.PointerEvent('pointerover', { bubbles: true }));
+      assert(!preview.hidden, 'the destination stayed hidden on hover');
+      assert(preview.textContent === link.href, `hover preview was "${preview.textContent}"`);
+
+      link.dispatchEvent(new f.contentWindow.PointerEvent('pointerout', { bubbles: true }));
+      assert(preview.hidden, 'the destination remained after hover ended');
+
+      link.focus();
+      assert(!preview.hidden, 'the destination stayed hidden on keyboard focus');
+      assert(preview.textContent === link.href, `focus preview was "${preview.textContent}"`);
+      link.blur();
+      assert(preview.hidden, 'the destination remained after focus ended');
+      return 'destination shown on hover and keyboard focus, then cleared';
+    },
+  },
+  {
     name: 'cancelling the picker leaves the blank app blank',
     async fn() {
       await clearState();
@@ -821,7 +855,10 @@ const TESTS = [
     name: 'an export opens on its own and gives its source back',
     async fn() {
       await clearState();
-      const source = deckOf(5, 'Exportable');
+      const source = deckOf(5, 'Exportable').replace(
+        'Body text for slide 5.',
+        '[Quire source](https://github.com/markgar/quire)',
+      );
       const fh = await writeOpfs('exportme.md', source);
       const f = await loadApp();
       await openViaPicker(f, fh);
@@ -856,6 +893,15 @@ const TESTS = [
         view.contentDocument.getElementById('panelList').children.length === 5,
         'the exported deck has no working slide panel',
       );
+      for (let i = 1; i < 5; i++) view.contentDocument.getElementById('next').click();
+      const link = view.contentDocument.querySelector('#scaler .slide.active a');
+      const preview = view.contentDocument.getElementById('linkPreview');
+      assert(link, 'the exported deck lost its slide link');
+      link.dispatchEvent(new view.contentWindow.PointerEvent('pointerover', { bubbles: true }));
+      assert(
+        !preview.hidden && preview.textContent === link.href,
+        `the exported deck link preview was "${preview.textContent}"`,
+      );
 
       // Self-describing: the file alone must give back the exact Markdown.
       const embedded = view.contentDocument.getElementById('quire-source');
@@ -864,7 +910,7 @@ const TESTS = [
         embedded.textContent === source,
         'the embedded source does not match the deck it was built from',
       );
-      return '5 slides, panel working, source recovered exactly';
+      return '5 slides, panel and link preview working, source recovered exactly';
     },
   },
   {
