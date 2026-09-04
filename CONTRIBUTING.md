@@ -16,6 +16,12 @@ because it is the deployable. `npm run check` rebuilds it, so commit the result
 when you change runtime files in `src/` or `skills/quire/`. CI fails if it has
 drifted.
 
+The browser entry point is `src/app.js`. Keep rendering, navigation, watcher,
+and PWA orchestration there; reusable local file decoding, handle persistence,
+and `?deck=` trust policy live in the adjacent `deck-file.js`,
+`handle-store.js`, and `deck-url.js` modules. `tools/build-app.js` must inline
+each runtime module before `app.js` so the committed app remains one file.
+
 ## Tests
 
 Two suites, because they can reach different things.

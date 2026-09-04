@@ -16,7 +16,9 @@ import { parseQuire } from './deck.js';
 import { renderSlides } from './render.js';
 import { measureDeck, annotate, formatReport } from './fit.js';
 import { exportHtml, exportName, download } from './export.js';
-import { unpackQuire } from '../skills/quire/package.js';
+import { readDeckFile } from './deck-file.js';
+import { rememberHandle, recallHandle } from './handle-store.js';
+import { safeDeckUrl } from './deck-url.js';
 
 const scaler = /** @type {HTMLElement} */ (document.getElementById('scaler'));
 const status = /** @type {HTMLElement} */ (document.getElementById('status'));
@@ -497,39 +499,6 @@ function startWatching() {
 // opening
 // ---------------------------------------------------------------------------
 
-/** @param {File} file */
-function fileDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error || new Error(`Could not read ${file.name}`));
-    reader.readAsDataURL(file);
-  });
-}
-
-/** @param {{path: string, bytes: Uint8Array, type: string}[]} assets */
-async function packageAssetMap(assets) {
-  /** @type {Record<string, string>} */
-  const map = {};
-  for (const asset of assets) {
-    const copy = new Uint8Array(asset.bytes.length);
-    copy.set(asset.bytes);
-    const url = await fileDataUrl(new File([copy.buffer], asset.path, { type: asset.type }));
-    map[asset.path] = url;
-    map[`./${asset.path}`] = url;
-  }
-  return map;
-}
-
-/** @param {File} file */
-async function readDeckFile(file) {
-  if (/\.quire$/i.test(file.name)) {
-    const packaged = unpackQuire(await file.arrayBuffer());
-    return { markdown: packaged.markdown, assets: await packageAssetMap(packaged.assets) };
-  }
-  return { markdown: await file.text(), assets: {} };
-}
-
 /** @param {any} h */
 async function openHandle(h) {
   handle = h;
@@ -599,91 +568,8 @@ async function openDroppedFile(file) {
 }
 
 // ---------------------------------------------------------------------------
-// remembering the last deck
-// ---------------------------------------------------------------------------
-
-const DB = 'quire';
-const STORE = 'handles';
-
-/** @returns {Promise<IDBDatabase>} */
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-/** @param {any} h */
-async function rememberHandle(h) {
-  try {
-    const db = await openDb();
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(h, 'last');
-    await new Promise((resolve, reject) => {
-      tx.oncomplete = () => resolve(null);
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
-  } catch {
-    /* remembering is a convenience, never a requirement */
-  }
-}
-
-/** @returns {Promise<any>} */
-async function recallHandle() {
-  try {
-    const db = await openDb();
-    return await new Promise((resolve) => {
-      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get('last');
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch {
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // startup
 // ---------------------------------------------------------------------------
-
-/**
- * Resolve a `?deck=` value, refusing anything that is not same-origin.
- *
- * This is a security boundary, not a tidiness check. `fetch` resolves absolute
- * URLs, so without it `?deck=https://evil.example/x.md` fetches attacker
- * content — CORS does not help, because the attacker sets the header on their
- * own host. That text reaches `scaler.innerHTML`, and a deck may contain raw
- * HTML by design, so the attacker's `onerror` handler runs in *this* origin.
- *
- * From there it reaches the handle in IndexedDB, whose permission is granted
- * silently on return by design, reads the file it points at, and posts it
- * anywhere. That was demonstrated end to end against a real local file before
- * this check existed: one link, no dialog, no drop, and the screen still shows
- * a plausible deck.
- *
- * Protocol-relative (`//host/x.md`) and root-relative (`/x.md`) values are
- * rejected too — the first is cross-origin in disguise, the second escapes the
- * directory the app was served from for no use case this has.
- *
- * @param {string} value the raw parameter
- * @returns {string | null} a safe same-origin URL, or null if it must be refused
- */
-function safeDeckUrl(value) {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//') || value.startsWith('/')) {
-    return null;
-  }
-  let url;
-  try {
-    url = new URL(value, location.href);
-  } catch {
-    return null;
-  }
-  // Belt and braces: a resolved URL must still land on this origin.
-  return url.origin === location.origin ? url.href : null;
-}
 
 /**
  * Same-origin deck by URL: ?deck=name.md. Only works when the app and the

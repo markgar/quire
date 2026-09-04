@@ -657,6 +657,9 @@ ${inline('../skills/quire/render.js')}
 ${inline('../skills/quire/fit.js')}
 ${inline('export.js')}
 ${inline('../skills/quire/package.js')}
+${inline('deck-file.js')}
+${inline('handle-store.js')}
+${inline('deck-url.js')}
 ${inline('app.js')}
 </script>
 </body>
