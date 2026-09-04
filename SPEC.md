@@ -4,8 +4,8 @@ Normative description of Quire source—a presentation-specific dialect built
 from a small, familiar subset of Markdown syntax. A conforming parser reads
 this and produces the same deck.
 
-Everything here is implemented in `src/deck.js` and pinned by the fixtures in
-`test/`.
+Everything here is implemented in `skills/quire/deck.js`, re-exported by
+`src/deck.js`, and pinned by the fixtures in `test/`.
 
 **Scope.** This describes the source document inside a deck. The native
 `.quire` file is a ZIP package containing `deck.md`, `manifest.json`, and any
@@ -25,6 +25,12 @@ Version 1 writers use ZIP's stored method. Images are normally compressed
 already; storing their original bytes avoids base64 expansion and keeps the
 package readable by standard ZIP tools. Readers reject unsafe entry paths,
 unsupported versions, corrupt checksums, and unsupported compression methods.
+
+Quire's authoring CLI operates directly on the native package. It validates the
+complete source and referenced assets before writing, verifies a temporary
+package by reopening it, and atomically replaces the destination only after the
+round trip succeeds. Slide selectors are either one-based numbers or exact
+headings; duplicate exact headings are rejected rather than guessed.
 
 ---
 

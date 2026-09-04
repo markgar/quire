@@ -1,0 +1,138 @@
+// @ts-check
+
+import {
+  cpSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = join(here, '..');
+const workspace = mkdtempSync(join(tmpdir(), 'quire-cli-'));
+const skill = join(workspace, 'quire-skill');
+const cli = join(skill, 'quire-package.mjs');
+const deck = join(workspace, 'deck.quire');
+
+/** @param {unknown} condition @param {string} message */
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+/**
+ * @param {string[]} args
+ * @param {{ok?: boolean, input?: string}} [options]
+ */
+function run(args, options = {}) {
+  const result = spawnSync(process.execPath, [cli, ...args], {
+    encoding: 'utf8',
+    input: options.input,
+  });
+  const ok = options.ok !== false;
+  if ((ok && result.status !== 0) || (!ok && result.status === 0)) {
+    throw new Error(
+      `quire CLI ${ok ? 'failed' : 'unexpectedly succeeded'}: ${args.join(' ')}\n${result.stdout}${result.stderr}`,
+    );
+  }
+  return result;
+}
+
+try {
+  cpSync(join(root, 'skills', 'quire'), skill, { recursive: true });
+
+  const created = JSON.parse(run(['create', deck, '--title', 'CLI deck', '--theme', 'dark']).stdout);
+  assert(created.slides === 1 && created.assets === 0, 'create did not produce one empty native deck');
+
+  const first = [
+    'tone: contrast',
+    'align: center',
+    '',
+    '# A safer deck',
+    '',
+    'Created without an unpacked working directory.',
+  ].join('\n');
+  run(['slides', 'replace', deck, '1', '--content', first]);
+  run(['metadata', 'set', deck, 'title', 'A safer deck']);
+
+  const cards = [
+    'numbered: true',
+    '',
+    '## Three guarantees',
+    '',
+    '### Boundaries',
+    'Code owns slide boundaries.',
+    '',
+    '### Validation',
+    'Every write parses first.',
+    '',
+    '### Persistence {accent}',
+    'Only the `.quire` file remains.',
+  ].join('\n');
+  run(['slides', 'insert', deck, '2', '--stdin'], { input: cards });
+  const slides = JSON.parse(run(['slides', 'list', deck]).stdout);
+  assert(slides.length === 2 && slides[1].title === 'Three guarantees', 'slide insertion or listing failed');
+
+  run(['slides', 'insert', deck, '3', '--content', '## Movable slide\n\nThis slide changes position.']);
+  run(['slides', 'move', deck, '3', '2']);
+  const moved = run(['slides', 'read', deck, '2']).stdout;
+  assert(moved.includes('## Movable slide'), 'slide move did not change the running order');
+  run(['slides', 'remove', deck, '2']);
+
+  const beforeInvalid = readFileSync(deck);
+  const invalid = [
+    'layout: title',
+    '',
+    '# Invalid title',
+    '',
+    '> A title slide cannot render this closer.',
+  ].join('\n');
+  const rejected = run(['slides', 'replace', deck, '2', '--content', invalid], { ok: false });
+  assert(rejected.stderr.includes('title layout cannot render quote content'), 'invalid layout error was not reported');
+  assert(beforeInvalid.equals(readFileSync(deck)), 'an invalid slide mutation changed the package');
+
+  const image = join(workspace, 'pixel.png');
+  writeFileSync(image, new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]));
+  run(['assets', 'add', deck, image, 'images/pixel.png']);
+  const withWarning = JSON.parse(run(['validate', deck]).stdout);
+  assert(withWarning.warnings.length === 1, 'an unreferenced asset should be reported as a warning');
+
+  const media = [
+    'image: ./images/pixel.png',
+    'image-alt: A test pixel',
+    '',
+    '## Packaged media',
+    '',
+    'The image lives inside this file.',
+  ].join('\n');
+  run(['slides', 'insert', deck, '3', '--content', media]);
+  const clean = JSON.parse(run(['validate', deck]).stdout);
+  assert(clean.valid && clean.slides === 3 && clean.assets === 1 && clean.warnings.length === 0, 'valid package failed');
+
+  const beforeRemove = readFileSync(deck);
+  const removeReferenced = run(['assets', 'remove', deck, 'images/pixel.png'], { ok: false });
+  assert(removeReferenced.stderr.includes('cannot remove referenced asset'), 'referenced asset removal was not rejected');
+  assert(beforeRemove.equals(readFileSync(deck)), 'failed asset removal changed the package');
+
+  run(['slides', 'remove', deck, '3']);
+  run(['assets', 'remove', deck, 'images/pixel.png']);
+  const inspected = JSON.parse(run(['inspect', deck]).stdout);
+  assert(
+    inspected.metadata.title === 'A safer deck' && inspected.slides.length === 2 && inspected.assets.length === 0,
+    'inspect did not report the final native deck',
+  );
+
+  const markdownRejected = run(['validate', join(workspace, 'deck.md')], { ok: false });
+  assert(markdownRejected.stderr.includes('expected a .quire file'), 'the authoring CLI accepted a loose Markdown deck');
+
+  console.log('PASS  quire CLI  direct native-deck operations validate and roll back safely');
+} catch (error) {
+  console.error(`FAIL  quire CLI  ${error instanceof Error ? error.message : String(error)}`);
+  process.exitCode = 1;
+} finally {
+  rmSync(workspace, { recursive: true, force: true });
+}

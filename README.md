@@ -117,15 +117,23 @@ attribution, tone, and alignment—open:
 
     http://localhost:8931/quire.html?deck=test/fixtures/visual-language.md
 
-Agents can work with ordinary source and image files, then create the native
-deck package:
+The bundled CLI creates and edits the native deck directly. The `.quire` file
+is the only persistent authoring artifact:
 
-    node src/cli.js pack path/to/deck.md path/to/deck.quire
+    node src/cli.js create deck.quire --title "Quarterly review" --theme dark
+    node src/cli.js slides list deck.quire
+    node src/cli.js slides replace deck.quire 1 --content "# Quarterly review"
+    node src/cli.js validate deck.quire
 
-The package stores relative images as files and preserves the original
-Markdown. It can be unpacked for revision with:
+Longer slide source can be supplied through standard input. Images are added as
+ordinary package entries and then referenced by the same path:
 
-    node src/cli.js unpack path/to/deck.quire path/to/work
+    node src/cli.js slides insert deck.quire 2 --stdin
+    node src/cli.js assets add deck.quire chart.png images/chart.png
+
+Every mutation validates the complete source and its asset references, writes a
+temporary package, reopens and verifies it, and atomically replaces the deck.
+Failed edits leave the original `.quire` bytes unchanged.
 
 Teach GitHub Copilot how to author the Quire dialect by installing the skill
 directly from this repository—no marketplace is required:

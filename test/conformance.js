@@ -421,6 +421,20 @@ if (existsSync(shellPath)) {
   if (unpacked.assets[0]?.type !== 'image/png') problems.push('asset MIME type did not round-trip');
   if (String(unpacked.assets[0]?.bytes) !== String(image)) problems.push('asset bytes did not round-trip');
   if (String(referencedAssetPaths(markdown)) !== 'images/pixel.png') problems.push('relative asset was not discovered');
+  const positionedImages = [
+    '# First',
+    '',
+    'image: ./not-metadata.png',
+    '',
+    '---',
+    '',
+    '  Image: ./images/second.png',
+    '',
+    '## Second',
+  ].join('\n');
+  if (String(referencedAssetPaths(positionedImages)) !== 'images/second.png') {
+    problems.push('asset discovery did not follow parsed metadata position and casing');
+  }
   try {
     packQuire(markdown, [{ path: '../escape.png', bytes: image }]);
     problems.push('package accepted a traversal path');
@@ -483,9 +497,11 @@ if (existsSync(appPath)) {
       'group: Label',
       '[!ASIDE]',
       'executable content',
-      'general-purpose Quire deck access tool',
-      'Wait for an explicit answer',
-      'representative Quire fixture with known results',
+      'quire-package.mjs create',
+      'slides replace',
+      'atomically replaces',
+      'Never edit ZIP bytes',
+      'exact headings',
       'quireFit.overflowing()',
       'Do not toggle `.active`',
     ];
@@ -495,7 +511,7 @@ if (existsSync(appPath)) {
       failed += 1;
       console.log(`FAIL  authoring guide  missing: ${missing.join(', ')}`);
     } else {
-      console.log('PASS  authoring guide  cards, slides, groups, closers, and trust boundary');
+      console.log('PASS  authoring guide  native CLI, cards, slides, groups, closers, and trust boundary');
     }
   }
   if (!/id="scaler"/.test(app)) problems.push('no stage in quire.html');

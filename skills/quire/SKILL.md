@@ -15,72 +15,62 @@ When creating or revising a deck:
 1. Write clear, concise presentation content before adding layout hints.
 2. Use the smallest Quire construct that expresses the intended slide.
 3. Keep one idea per slide and prefer readable cards, rows, or tables over dense prose.
-4. Keep a deck in its own directory with its related images and source material.
+4. Keep the deliverable as one `.quire` file and add images through the CLI.
 5. Preserve existing metadata and intentional raw HTML when editing a deck.
 6. Treat raw HTML as executable content and use it only in trusted decks.
 
-Deliver one native `.quire` deck. It is a ZIP package containing `deck.md`,
-normal image files, and `manifest.json`; the user opens and shares that one
-file. Do not create a duplicate “standalone” Markdown file with base64 images.
-
-During authoring, keep `deck.md` and its relative assets together. Use the
-`quire-package.mjs` helper beside this skill file, substituting the installed
-skill directory for `<skill-dir>`:
-
-```text
-node <skill-dir>/quire-package.mjs pack deck.md deck.quire
-```
-
-To revise an existing package, unpack it, edit its ordinary files, and repack:
-
-```text
-node <skill-dir>/quire-package.mjs unpack deck.quire work-directory
-node <skill-dir>/quire-package.mjs pack work-directory/deck.md deck.quire
-```
-
-Use data URLs in Markdown only when the raw source itself must be independently
-portable. Quire embeds packaged images automatically when standalone HTML is
-requested.
+Deliver and maintain one native `.quire` deck. It is a ZIP package containing
+Quire source, normal image files, and a manifest, but those internals are owned
+by Quire's CLI. Do not create an unpacked deck directory or a duplicate
+standalone Markdown deck.
 
 ## Editing native `.quire` decks
 
-Never edit ZIP bytes or base64 representations directly. The bundled
-`quire-package.mjs` helper is Quire's standard container-access tool, so using
-it does not require separate user approval.
+Use the bundled `quire-package.mjs` beside this skill file for every creation,
+inspection, validation, slide mutation, metadata mutation, and asset mutation.
+Substitute the installed skill directory for `<skill-dir>`.
 
 For a new deck:
 
-1. Create a temporary working directory containing `deck.md` and its relative
-   image files.
-2. Author and review those ordinary files.
-3. Pack them into the requested `.quire` destination.
-4. Open the `.quire` file in Quire and use `quireFit` to verify every slide.
+```text
+node <skill-dir>/quire-package.mjs create deck.quire --title "Deck title" --theme dark
+node <skill-dir>/quire-package.mjs slides replace deck.quire 1 --content "# Deck title"
+node <skill-dir>/quire-package.mjs validate deck.quire
+```
 
-For an existing deck:
+Pass longer slide source through standard input so shell quoting cannot alter
+it:
 
-1. Unpack the `.quire` file into a dedicated working directory.
-2. Edit `deck.md` and assets there; do not change `manifest.json` manually.
-3. Repack to the original `.quire` path only after the edits are complete.
-4. Reopen or refresh the package and verify the result.
+```text
+node <skill-dir>/quire-package.mjs slides insert deck.quire 2 --stdin
+```
 
-Packing discovers relative `image:` settings, includes those files at the same
-paths, records their media types, and refuses unsafe traversal paths. If a
-referenced image is missing, fix the source or asset rather than replacing it
-with an unrelated placeholder.
+Useful commands:
 
-### Additional structural tooling still requires a decision
+```text
+node <skill-dir>/quire-package.mjs inspect deck.quire
+node <skill-dir>/quire-package.mjs slides list deck.quire
+node <skill-dir>/quire-package.mjs slides read deck.quire 3
+node <skill-dir>/quire-package.mjs slides replace deck.quire 3 --stdin
+node <skill-dir>/quire-package.mjs slides insert deck.quire 4 --stdin
+node <skill-dir>/quire-package.mjs slides move deck.quire 4 2
+node <skill-dir>/quire-package.mjs slides remove deck.quire 4
+node <skill-dir>/quire-package.mjs metadata set deck.quire theme light
+node <skill-dir>/quire-package.mjs assets add deck.quire photo.jpg images/photo.jpg
+node <skill-dir>/quire-package.mjs assets replace deck.quire new.jpg images/photo.jpg
+node <skill-dir>/quire-package.mjs assets remove deck.quire images/photo.jpg
+node <skill-dir>/quire-package.mjs validate deck.quire
+```
 
-The package helper manages the container; it does not interpret or rewrite
-slides. For large decks, duplicate titles, slide reordering, repeated
-structures, or broad multi-slide changes, direct text editing may still be
-unreliable.
+Selectors are one-based slide numbers or exact headings. If an exact heading is
+duplicated, the CLI refuses to guess and requires a number. Every mutation
+parses the resulting source, verifies referenced assets, writes a temporary
+package, reopens it, verifies the round trip, and only then atomically replaces
+the `.quire` file. An invalid operation leaves the original bytes unchanged.
 
-Before creating or running any additional generated command, one-liner, script,
-or program that interprets slide boundaries or rewrites slides, explain the
-need and ask the user whether to continue carefully with direct edits or build
-a general-purpose Quire deck access tool. Wait for an explicit answer before
-proceeding. Test any approved structural tool against a representative Quire
-fixture with known results before using it on the user's deck.
+Never edit ZIP bytes, `manifest.json`, embedded `deck.md`, or slide separators
+directly. Do not unpack a deck as an authoring workflow. The CLI is Quire's
+approved structural tool and does not require separate user permission.
 
 ## Structural rule: settings come first
 
@@ -170,8 +160,9 @@ cropped. Prefer `image-position: left` or `right` for portraits and other
 subject-focused images. Reserve `image-position: full` for genuinely wide
 images that benefit from a panoramic band.
 
-Keep relative images beside the working source and package them into the final
-`.quire` file. A single `.md` still opens, but it cannot carry sibling assets.
+Add relative images directly to the `.quire` package with `assets add`, then
+reference the same normalized package path from the slide. A standalone `.md`
+still opens for compatibility, but it is not the authoring deliverable.
 
 ## Verify the rendered deck
 
