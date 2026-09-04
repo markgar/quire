@@ -572,6 +572,9 @@ if (existsSync(appPath)) {
     }
   }
   if (!/id="scaler"/.test(app)) problems.push('no stage in quire.html');
+  if (!/id="linkPreview"/.test(app) || !/\.slide\.active a\[href\]/.test(app)) {
+    problems.push('slide link destination preview is not present in quire.html');
+  }
   if (!/id="fitBtn"/.test(app)) problems.push('no overflow badge in quire.html');
   if (!/id="exportBtn"/.test(app)) problems.push('no export button in quire.html');
   if (!/id="installBtn"/.test(app)) problems.push('no PWA install button in quire.html');

@@ -531,11 +531,25 @@ tr:last-child td { border-bottom: none; }
 
 .nav {
   flex: 0 0 auto;
+  position: relative;
   background: var(--q-panel-strong);
   border-top: 1px solid var(--q-border);
   display: flex; align-items: center; justify-content: center;
   gap: 16px; padding: 10px 20px;
 }
+.link-preview {
+  position: absolute;
+  left: 20px;
+  max-width: calc(50% - 220px);
+  overflow: hidden;
+  color: var(--q-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.link-preview[hidden] { display: none; }
 
 /* ---- slide panel ------------------------------------------------------ */
 
@@ -674,6 +688,19 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
   .dots { display: none; }
   .hint { display: none; }
 }
+@media (max-width: 900px) {
+  .link-preview {
+    right: 12px;
+    bottom: calc(100% + 8px);
+    left: 12px;
+    max-width: none;
+    padding: 6px 9px;
+    background: var(--q-panel-strong);
+    border: 1px solid var(--q-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+  }
+}
 </style>
 </head>
 <body>
@@ -705,6 +732,7 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
 </div>
 
 <nav class="nav">
+  <span class="link-preview" id="linkPreview" hidden aria-hidden="true"></span>
   <button id="prev" type="button">&larr; Prev</button>
   <span class="counter" id="counter">1 / {n}</span>
   <button id="next" type="button">Next &rarr;</button>
@@ -727,6 +755,9 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
   const panelList = document.getElementById("panelList");
   const panelClose = document.getElementById("panelClose");
   const scrim = document.getElementById("scrim");
+  const linkPreview = document.getElementById("linkPreview");
+  let hoveredLink = null;
+  let focusedLink = null;
   let i = 0;
 
   // Hidden state starts from the Markdown (data-hidden) and can be flipped
@@ -737,6 +768,46 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
   const shownIndexes = () => slides.map((_, n) => n).filter(isShown);
 
   /*__QUIRE_METRICS__*/
+
+  function slideLink(target) {
+    if (!(target instanceof Element)) return null;
+    const link = target.closest(".slide.active a[href]");
+    return link && scaler.contains(link) ? link : null;
+  }
+
+  function syncLinkPreview() {
+    const link = focusedLink || hoveredLink;
+    if (!link) {
+      linkPreview.textContent = "";
+      linkPreview.hidden = true;
+      return;
+    }
+    linkPreview.textContent = link.href;
+    linkPreview.hidden = false;
+  }
+
+  scaler.addEventListener("pointerover", (e) => {
+    const link = slideLink(e.target);
+    if (!link) return;
+    hoveredLink = link;
+    syncLinkPreview();
+  });
+  scaler.addEventListener("pointerout", (e) => {
+    const link = slideLink(e.target);
+    if (!link) return;
+    const nextLink = slideLink(e.relatedTarget);
+    if (nextLink === link) return;
+    hoveredLink = nextLink;
+    syncLinkPreview();
+  });
+  scaler.addEventListener("focusin", (e) => {
+    focusedLink = slideLink(e.target);
+    syncLinkPreview();
+  });
+  scaler.addEventListener("focusout", (e) => {
+    focusedLink = slideLink(e.relatedTarget);
+    syncLinkPreview();
+  });
 
   function fit() {
     const cs = getComputedStyle(stage);
@@ -830,6 +901,9 @@ button:disabled:hover { background: var(--q-surface); color: var(--q-text); bord
   // ---- render -----------------------------------------------------------
   function render() {
     slides.forEach((s, k) => s.classList.toggle("active", k === i));
+    hoveredLink = null;
+    focusedLink = slideLink(document.activeElement);
+    syncLinkPreview();
 
     const shown = shownIndexes();
     // Numbering counts visible slides only, so a hidden slide does not leave

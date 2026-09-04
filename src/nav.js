@@ -18,6 +18,11 @@
   const panelList = /** @type {HTMLElement} */ (document.getElementById("panelList"));
   const panelClose = /** @type {HTMLButtonElement} */ (document.getElementById("panelClose"));
   const scrim = /** @type {HTMLElement} */ (document.getElementById("scrim"));
+  const linkPreview = /** @type {HTMLElement} */ (document.getElementById("linkPreview"));
+  /** @type {HTMLAnchorElement | null} */
+  let hoveredLink = null;
+  /** @type {HTMLAnchorElement | null} */
+  let focusedLink = null;
   let i = 0;
 
   // Hidden state starts from the Markdown (data-hidden) and can be flipped
@@ -30,6 +35,47 @@
   /** @param {number} n */
   const isShown = n => !hidden[n];
   const shownIndexes = () => slides.map((_, n) => n).filter(isShown);
+
+  /** @param {EventTarget | null} target */
+  function slideLink(target) {
+    if (!(target instanceof Element)) return null;
+    const link = target.closest(".slide.active a[href]");
+    return link instanceof HTMLAnchorElement && scaler.contains(link) ? link : null;
+  }
+
+  function syncLinkPreview() {
+    const link = focusedLink || hoveredLink;
+    if (!link) {
+      linkPreview.textContent = "";
+      linkPreview.hidden = true;
+      return;
+    }
+    linkPreview.textContent = link.href;
+    linkPreview.hidden = false;
+  }
+
+  scaler.addEventListener("pointerover", (e) => {
+    const link = slideLink(e.target);
+    if (!link) return;
+    hoveredLink = link;
+    syncLinkPreview();
+  });
+  scaler.addEventListener("pointerout", (e) => {
+    const link = slideLink(e.target);
+    if (!link) return;
+    const nextLink = slideLink(e.relatedTarget);
+    if (nextLink === link) return;
+    hoveredLink = nextLink;
+    syncLinkPreview();
+  });
+  scaler.addEventListener("focusin", (e) => {
+    focusedLink = slideLink(e.target);
+    syncLinkPreview();
+  });
+  scaler.addEventListener("focusout", (e) => {
+    focusedLink = slideLink(e.relatedTarget);
+    syncLinkPreview();
+  });
 
   function fit() {
     const cs = getComputedStyle(stage);
@@ -129,6 +175,9 @@
   // ---- render -----------------------------------------------------------
   function render() {
     slides.forEach((s, k) => s.classList.toggle("active", k === i));
+    hoveredLink = null;
+    focusedLink = slideLink(document.activeElement);
+    syncLinkPreview();
 
     const shown = shownIndexes();
     // Numbering counts visible slides only, so a hidden slide does not leave

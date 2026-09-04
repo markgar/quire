@@ -772,6 +772,7 @@ Renders and presents it locally.
 </div>
 
 <nav class="nav">
+  <span class="link-preview" id="linkPreview" hidden aria-hidden="true"></span>
   <button id="prev" type="button">&larr; Prev</button>
   <span class="counter" id="counter">&mdash;</span>
   <button id="next" type="button">Next &rarr;</button>
