@@ -487,6 +487,13 @@ if (existsSync(appPath)) {
   if (!/function fitMetricValues\b/.test(app)) {
     problems.push('app does not fit metric values to their individual cards');
   }
+  if (!/@property \{number\} wide/.test(app) ||
+      !/overflowing:\s*\(\)\s*=>\s*fitReport\.filter\(\(r\)\s*=>\s*r\.over\s*>\s*0\s*\|\|\s*r\.wide\s*>\s*0\)/.test(app)) {
+    problems.push('live viewer fit reports do not include horizontal overflow');
+  }
+  if (!/function contentOverflow\b/.test(app) || /scrollWidth\s*-\s*node\.clientWidth/.test(app)) {
+    problems.push('live viewer width checks do not ignore decorative pseudo-elements');
+  }
   if (!/function remeasureAfterAssets\b/.test(app) || !/\.addEventListener\('load', settle\)/.test(app)) {
     problems.push('app does not remeasure overflow after images settle');
   }

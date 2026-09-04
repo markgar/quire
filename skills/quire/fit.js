@@ -61,6 +61,39 @@ const CLONE_STYLE = [
   'transform:none',
 ].join(';');
 
+/** @param {{left: number, right: number}} inner @param {{left: number, right: number}} outer */
+function rectOverflow(inner, outer) {
+  return Math.max(0, inner.right - outer.right, outer.left - inner.left);
+}
+
+/**
+ * Measure real child and text content rather than scrollWidth, which includes
+ * intentionally protruding pseudo-elements such as process connector arrows.
+ *
+ * @param {HTMLElement} node
+ */
+function contentOverflow(node) {
+  const rect = node.getBoundingClientRect();
+  const width = node.clientWidth || rect.width;
+  const bounds = {
+    left: rect.left + node.clientLeft,
+    right: rect.left + node.clientLeft + width,
+  };
+  let wide = 0;
+  for (const child of Array.from(node.children)) {
+    wide = Math.max(wide, rectOverflow(child.getBoundingClientRect(), bounds));
+  }
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType !== Node.TEXT_NODE || !child.textContent?.trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(child);
+    for (const textRect of Array.from(range.getClientRects())) {
+      wide = Math.max(wide, rectOverflow(textRect, bounds));
+    }
+  }
+  return wide;
+}
+
 /**
  * @typedef {object} SlideFit
  * @property {number} index    zero-based position in the deck
@@ -111,16 +144,14 @@ export function measureDeck(scaler) {
       const slide = slides[index];
       const natural = clone.offsetHeight;
       const cloneRect = clone.getBoundingClientRect();
-      let wide = Math.max(0, clone.scrollWidth - clone.clientWidth);
+      let wide = contentOverflow(clone);
       let wideElement = '';
       for (const element of Array.from(clone.querySelectorAll('*'))) {
         const node = /** @type {HTMLElement} */ (element);
         const rect = node.getBoundingClientRect();
         const elementWide = Math.max(
-          0,
-          node.scrollWidth - node.clientWidth,
-          rect.right - cloneRect.right,
-          cloneRect.left - rect.left,
+          rectOverflow(rect, cloneRect),
+          contentOverflow(node),
         );
         if (elementWide > wide) {
           wide = Math.ceil(elementWide);
