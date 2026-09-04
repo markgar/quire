@@ -27,6 +27,13 @@ const dropHint = /** @type {HTMLElement} */ (document.getElementById('dropHint')
 const fitBtn = /** @type {HTMLButtonElement} */ (document.getElementById('fitBtn'));
 const exportBtn = /** @type {HTMLButtonElement} */ (document.getElementById('exportBtn'));
 const installBtn = /** @type {HTMLButtonElement} */ (document.getElementById('installBtn'));
+const installBanner = /** @type {HTMLElement} */ (document.getElementById('installBanner'));
+const installBannerBtn = /** @type {HTMLButtonElement} */ (document.getElementById('installBannerBtn'));
+const installBannerClose = /** @type {HTMLButtonElement} */ (document.getElementById('installBannerClose'));
+const installDialog = /** @type {HTMLDialogElement} */ (document.getElementById('installDialog'));
+const installDialogBtn = /** @type {HTMLButtonElement} */ (document.getElementById('installDialogBtn'));
+const installDialogLater = /** @type {HTMLButtonElement} */ (document.getElementById('installDialogLater'));
+const installDialogHelp = /** @type {HTMLElement} */ (document.getElementById('installDialogHelp'));
 const aboutBtn = /** @type {HTMLButtonElement} */ (document.getElementById('aboutBtn'));
 const introDialog = /** @type {HTMLDialogElement} */ (document.getElementById('introDialog'));
 const introClose = /** @type {HTMLButtonElement} */ (document.getElementById('introClose'));
@@ -47,6 +54,11 @@ let assetMap = {};
 const hasFSA = typeof window.showOpenFilePicker === 'function';
 const INTRO_KEY = 'quire:intro:v1';
 const UPDATE_STATE_KEY = 'quire:update-state:v1';
+const INSTALL_OFFER_KEY = 'quire:install-offer:v1';
+const INSTALL_BANNER_KEY = 'quire:install-banner:v1';
+const OPEN_DECK_CHANNEL = 'quire:open-decks:v1';
+const windowId = crypto.randomUUID();
+const deckChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(OPEN_DECK_CHANNEL) : null;
 
 /** @type {any} current file handle, when we have one */
 let handle = null;
@@ -75,6 +87,75 @@ let installPrompt = null;
 /** @type {ServiceWorkerRegistration | null} */
 let workerRegistration = null;
 let reloadingForUpdate = false;
+let launchedFile = false;
+let installedThisVisit = false;
+
+function isStandalone() {
+  return installedThisVisit ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    /** @type {any} */ (navigator).standalone === true;
+}
+
+function installHelp() {
+  return installPrompt
+    ? 'Your browser is ready to install Quire.'
+    : 'If no prompt appears, open quiredeck.com in desktop Chrome or Edge and choose Install Quire from the browser menu.';
+}
+
+function refreshInstallUi() {
+  const standalone = isStandalone();
+  installBtn.hidden = standalone;
+  installDialogHelp.textContent = installHelp();
+  if (standalone) {
+    installBanner.hidden = true;
+    if (installDialog.open) installDialog.close();
+    return;
+  }
+  try {
+    installBanner.hidden = sessionStorage.getItem(INSTALL_BANNER_KEY) === 'dismissed';
+  } catch {
+    installBanner.hidden = false;
+  }
+}
+
+function dismissInstallBanner() {
+  installBanner.hidden = true;
+  try {
+    sessionStorage.setItem(INSTALL_BANNER_KEY, 'dismissed');
+  } catch {
+    /* dismissal still works when session storage is unavailable */
+  }
+}
+
+function showInstallDialog() {
+  if (isStandalone() || installDialog.open) return;
+  installDialogHelp.textContent = installHelp();
+  installDialog.showModal();
+}
+
+function showInstallOfferOnce() {
+  if (isStandalone() || introDialog.open) return;
+  try {
+    if (localStorage.getItem(INSTALL_OFFER_KEY) === 'seen') return;
+    localStorage.setItem(INSTALL_OFFER_KEY, 'seen');
+  } catch {
+    /* show once for this page when storage cannot answer */
+  }
+  showInstallDialog();
+}
+
+async function requestInstall() {
+  if (!installPrompt) {
+    showInstallDialog();
+    return;
+  }
+  const prompt = installPrompt;
+  installPrompt = null;
+  if (installDialog.open) installDialog.close();
+  await prompt.prompt();
+  await prompt.userChoice;
+  refreshInstallUi();
+}
 
 // ---------------------------------------------------------------------------
 // status line
@@ -100,6 +181,7 @@ function rememberIntro() {
 function closeIntro() {
   rememberIntro();
   introDialog.close();
+  if (lastText) showInstallOfferOnce();
 }
 
 function showIntro() {
@@ -253,6 +335,7 @@ function render(markdown, opts = {}) {
   // Only a deck that rendered can be exported; the button is the affordance
   // for that, so it follows the deck rather than the file.
   exportBtn.hidden = !window.quireShell;
+  showInstallOfferOnce();
   return true;
 }
 
@@ -567,6 +650,85 @@ async function openDroppedFile(file) {
   dropHint.hidden = true;
 }
 
+function focusThisWindow() {
+  window.focus();
+  navigator.serviceWorker.controller?.postMessage('FOCUS_CLIENT');
+}
+
+function wireDeckCoordination() {
+  deckChannel?.addEventListener('message', async (event) => {
+    const message = event.data;
+    if (
+      message?.type !== 'FIND_OPEN_DECK' ||
+      message.senderId === windowId ||
+      !handle ||
+      typeof handle.isSameEntry !== 'function'
+    ) {
+      return;
+    }
+    if (await handle.isSameEntry(message.handle)) {
+      focusThisWindow();
+      deckChannel.postMessage({
+        type: 'OPEN_DECK_FOUND',
+        requestId: message.requestId,
+        targetId: message.senderId,
+      });
+    }
+  });
+}
+
+/** @param {any} h */
+function focusExistingDeck(h) {
+  if (!deckChannel || typeof h.isSameEntry !== 'function') return Promise.resolve(false);
+  const requestId = crypto.randomUUID();
+  return new Promise((resolve) => {
+    /** @param {boolean} found */
+    const finish = (found) => {
+      window.clearTimeout(timer);
+      deckChannel.removeEventListener('message', receive);
+      resolve(found);
+    };
+    /** @param {MessageEvent} event */
+    const receive = (event) => {
+      const message = event.data;
+      if (
+        message?.type === 'OPEN_DECK_FOUND' &&
+        message.requestId === requestId &&
+        message.targetId === windowId
+      ) {
+        finish(true);
+      }
+    };
+    const timer = window.setTimeout(() => finish(false), 200);
+    deckChannel.addEventListener('message', receive);
+    deckChannel.postMessage({ type: 'FIND_OPEN_DECK', requestId, senderId: windowId, handle: h });
+  });
+}
+
+function wireLaunchQueue() {
+  const launchQueue = /** @type {any} */ (window).launchQueue;
+  if (!launchQueue || typeof launchQueue.setConsumer !== 'function') return;
+  launchQueue.setConsumer(async (/** @type {any} */ params) => {
+    const h = params?.files?.[0];
+    if (!h || h.kind !== 'file') return;
+    launchedFile = true;
+    openIntent += 1;
+    try {
+      if (introDialog.open) closeIntro();
+      if (await focusExistingDeck(h)) {
+        window.close();
+        return;
+      }
+      await openHandle(h);
+    } catch (err) {
+      setStatus(
+        err instanceof Error ? `Could not open ${h.name} — ${err.message}` : `Could not open ${h.name}`,
+        'error',
+      );
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // startup
 // ---------------------------------------------------------------------------
@@ -750,6 +912,12 @@ async function main() {
     if (hasFSA) void pickDeck();
   };
   checkUpdateBtn.onclick = () => void checkForUpdates();
+  installBtn.onclick = () => void requestInstall();
+  installBannerBtn.onclick = () => void requestInstall();
+  installBannerClose.onclick = dismissInstallBanner;
+  installDialogBtn.onclick = () => void requestInstall();
+  installDialogLater.onclick = () => installDialog.close();
+  installDialog.addEventListener('cancel', () => installDialog.close());
   applyUpdateBtn.onclick = async () => {
     const waiting = workerRegistration?.waiting;
     if (!waiting) return;
@@ -761,24 +929,21 @@ async function main() {
     if (handle) await rememberHandle(handle);
     waiting.postMessage('SKIP_WAITING');
   };
-  installBtn.onclick = async () => {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    await installPrompt.userChoice;
-    installPrompt = null;
-    installBtn.hidden = true;
-  };
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     installPrompt = /** @type {BeforeInstallPromptEvent} */ (event);
-    installBtn.hidden = false;
+    refreshInstallUi();
   });
   window.addEventListener('appinstalled', () => {
     installPrompt = null;
-    installBtn.hidden = true;
+    installedThisVisit = true;
+    refreshInstallUi();
     setStatus('Quire installed', 'live');
   });
   if (!hasFSA) introOpenBtn.textContent = 'Start exploring';
+  wireDeckCoordination();
+  wireLaunchQueue();
+  refreshInstallUi();
   showIntroOnce();
   await setupPwa();
 
@@ -811,6 +976,7 @@ async function main() {
     setStatus('Drop a .quire or .md file to open it — this browser cannot watch files', 'warn');
   }
 
+  if (launchedFile) return;
   if (await tryUrlDeck()) return;
   if (await tryStoredHandle()) return;
 

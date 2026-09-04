@@ -6,8 +6,19 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "launch_handler": {
+    "client_mode": "new-client"
+  },
   "background_color": "#f7f4ef",
   "theme_color": "#b11f4b",
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/vnd.quire+zip": [".quire"]
+      }
+    }
+  ],
   "icons": [
     {
       "src": "/quire-icon-192.png",

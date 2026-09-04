@@ -553,6 +553,8 @@ if (existsSync(appPath)) {
       'quire-package.mjs import',
       'quire-package.mjs fit',
       'quire-package.mjs render',
+      'gh skill update quire --dry-run',
+      'A newer version of the Quire skill is available',
       'slides replace',
       'atomically replaces',
       'Never edit ZIP bytes',
@@ -651,11 +653,26 @@ if (existsSync(appPath)) {
       ) {
         problems.push('manifest has no 192px install icon');
       }
+      const quireHandler = manifest.file_handlers?.find(
+        (/** @type {{accept?: Record<string, string[]>}} */ handler) =>
+          handler.accept?.['application/vnd.quire+zip']?.includes('.quire'),
+      );
+      if (!quireHandler) problems.push('manifest does not register the installed app for .quire files');
+      if (manifest.launch_handler?.client_mode !== 'new-client') {
+        problems.push('manifest does not open launched decks in separate app windows');
+      }
+      if (!app.includes('launchQueue.setConsumer')) {
+        problems.push('app does not consume files launched through the installed PWA');
+      }
+      if (!app.includes('BroadcastChannel') || !app.includes('isSameEntry')) {
+        problems.push('app does not deduplicate PWA launches of an already-open deck');
+      }
       if (worker.includes('__QUIRE_VERSION__')) problems.push('service worker version was not generated');
       if (!worker.includes("'/manifest.webmanifest'") || !worker.includes("'/quire-icon-512.png'")) {
         problems.push('service worker does not cache the PWA assets');
       }
       if (!worker.includes('SKIP_WAITING')) problems.push('service worker cannot activate an accepted update');
+      if (!worker.includes('FOCUS_CLIENT')) problems.push('service worker cannot focus an existing deck window');
       if (problems.length) {
         failed += 1;
         console.log('FAIL  progressive web app');

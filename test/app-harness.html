@@ -276,10 +276,8 @@ const TESTS = [
         'the getting-started flow omits a concrete deck prompt',
       );
       assert(
-        /Go to quiredeck\.com, choose a deck, and open the generated \.quire file/.test(
-          dialog.textContent,
-        ),
-        'the getting-started flow omits the instruction to open the deck',
+        /Install the app for separate windows and direct file opening/.test(dialog.textContent),
+        'the getting-started flow omits the installed app benefits',
       );
       assert(
         f.contentWindow.localStorage.getItem('quire:intro:v1') === 'seen',
@@ -300,6 +298,33 @@ const TESTS = [
       $(returning, 'aboutBtn').click();
       assert($(returning, 'introDialog').open, 'About did not reopen the explanation');
       return 'shown once, remembered locally, and available from About';
+    },
+  },
+  {
+    name: 'the browser promotes installation without blocking deck use',
+    async fn() {
+      await clearState();
+      const fh = await writeOpfs('install-offer.md', deckOf(2));
+      const f = await loadApp(`
+        localStorage.removeItem('quire:install-offer:v1');
+        sessionStorage.removeItem('quire:install-banner:v1');
+      `);
+      assert(!$(f, 'installBtn').hidden, 'the toolbar install action is not available');
+      assert(!$(f, 'installBanner').hidden, 'the browser install banner is not visible');
+      assert(
+        /multiple decks in separate windows/.test($(f, 'installBanner').textContent),
+        'the install banner does not explain the primary benefit',
+      );
+      await openViaPicker(f, fh);
+      const dialog = $(f, 'installDialog');
+      assert(dialog.open, 'opening the first deck did not show the contextual install offer');
+      assert(
+        /desktop Chrome or Edge/.test($(f, 'installDialogHelp').textContent),
+        'unsupported-browser install guidance is missing',
+      );
+      $(f, 'installDialogLater').click();
+      assert(!dialog.open, 'the install offer could not be dismissed');
+      return 'persistent action, benefit banner, contextual offer, and browser guidance';
     },
   },
   {

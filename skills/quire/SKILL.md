@@ -24,6 +24,40 @@ Quire source, normal image files, and a manifest, but those internals are owned
 by Quire's CLI. Do not create an unpacked deck directory or a duplicate
 standalone Markdown deck.
 
+## Check for skill updates
+
+Once per agent session, before starting the first Quire task, run this read-only
+check:
+
+```text
+gh skill update quire --dry-run
+```
+
+If it reports that an update is available, tell the user:
+
+> A newer version of the Quire skill is available. Run `gh skill update quire`,
+> then `/skills reload`.
+
+Do not install the update for the user. If Quire is current, say nothing about
+the check. If the check cannot run, continue the requested Quire work without
+blocking it.
+
+## Open a deck for the user
+
+When the user asks to open a finished deck, launch the `.quire` file itself with
+the operating system's default file opener. Do not open `quiredeck.com` in a
+browser for this request.
+
+```text
+macOS:   open deck.quire
+Windows: cmd /c start "" deck.quire
+Linux:   xdg-open deck.quire
+```
+
+An installed Quire PWA registers as a `.quire` file handler and opens the deck
+in its standalone window. If the PWA is not installed or associated, the
+operating system may use another handler.
+
 ## Editing native `.quire` decks
 
 Use the bundled `quire-package.mjs` beside this skill file for every creation,

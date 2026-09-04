@@ -28,6 +28,9 @@ worker.addEventListener('activate', (/** @type {any} */ event) => {
 
 worker.addEventListener('message', (/** @type {any} */ event) => {
   if (event.data === 'SKIP_WAITING') worker.skipWaiting();
+  if (event.data === 'FOCUS_CLIENT' && typeof event.source?.focus === 'function') {
+    event.waitUntil(event.source.focus());
+  }
 });
 
 worker.addEventListener('fetch', (/** @type {any} */ event) => {

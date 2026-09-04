@@ -1,5 +1,5 @@
 // Generated with a content version by tools/build-app.js.
-const CACHE = 'quire-app-806479bfa0d8';
+const CACHE = 'quire-app-5b87bb0e5b56';
 const APP_SHELL = [
   '/',
   '/quire.html',
@@ -28,6 +28,9 @@ worker.addEventListener('activate', (/** @type {any} */ event) => {
 
 worker.addEventListener('message', (/** @type {any} */ event) => {
   if (event.data === 'SKIP_WAITING') worker.skipWaiting();
+  if (event.data === 'FOCUS_CLIENT' && typeof event.source?.focus === 'function') {
+    event.waitUntil(event.source.focus());
+  }
 });
 
 worker.addEventListener('fetch', (/** @type {any} */ event) => {
