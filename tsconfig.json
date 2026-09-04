@@ -10,10 +10,5 @@
     "types": ["node"],
     "lib": ["es2022", "dom"]
   },
-  "include": ["src/**/*.js", "src/**/*.d.ts", "test/**/*.js", "tools/**/*.js"],
-  // src/nav.js is the only file the gate does not cover. It is written as a
-  // plain browser IIFE, not a module, and predates the type work; bringing it
-  // in is worthwhile but is its own change. Every other .js in src, test and
-  // tools is checked, including the two tools that carry // @ts-check.
-  "exclude": ["src/nav.js"]
+  "include": ["src/**/*.js", "src/**/*.d.ts", "test/**/*.js", "tools/**/*.js"]
 }

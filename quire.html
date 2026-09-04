@@ -1286,30 +1286,36 @@ function fitMetricValuesAfterFonts(slides) {
   document.fonts?.ready.then(() => fitMetricValues(slides));
 }
 
+// @ts-check
+/* global fitMetricValuesAfterFonts */
+
 (() => {
   const SLIDE_W = 1280, SLIDE_H = 720;
+  /** @type {HTMLElement[]} */
   let slides = [];
+  /** @type {boolean[]} */
   let hidden = [];
-  const stage = document.getElementById("stage");
-  const scaler = document.getElementById("scaler");
-  const prev = document.getElementById("prev");
-  const next = document.getElementById("next");
-  const counter = document.getElementById("counter");
-  const dotWrap = document.getElementById("dots");
-  const burger = document.getElementById("burger");
-  const panel = document.getElementById("panel");
-  const panelList = document.getElementById("panelList");
-  const panelClose = document.getElementById("panelClose");
-  const scrim = document.getElementById("scrim");
+  const stage = /** @type {HTMLElement} */ (document.getElementById("stage"));
+  const scaler = /** @type {HTMLElement} */ (document.getElementById("scaler"));
+  const prev = /** @type {HTMLButtonElement} */ (document.getElementById("prev"));
+  const next = /** @type {HTMLButtonElement} */ (document.getElementById("next"));
+  const counter = /** @type {HTMLElement} */ (document.getElementById("counter"));
+  const dotWrap = /** @type {HTMLElement} */ (document.getElementById("dots"));
+  const burger = /** @type {HTMLButtonElement} */ (document.getElementById("burger"));
+  const panel = /** @type {HTMLElement} */ (document.getElementById("panel"));
+  const panelList = /** @type {HTMLElement} */ (document.getElementById("panelList"));
+  const panelClose = /** @type {HTMLButtonElement} */ (document.getElementById("panelClose"));
+  const scrim = /** @type {HTMLElement} */ (document.getElementById("scrim"));
   let i = 0;
 
   // Hidden state starts from the Markdown (data-hidden) and can be flipped
   // for the current session from the panel. It is deliberately not persisted:
   // the source of truth stays in the .md.
   function readSlides() {
-    slides = Array.from(scaler.querySelectorAll(".slide"));
+    slides = Array.from(scaler.querySelectorAll(".slide"), (slide) => /** @type {HTMLElement} */ (slide));
     hidden = slides.map(s => s.dataset.hidden === "true");
   }
+  /** @param {number} n */
   const isShown = n => !hidden[n];
   const shownIndexes = () => slides.map((_, n) => n).filter(isShown);
 
@@ -1331,13 +1337,13 @@ function fitMetricValuesAfterFonts(slides) {
     slides.forEach((slide, n) => {
       const item = document.createElement("div");
       item.className = "thumb";
-      item.dataset.index = n;
+      item.dataset.index = String(n);
 
       const frame = document.createElement("div");
       frame.className = "thumb-frame";
       const inner = document.createElement("div");
       inner.className = "thumb-scale";
-      const clone = slide.cloneNode(true);
+      const clone = /** @type {HTMLElement} */ (slide.cloneNode(true));
       // The clone must not carry .active: it would pollute every
       // `.slide.active` query, and the panel sits before the stage in the DOM
       // so the clone would win. `.thumb-scale .slide` displays it instead.
@@ -1378,9 +1384,11 @@ function fitMetricValuesAfterFonts(slides) {
   }
 
   function sizeThumbs() {
-    panelList.querySelectorAll(".thumb-frame").forEach(f => {
+    panelList.querySelectorAll(".thumb-frame").forEach(frame => {
+      const f = /** @type {HTMLElement} */ (frame);
       const s = f.clientWidth / SLIDE_W;
-      f.querySelector(".thumb-scale").style.transform = "scale(" + s + ")";
+      const inner = /** @type {HTMLElement} */ (f.querySelector(".thumb-scale"));
+      inner.style.transform = "scale(" + s + ")";
     });
   }
 
@@ -1399,7 +1407,7 @@ function fitMetricValuesAfterFonts(slides) {
       const d = document.createElement("button");
       d.className = "dot";
       d.type = "button";
-      d.dataset.index = n;
+      d.dataset.index = String(n);
       d.setAttribute("aria-label", "Go to slide " + (n + 1));
       d.addEventListener("click", () => go(n));
       dotWrap.appendChild(d);
@@ -1425,24 +1433,30 @@ function fitMetricValuesAfterFonts(slides) {
     }
 
     buildDots();
-    Array.from(dotWrap.children).forEach(d => d.classList.toggle("on", +d.dataset.index === i));
+    Array.from(dotWrap.children).forEach(dot => {
+      const d = /** @type {HTMLElement} */ (dot);
+      d.classList.toggle("on", +String(d.dataset.index) === i);
+    });
 
     prev.disabled = pos <= 0 && pos !== -1;
     next.disabled = pos === shown.length - 1 && pos !== -1;
     if (pos === -1) { prev.disabled = false; next.disabled = false; }
 
-    panelList.querySelectorAll(".thumb").forEach(t => {
-      const n = +t.dataset.index;
+    panelList.querySelectorAll(".thumb").forEach(thumb => {
+      const t = /** @type {HTMLElement} */ (thumb);
+      const n = Number(t.dataset.index);
       t.classList.toggle("current", n === i);
       t.classList.toggle("is-hidden", hidden[n]);
-      t.querySelector(".thumb-num").textContent =
+      const num = /** @type {HTMLElement} */ (t.querySelector(".thumb-num"));
+      const toggle = /** @type {HTMLButtonElement} */ (t.querySelector(".thumb-toggle"));
+      num.textContent =
         hidden[n] ? "Hidden" : "Slide " + (shownIndexes().indexOf(n) + 1);
-      t.querySelector(".thumb-toggle").textContent = hidden[n] ? "Show" : "Hide";
+      toggle.textContent = hidden[n] ? "Show" : "Hide";
       // data-over is written by the fit pass before refresh() runs, so the
       // panel shows which slides overflow without measuring again.
       const over = slides[n] && slides[n].dataset.over;
       t.classList.toggle("is-over", !!over);
-      const flag = t.querySelector(".thumb-over");
+      const flag = /** @type {HTMLElement} */ (t.querySelector(".thumb-over"));
       if (over) {
         flag.textContent = over + "px over";
         flag.hidden = false;
@@ -1454,6 +1468,7 @@ function fitMetricValuesAfterFonts(slides) {
     if (location.hash !== "#" + (i + 1)) history.replaceState(null, "", "#" + (i + 1));
   }
 
+  /** @param {number} n */
   function go(n) {
     i = Math.max(0, Math.min(slides.length - 1, n));
     render();
@@ -1461,6 +1476,7 @@ function fitMetricValuesAfterFonts(slides) {
 
   // Step through visible slides only; hidden ones are reachable by deep link
   // or from the panel, which is the whole point of hiding them.
+  /** @param {number} dir */
   function step(dir) {
     const shown = shownIndexes();
     if (!shown.length) return;
@@ -1522,6 +1538,7 @@ function fitMetricValuesAfterFonts(slides) {
   }
   // Called once on mount and again after every re-render. Everything that
   // depends on the slide list is rebuilt; listeners above are attached once.
+  /** @param {number | undefined} [keepIndex] */
   function refresh(keepIndex) {
     readSlides();
     if (!slides.length) return;

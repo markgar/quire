@@ -83,6 +83,8 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, '127.0.0.1', () => {
-  console.log(`quire dev server: http://localhost:${port}/quire.html`);
+  const address = server.address();
+  const activePort = typeof address === 'object' && address ? address.port : port;
+  console.log(`quire dev server: http://localhost:${activePort}/quire.html`);
   console.log(`serving ${root}`);
 });
