@@ -41,6 +41,7 @@
 /** Authoring canvas, in layout pixels. Matches `.scaler` in shell.html. */
 export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
+const WIDTH_TOLERANCE = 1;
 
 /**
  * Overrides applied to a clone so it reports its natural height.
@@ -63,32 +64,67 @@ const CLONE_STYLE = [
 
 /** @param {{left: number, right: number}} inner @param {{left: number, right: number}} outer */
 function rectOverflow(inner, outer) {
-  return Math.max(0, inner.right - outer.right, outer.left - inner.left);
+  return Math.max(
+    0,
+    inner.right - outer.right - WIDTH_TOLERANCE,
+    outer.left - inner.left - WIDTH_TOLERANCE,
+  );
+}
+
+/** @param {HTMLElement} node @returns {{left: number, right: number} | null} */
+function clientBounds(node) {
+  const rect = node.getBoundingClientRect();
+  if (!node.getClientRects().length) return null;
+  const scale = node.offsetWidth ? rect.width / node.offsetWidth : 1;
+  const clientLeft = node.clientLeft * scale;
+  const width = node.clientWidth ? node.clientWidth * scale : rect.width;
+  return {
+    left: rect.left + clientLeft,
+    right: rect.left + clientLeft + width,
+  };
+}
+
+/** @param {HTMLElement} node */
+function clipsHorizontally(node) {
+  return /^(?:auto|clip|hidden|scroll)$/.test(getComputedStyle(node).overflowX);
+}
+
+/** @param {HTMLElement} node @param {HTMLElement} slide */
+function clippingBounds(node, slide) {
+  if (node === slide) return clientBounds(slide);
+  for (let parent = node.parentElement; parent && parent !== slide; parent = parent.parentElement) {
+    if (clipsHorizontally(parent)) {
+      const bounds = clientBounds(parent);
+      if (bounds) return bounds;
+    }
+  }
+  return clientBounds(slide);
 }
 
 /**
- * Measure real child and text content rather than scrollWidth, which includes
- * intentionally protruding pseudo-elements such as process connector arrows.
+ * Measure rendered boxes and text against the boundary that can actually clip
+ * them. This ignores pseudo-elements and allows intentional visible decoration.
  *
  * @param {HTMLElement} node
+ * @param {HTMLElement} slide
  */
-function contentOverflow(node) {
-  const rect = node.getBoundingClientRect();
-  const width = node.clientWidth || rect.width;
-  const bounds = {
-    left: rect.left + node.clientLeft,
-    right: rect.left + node.clientLeft + width,
-  };
-  let wide = 0;
-  for (const child of Array.from(node.children)) {
-    wide = Math.max(wide, rectOverflow(child.getBoundingClientRect(), bounds));
-  }
+function contentOverflow(node, slide) {
+  const style = getComputedStyle(node);
+  if (style.display === 'none') return 0;
+  const bounds = clippingBounds(node, slide);
+  if (!bounds) return 0;
+  const rects = Array.from(node.getClientRects());
+  let wide = rects.reduce((amount, rect) => Math.max(amount, rectOverflow(rect, bounds)), 0);
+  const ownBounds = clientBounds(node);
   for (const child of Array.from(node.childNodes)) {
     if (child.nodeType !== Node.TEXT_NODE || !child.textContent?.trim()) continue;
     const range = document.createRange();
     range.selectNodeContents(child);
     for (const textRect of Array.from(range.getClientRects())) {
       wide = Math.max(wide, rectOverflow(textRect, bounds));
+      if (ownBounds && (style.whiteSpace === 'nowrap' || clipsHorizontally(node))) {
+        wide = Math.max(wide, rectOverflow(textRect, ownBounds));
+      }
     }
   }
   return wide;
@@ -143,16 +179,11 @@ export function measureDeck(scaler) {
     return clones.map((clone, index) => {
       const slide = slides[index];
       const natural = clone.offsetHeight;
-      const cloneRect = clone.getBoundingClientRect();
-      let wide = contentOverflow(clone);
+      let wide = contentOverflow(clone, clone);
       let wideElement = '';
       for (const element of Array.from(clone.querySelectorAll('*'))) {
         const node = /** @type {HTMLElement} */ (element);
-        const rect = node.getBoundingClientRect();
-        const elementWide = Math.max(
-          rectOverflow(rect, cloneRect),
-          contentOverflow(node),
-        );
+        const elementWide = contentOverflow(node, clone);
         if (elementWide > wide) {
           wide = Math.ceil(elementWide);
           wideElement = node.className ? `.${String(node.className).trim().replace(/\s+/g, '.')}` : node.tagName.toLowerCase();

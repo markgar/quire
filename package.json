@@ -13,7 +13,8 @@
   "engines": { "node": ">=18" },
   "files": ["src", "skills", "quire.html", "manifest.webmanifest", "quire-icon.svg", "quire-icon-192.png", "quire-icon-512.png", "apple-touch-icon.png", "service-worker.js", "SPEC.md", "LICENSE"],
   "scripts": {
-    "test": "node test/conformance.js && node test/quire-cli.js",
+    "test": "node test/conformance.js && node test/quire-cli.js && node test/visual-parity.js",
+    "test:decks": "node test/visual-parity.js",
     "test:skill": "node tools/test-skill.js",
     "guide": "node src/cli.js guide",
     "typecheck": "tsc",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.3.0",
+    "playwright-core": "1.50.1",
     "typescript": "^5.9.3"
   }
 }
