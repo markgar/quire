@@ -27,8 +27,9 @@ exactly what it does.
 
 1. **Teach your agent**
 
-   > Run `gh skill install markgar/quire quire --scope user`, then reload your
-   > skills.
+   > Install Quire as a GitHub Copilot user skill by running
+   > `gh skill install markgar/quire quire --agent github-copilot --scope user`,
+   > then reload your skills. Do not clone or copy the skill files manually.
 
 2. **Ask for a deck**
 
@@ -165,14 +166,18 @@ deck; `--slide` renders one selected slide at the native 1280×720 resolution.
 Teach GitHub Copilot how to author the Quire dialect by installing the skill
 directly from this repository—no marketplace is required:
 
-    gh skill install markgar/quire quire --scope user
+    gh skill install markgar/quire quire --agent github-copilot --scope user
+
+Install through `gh skill` rather than cloning or copying the skill directory so
+the source metadata required by `gh skill update` is preserved. Use `--force`
+only to replace an existing manual or damaged installation.
 
 Reload skills in an active Copilot CLI session with `/skills reload`, then ask
 it to use `/quire` to create or revise a presentation. The skill checks once
 per agent session for a newer published version and, when one is available,
-asks before directing you to run `gh skill update quire`. When asked to open a
-deck, the agent launches the `.quire` file through the operating system so an
-installed Quire PWA receives it.
+asks before directing you to update the user-scoped installation. When asked
+to open a deck, the agent launches the `.quire` file through the operating
+system so an installed Quire PWA receives it.
 
 The skill has an opt-in end-to-end test that installs it into a temporary
 project, starts a fresh Copilot context, and checks the native `.quire` deck the
