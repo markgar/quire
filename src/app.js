@@ -56,6 +56,8 @@ const INTRO_KEY = 'quire:intro:v1';
 const UPDATE_STATE_KEY = 'quire:update-state:v1';
 const INSTALL_OFFER_KEY = 'quire:install-offer:v1';
 const INSTALL_BANNER_KEY = 'quire:install-banner:v1';
+const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000;
+const UPDATE_FOCUS_THROTTLE = 5 * 60 * 1000;
 const OPEN_DECK_CHANNEL = 'quire:open-decks:v1';
 const windowId = crypto.randomUUID();
 const deckChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(OPEN_DECK_CHANNEL) : null;
@@ -89,6 +91,7 @@ let workerRegistration = null;
 let reloadingForUpdate = false;
 let launchedFile = false;
 let installedThisVisit = false;
+let lastAutomaticUpdateCheck = 0;
 
 function isStandalone() {
   return installedThisVisit ||
@@ -235,23 +238,39 @@ function restoreUpdateState() {
   }
 }
 
-async function checkForUpdates() {
+/** @param {boolean} [manual] */
+async function checkForUpdates(manual = true) {
   if (!workerRegistration) {
-    setStatus('Update checks are available in the installed or hosted app', 'warn');
+    if (manual) setStatus('Update checks are available in the installed or hosted app', 'warn');
     return;
   }
-  setStatus('Checking for a Quire update…');
+  if (manual) setStatus('Checking for a Quire update…');
   try {
     await workerRegistration.update();
     if (workerRegistration.waiting) {
       showUpdateReady();
-      setStatus('A new Quire version is ready', 'live');
-    } else {
+      if (manual) setStatus('A new Quire version is ready', 'live');
+    } else if (manual) {
       setStatus('Quire is up to date', 'live');
     }
   } catch (err) {
-    setStatus(err instanceof Error ? `Could not check for updates — ${err.message}` : 'Could not check for updates', 'error');
+    if (manual) {
+      setStatus(err instanceof Error ? `Could not check for updates — ${err.message}` : 'Could not check for updates', 'error');
+    }
   }
+}
+
+function checkForUpdatesAutomatically() {
+  if (document.hidden || Date.now() - lastAutomaticUpdateCheck < UPDATE_FOCUS_THROTTLE) return;
+  lastAutomaticUpdateCheck = Date.now();
+  void checkForUpdates(false);
+}
+
+function scheduleUpdateChecks() {
+  window.addEventListener('focus', checkForUpdatesAutomatically);
+  document.addEventListener('visibilitychange', checkForUpdatesAutomatically);
+  window.setInterval(checkForUpdatesAutomatically, UPDATE_CHECK_INTERVAL);
+  checkForUpdatesAutomatically();
 }
 
 async function setupPwa() {
@@ -261,7 +280,7 @@ async function setupPwa() {
   }
 
   try {
-    workerRegistration = await navigator.serviceWorker.register('/service-worker.js');
+    workerRegistration = await navigator.serviceWorker.register('/service-worker.js', { updateViaCache: 'none' });
     if (workerRegistration.waiting && navigator.serviceWorker.controller) showUpdateReady();
     workerRegistration.addEventListener('updatefound', () => {
       const installing = workerRegistration?.installing;
@@ -275,6 +294,7 @@ async function setupPwa() {
       reloadingForUpdate = true;
       location.reload();
     });
+    scheduleUpdateChecks();
   } catch (err) {
     setStatus(err instanceof Error ? `Offline app setup failed — ${err.message}` : 'Offline app setup failed', 'warn');
   }

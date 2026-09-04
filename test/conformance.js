@@ -577,7 +577,7 @@ if (existsSync(appPath)) {
   if (!/id="installBtn"/.test(app)) problems.push('no PWA install button in quire.html');
   if (!/id="updateNotice"/.test(app)) problems.push('no PWA update notice in quire.html');
   if (!/rel="manifest" href="\/manifest\.webmanifest"/.test(app)) problems.push('no web app manifest link');
-  if (!/serviceWorker\.register\('\/service-worker\.js'\)/.test(app)) problems.push('service worker is not registered');
+  if (!/serviceWorker\.register\('\/service-worker\.js'/.test(app)) problems.push('service worker is not registered');
   if (!/id="introDialog"/.test(app)) problems.push('no first-run explanation in quire.html');
   if (!/getAsFileSystemHandle/.test(app)) problems.push('file drop handles are not present in quire.html');
   if (!/unpackQuire/.test(app)) problems.push('native .quire package loading is not present in quire.html');
@@ -666,6 +666,13 @@ if (existsSync(appPath)) {
       }
       if (!app.includes('BroadcastChannel') || !app.includes('isSameEntry')) {
         problems.push('app does not deduplicate PWA launches of an already-open deck');
+      }
+      if (
+        !app.includes('updateViaCache: \'none\'') ||
+        !app.includes("window.addEventListener('focus', checkForUpdatesAutomatically)") ||
+        !app.includes('UPDATE_CHECK_INTERVAL')
+      ) {
+        problems.push('app does not proactively check for updates on launch, focus, and an interval');
       }
       if (worker.includes('__QUIRE_VERSION__')) problems.push('service worker version was not generated');
       if (!worker.includes("'/manifest.webmanifest'") || !worker.includes("'/quire-icon-512.png'")) {
