@@ -1,13 +1,35 @@
 // @ts-check
 
 import { parseQuire } from './deck.js';
+import { fencedCodeRanges, htmlOpeningTags, splitHtmlAndCode } from './html.js';
 
 const SEP = /^-{3,}\s*$/;
 const META = /^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)$/;
 const SETTING_HEADING = /^#+\s*(eyebrow|layout|hidden|numbered|badge|image|image-alt|image-position|image-fit|caption|credit|chart|diagram|source|tone|align):\s*(.*)$/i;
+/** @type {Record<string, string>} */
+const NATIVE_EQUIV = {
+  a: '[label](URL)',
+  b: '**bold**',
+  strong: '**bold**',
+  i: '*italic*',
+  em: '*italic*',
+  code: '`code`',
+};
 
 /** @param {string} value */
 const strip = (value) => value.replace(/^\s+|\s+$/g, '');
+
+/** @param {string} text */
+function maskFencedCode(text) {
+  let cursor = 0;
+  let masked = '';
+  for (const range of fencedCodeRanges(text)) {
+    masked += text.slice(cursor, range.start);
+    masked += text.slice(range.start, range.end).replace(/[^\n]/g, ' ');
+    cursor = range.end;
+  }
+  return masked + text.slice(cursor);
+}
 
 /** @param {string[]} lines */
 function hasContent(lines) {
@@ -58,7 +80,9 @@ export function parseQuireSource(markdown) {
   /** @type {{source: string, line: number}[]} */
   const slides = [];
   let chunkStart = contentStart;
-  let fenced = false;
+  const fenced = fencedCodeRanges(normalized);
+  let fenceIndex = 0;
+  let offset = lines.slice(0, contentStart).reduce((length, line) => length + line.length + 1, 0);
   const pushChunk = (/** @type {number} */ end) => {
     const chunk = lines.slice(chunkStart, end);
     if (!hasContent(chunk)) return;
@@ -70,11 +94,13 @@ export function parseQuireSource(markdown) {
   };
 
   for (let index = contentStart; index < lines.length; index += 1) {
-    if (strip(lines[index]).startsWith('```')) fenced = !fenced;
-    if (!fenced && SEP.test(lines[index])) {
+    while (fenced[fenceIndex] && fenced[fenceIndex].end < offset) fenceIndex += 1;
+    const inFence = Boolean(fenced[fenceIndex] && fenced[fenceIndex].start <= offset && offset <= fenced[fenceIndex].end);
+    if (!inFence && SEP.test(lines[index])) {
       pushChunk(index);
       chunkStart = index + 1;
     }
+    offset += lines[index].length + 1;
   }
   pushChunk(lines.length);
 
@@ -109,8 +135,37 @@ export function validateQuireSource(markdown) {
   if (source.metadata.theme && !/^(?:light|dark)$/i.test(source.metadata.theme)) {
     throw new Error(`document metadata theme must be light or dark, got ${source.metadata.theme}`);
   }
+  const rawHtmlErrors = nativeEquivalentHtmlErrors(source);
+  if (rawHtmlErrors.length) {
+    throw new Error(`raw HTML has native Quire equivalents:\n${rawHtmlErrors.join('\n')}`);
+  }
 
   return { deck: parseQuire(markdown), source };
+}
+
+/** @param {ReturnType<typeof parseQuireSource>} source */
+function nativeEquivalentHtmlErrors(source) {
+  /** @type {string[]} */
+  const errors = [];
+  for (const [index, slide] of source.slides.entries()) {
+    const text = maskFencedCode(slide.source);
+    let offset = 0;
+    for (const segment of splitHtmlAndCode(text)) {
+      if (segment.type === 'html') {
+        for (const tag of htmlOpeningTags(segment.value)) {
+          const replacement = NATIVE_EQUIV[tag.name];
+          if (!replacement) continue;
+          const absoluteIndex = offset + tag.index;
+          const lineOffset = text.slice(0, absoluteIndex).split('\n').length - 1;
+          errors.push(
+            `slide ${index + 1}, line ${slide.line + lineOffset}: raw <${tag.name}> tag — use ${replacement} instead`,
+          );
+        }
+      }
+      offset += segment.type === 'code' ? segment.value.length + 2 : segment.value.length;
+    }
+  }
+  return errors;
 }
 
 /** @param {string} markdown */
@@ -120,16 +175,22 @@ export function sourceWarnings(markdown) {
   const warnings = [];
   for (const [index, slide] of source.slides.entries()) {
     let contentSeen = false;
-    let fenced = false;
+    const fenced = fencedCodeRanges(slide.source);
+    let fenceIndex = 0;
+    let offset = 0;
     for (const [lineIndex, line] of slide.source.split('\n').entries()) {
       const text = strip(line);
-      if (!text) continue;
-      if (text.startsWith('```')) {
-        fenced = !fenced;
+      while (fenced[fenceIndex] && fenced[fenceIndex].end < offset) fenceIndex += 1;
+      const inFence = Boolean(fenced[fenceIndex] && fenced[fenceIndex].start <= offset && offset <= fenced[fenceIndex].end);
+      if (inFence) {
         contentSeen = true;
+        offset += line.length + 1;
         continue;
       }
-      if (fenced) continue;
+      if (!text) {
+        offset += line.length + 1;
+        continue;
+      }
       const setting = SETTING_HEADING.exec(text);
       if (setting && contentSeen) {
         warnings.push(
@@ -137,6 +198,7 @@ export function sourceWarnings(markdown) {
         );
       }
       if (!setting) contentSeen = true;
+      offset += line.length + 1;
     }
   }
   return warnings;

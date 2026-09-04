@@ -6,7 +6,7 @@
  * behavior must update the spec and reviewed fixture snapshots together.
  */
 
-import { mapOutsideHtml } from './html.js';
+import { fencedCodeRanges, splitHtmlAndCode } from './html.js';
 
 /**
  * @typedef {Object} Card
@@ -127,16 +127,33 @@ const linkTarget = (value) => {
  */
 export function inline(text) {
   if (!text) return '';
-  return mapOutsideHtml(strip(text), (plain) => {
-    const linked = plain.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (whole, label, target) => {
+  /** @type {string[]} */
+  const html = [];
+  /** @type {string[]} */
+  const code = [];
+  const masked = splitHtmlAndCode(strip(text))
+    .map((segment) => {
+      if (segment.type === 'plain') return segment.value;
+      if (segment.type === 'code') {
+        code.push(segment.value);
+        return `\u0000c${code.length - 1}\u0000`;
+      }
+      html.push(segment.value);
+      return `\u0000h${html.length - 1}\u0000`;
+    })
+    .join('');
+
+  const out = masked
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (whole, label, target) => {
       const href = linkTarget(target);
       return href ? `<a href="${inlineAttr(href)}">${label}</a>` : whole;
-    });
-    return linked
-      .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/(?<![\w*])\*(?!\s)([\s\S]+?)(?<!\s)\*(?![\w*])/g, '<em>$1</em>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>');
-  });
+    })
+    .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<![\w*])\*(?!\s)([\s\S]+?)(?<!\s)\*(?![\w*])/g, '<em>$1</em>');
+
+  return out
+    .replace(/\u0000h(\d+)\u0000/g, (_, index) => html[Number(index)])
+    .replace(/\u0000c(\d+)\u0000/g, (_, index) => `<code>${code[Number(index)]}</code>`);
 }
 
 // ---------------------------------------------------------------------------
@@ -177,11 +194,14 @@ export function splitSlides(text) {
   const chunkLines = [];
   /** @type {string[]} */
   let cur = [];
-  let fenced = false;
+  const fenced = fencedCodeRanges(text);
+  let fenceIndex = 0;
+  let offset = lines.slice(0, start).reduce((length, line) => length + line.length + 1, 0);
   let chunkLine = start + 1;
   for (const [relativeIndex, line] of lines.slice(start).entries()) {
-    if (strip(line).startsWith('```')) fenced = !fenced;
-    if (!fenced && SEP.test(line)) {
+    while (fenced[fenceIndex] && fenced[fenceIndex].end < offset) fenceIndex += 1;
+    const inFence = Boolean(fenced[fenceIndex] && fenced[fenceIndex].start <= offset && offset <= fenced[fenceIndex].end);
+    if (!inFence && SEP.test(line)) {
       chunks.push(cur);
       chunkLines.push(chunkLine);
       cur = [];
@@ -189,6 +209,7 @@ export function splitSlides(text) {
     } else {
       cur.push(line);
     }
+    offset += line.length + 1;
   }
   chunks.push(cur);
   chunkLines.push(chunkLine);

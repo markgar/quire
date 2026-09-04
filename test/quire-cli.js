@@ -164,6 +164,35 @@ try {
   const markdownRejected = run(['validate', join(workspace, 'deck.md')], { ok: false });
   assert(markdownRejected.stderr.includes('expected a .quire file'), 'the authoring CLI accepted a loose Markdown deck');
 
+  const rawHtmlSource = join(workspace, 'raw-html.md');
+  const rawHtmlDeck = join(workspace, 'raw-html.quire');
+  writeFileSync(rawHtmlSource, [
+    '# Raw HTML',
+    '',
+    '<a href="one">one</a> <strong>bold</strong>',
+    '<br> stays legal and `<code>inline code is exempt</code>`',
+    '',
+    '```html',
+    '<em>fenced code is exempt</em>',
+    '```',
+    '',
+    '---',
+    '',
+    '## Second',
+    '',
+    '<i>italic</i> <b>bold</b>',
+  ].join('\n'));
+  const rawHtmlRejected = run(['import', rawHtmlSource, rawHtmlDeck], { ok: false });
+  for (const expected of [
+    'raw <a> tag — use [label](URL) instead',
+    'raw <strong> tag — use **bold** instead',
+    'raw <i> tag — use *italic* instead',
+    'raw <b> tag — use **bold** instead',
+  ]) {
+    assert(rawHtmlRejected.stderr.includes(expected), `validation did not report ${expected}`);
+  }
+  assert(!rawHtmlRejected.stderr.includes('raw <br>') && !rawHtmlRejected.stderr.includes('raw <code>'), 'validation rejected exempt HTML');
+
   const importedSource = join(workspace, 'import.md');
   const importedDeck = join(workspace, 'imported.quire');
   writeFileSync(importedSource, [

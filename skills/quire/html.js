@@ -49,7 +49,7 @@ function readTag(text, start) {
     };
   }
 
-  const lead = text.slice(start).match(/^<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9:-]*)\b/);
+  const lead = text.slice(start).match(/^<(\/?)([a-zA-Z][a-zA-Z0-9:-]*)\b/);
   if (!lead) {
     if (!/^<\s*[!?]/.test(text.slice(start))) return null;
   }
@@ -134,15 +134,23 @@ function elementEnd(text, opening) {
 }
 
 /**
- * Transform plain-text regions while preserving raw HTML regions byte for
- * byte, including attributes, comments, scripts, and nested elements.
+ * @typedef {{type: 'plain' | 'html', value: string}} HtmlSegment
+ */
+
+/**
+ * @typedef {{type: 'plain' | 'html' | 'code', value: string}} InlineSegment
+ */
+
+/**
+ * Split text into plain-text and raw HTML regions, preserving every region byte
+ * for byte, including attributes, comments, scripts, and nested elements.
  *
  * @param {string} text
- * @param {(plain: string) => string} transform
- * @returns {string}
+ * @returns {HtmlSegment[]}
  */
-export function mapOutsideHtml(text, transform) {
-  let out = '';
+export function splitHtml(text) {
+  /** @type {HtmlSegment[]} */
+  const segments = [];
   let plainStart = 0;
   let cursor = 0;
 
@@ -154,12 +162,144 @@ export function mapOutsideHtml(text, transform) {
       cursor = next + 1;
       continue;
     }
-    out += transform(text.slice(plainStart, next));
+    segments.push({ type: 'plain', value: text.slice(plainStart, next) });
     const end = elementEnd(text, tag);
-    out += text.slice(next, end);
+    segments.push({ type: 'html', value: text.slice(next, end) });
     cursor = end;
     plainStart = end;
   }
 
-  return out + transform(text.slice(plainStart));
+  segments.push({ type: 'plain', value: text.slice(plainStart) });
+  return segments;
+}
+
+/**
+ * Split inline content with code spans taking precedence over raw HTML. This
+ * keeps tag-shaped examples inside backticks from becoming raw HTML regions.
+ *
+ * @param {string} text
+ * @returns {InlineSegment[]}
+ */
+export function splitHtmlAndCode(text) {
+  /** @type {InlineSegment[]} */
+  const segments = [];
+  let plainStart = 0;
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const nextHtml = text.indexOf('<', cursor);
+    const nextCode = text.indexOf('`', cursor);
+    if (nextHtml < 0 && nextCode < 0) break;
+    if (nextCode >= 0 && (nextHtml < 0 || nextCode < nextHtml)) {
+      const close = text.indexOf('`', nextCode + 1);
+      if (close >= 0 && !text.slice(nextCode + 1, close).includes('\n')) {
+        segments.push({ type: 'plain', value: text.slice(plainStart, nextCode) });
+        segments.push({ type: 'code', value: text.slice(nextCode + 1, close) });
+        cursor = close + 1;
+        plainStart = cursor;
+        continue;
+      }
+      cursor = nextCode + 1;
+      continue;
+    }
+
+    const tag = readTag(text, nextHtml);
+    if (!tag) {
+      cursor = nextHtml + 1;
+      continue;
+    }
+    segments.push({ type: 'plain', value: text.slice(plainStart, nextHtml) });
+    const end = elementEnd(text, tag);
+    segments.push({ type: 'html', value: text.slice(nextHtml, end) });
+    cursor = end;
+    plainStart = end;
+  }
+
+  segments.push({ type: 'plain', value: text.slice(plainStart) });
+  return segments;
+}
+
+/**
+ * Find fenced code ranges with raw HTML taking precedence outside a fence and
+ * fence contents taking precedence once a fence opens.
+ *
+ * @param {string} text
+ * @returns {{start: number, end: number}[]}
+ */
+export function fencedCodeRanges(text) {
+  const ranges = [];
+  const fence = /^([ \t]*)(`{3,})/gm;
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    fence.lastIndex = cursor;
+    const nextFence = fence.exec(text);
+    const nextHtml = text.indexOf('<', cursor);
+    if (!nextFence && nextHtml < 0) break;
+
+    if (nextHtml >= 0 && (!nextFence || nextHtml < nextFence.index)) {
+      const tag = readTag(text, nextHtml);
+      cursor = tag ? elementEnd(text, tag) : nextHtml + 1;
+      continue;
+    }
+    if (!nextFence) break;
+
+    const start = nextFence.index;
+    const openingLength = nextFence[2].length;
+    const openingEnd = text.indexOf('\n', start);
+    if (openingEnd < 0) {
+      ranges.push({ start, end: text.length });
+      break;
+    }
+    const closing = new RegExp(`^[ \\t]*\`{${openingLength},}[ \\t]*$`, 'gm');
+    closing.lastIndex = openingEnd + 1;
+    const match = closing.exec(text);
+    const end = match ? match.index + match[0].length : text.length;
+    ranges.push({ start, end });
+    cursor = end;
+  }
+
+  return ranges;
+}
+
+/**
+ * Return actual opening tags while ignoring attributes, comments, and tag-like
+ * text inside raw-text elements.
+ *
+ * @param {string} text
+ * @returns {{name: string, index: number}[]}
+ */
+export function htmlOpeningTags(text) {
+  const tags = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    const next = text.indexOf('<', cursor);
+    if (next < 0) break;
+    const tag = readTag(text, next);
+    if (!tag) {
+      cursor = next + 1;
+      continue;
+    }
+    cursor = tag.end;
+    if (tag.special || tag.closing) continue;
+    tags.push({ name: tag.name, index: next });
+    if (tag.name === 'plaintext' || RAW_TEXT_ELEMENTS.has(tag.name) || RCDATA_ELEMENTS.has(tag.name)) {
+      cursor = elementEnd(text, tag);
+    }
+  }
+  return tags;
+}
+
+/**
+ * Transform plain-text regions while preserving raw HTML regions byte for
+ * byte, including attributes, comments, scripts, and nested elements.
+ *
+ * @param {string} text
+ * @param {(plain: string) => string} transform
+ * @returns {string}
+ */
+export function mapOutsideHtml(text, transform) {
+  return splitHtml(text)
+    .map((segment) => (segment.type === 'plain' ? transform(segment.value) : segment.value))
+    .join('');
 }
