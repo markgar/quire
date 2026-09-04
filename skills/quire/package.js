@@ -1,6 +1,8 @@
 // @ts-check
 // Shared by the installed Quire skill, browser viewer, and Node CLI.
 
+import { splitSlides, takeMeta } from './deck.js';
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const ZIP_LOCAL = 0x04034b50;
@@ -32,7 +34,7 @@ function crc32(bytes) {
 }
 
 /** @param {string} path */
-function safeEntryPath(path) {
+export function safeEntryPath(path) {
   const normalized = path.replace(/\\/g, '/').replace(/^\.\//, '');
   if (
     !normalized ||
@@ -60,6 +62,12 @@ function bufferPart(size) {
  * @param {{path: string, bytes: Uint8Array, type?: string}[]} assets
  */
 export function packQuire(markdown, assets = []) {
+  const paths = new Set(['manifest.json', 'deck.md']);
+  for (const asset of assets) {
+    const path = safeEntryPath(asset.path);
+    if (paths.has(path)) throw new Error(`Duplicate Quire package path: ${path}`);
+    paths.add(path);
+  }
   const manifest = {
     format: 'quire',
     version: 1,
@@ -158,6 +166,7 @@ export function unpackQuire(input) {
     const commentLength = view.getUint16(offset + 32, true);
     const localOffset = view.getUint32(offset + 42, true);
     const path = safeEntryPath(decoder.decode(bytes.subarray(offset + 46, offset + 46 + nameLength)));
+    if (files.has(path)) throw new Error(`Duplicate Quire package path: ${path}`);
     if (view.getUint32(localOffset, true) !== ZIP_LOCAL) throw new Error('Invalid Quire package entry.');
     const localNameLength = view.getUint16(localOffset + 26, true);
     const localExtraLength = view.getUint16(localOffset + 28, true);
@@ -171,21 +180,39 @@ export function unpackQuire(input) {
   const markdownBytes = files.get('deck.md');
   const manifestBytes = files.get('manifest.json');
   if (!markdownBytes || !manifestBytes) throw new Error('A Quire package must contain deck.md and manifest.json.');
-  const manifest = JSON.parse(decoder.decode(manifestBytes));
+  let manifest;
+  try {
+    manifest = JSON.parse(decoder.decode(manifestBytes));
+  } catch {
+    throw new Error('Invalid Quire package manifest JSON.');
+  }
   if (manifest?.format !== 'quire' || manifest?.version !== 1 || manifest?.entry !== 'deck.md') {
     throw new Error('Unsupported Quire package manifest.');
   }
-  const assetTypes = manifest.assets && typeof manifest.assets === 'object' ? manifest.assets : {};
+  if (!manifest.assets || typeof manifest.assets !== 'object' || Array.isArray(manifest.assets)) {
+    throw new Error('A Quire package manifest must contain an asset map.');
+  }
+  const assetTypes = manifest.assets;
+  for (const path of Object.keys(assetTypes)) {
+    const normalized = safeEntryPath(path);
+    if (normalized === 'deck.md' || normalized === 'manifest.json' || !files.has(normalized)) {
+      throw new Error(`Quire package manifest references a missing asset: ${path}`);
+    }
+  }
   const assets = [...files.entries()]
     .filter(([path]) => path !== 'deck.md' && path !== 'manifest.json')
-    .map(([path, content]) => ({ path, bytes: content, type: String(assetTypes[path] || '') }));
+    .map(([path, content]) => {
+      if (!(path in assetTypes)) throw new Error(`Quire package asset is missing from the manifest: ${path}`);
+      return { path, bytes: content, type: String(assetTypes[path] || '') };
+    });
   return { markdown: decoder.decode(markdownBytes), assets };
 }
 
 /** @param {string} markdown */
 export function referencedAssetPaths(markdown) {
-  return [...markdown.matchAll(/^image:[ \t]*(.+?)[ \t]*$/gm)]
-    .map((match) => match[1])
+  return splitSlides(markdown).chunks
+    .map((chunk) => takeMeta(chunk)[0].image)
+    .filter((path) => path !== undefined)
     .filter((path) => !/^(?:data:|[a-z][a-z0-9+.-]*:|\/|\/\/)/i.test(path))
     .map(safeEntryPath);
 }

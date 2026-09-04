@@ -13,7 +13,7 @@
   "engines": { "node": ">=18" },
   "files": ["src", "skills", "quire.html", "manifest.webmanifest", "quire-icon.svg", "quire-icon-192.png", "quire-icon-512.png", "apple-touch-icon.png", "service-worker.js", "SPEC.md", "LICENSE"],
   "scripts": {
-    "test": "node test/conformance.js",
+    "test": "node test/conformance.js && node test/quire-cli.js",
     "test:skill": "node tools/test-skill.js",
     "guide": "node src/cli.js guide",
     "typecheck": "tsc",

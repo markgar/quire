@@ -646,8 +646,8 @@ window.quireShell = ${embedShell()};
 </script>
 
 <script type="module">
-${inline('html.js')}
-${inline('deck.js')}
+${inline('../skills/quire/html.js')}
+${inline('../skills/quire/deck.js')}
 ${inline('render.js')}
 ${inline('fit.js')}
 ${inline('export.js')}

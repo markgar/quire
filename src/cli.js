@@ -9,13 +9,14 @@
  * behaviour lives in deck.js and render.js, which the browser will share.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, extname, join } from 'node:path';
 import { parseQuire } from './deck.js';
 import { page, readSource } from './render.js';
 import { AUTHORING_GUIDE } from './guide.js';
-import { packQuire, referencedAssetPaths, unpackQuire } from '../skills/quire/package.js';
+import { unpackQuire } from '../skills/quire/package.js';
+import { runCli as runDeckCli } from '../skills/quire/quire-package.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -72,45 +73,20 @@ if (invokedDirectly) {
     console.log(AUTHORING_GUIDE);
     process.exit(0);
   }
-  if (args[0] === 'pack') {
-    const [, src, out] = args;
-    if (!src || !out) {
-      console.error('usage: node src/cli.js pack <deck.md> <out.quire>');
-      process.exit(2);
+  if (new Set(['create', 'validate', 'inspect', 'metadata', 'slides', 'assets']).has(args[0])) {
+    try {
+      runDeckCli(args);
+      process.exit(0);
+    } catch (error) {
+      console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
     }
-    const markdown = readFileSync(src, 'utf8');
-    const root = dirname(src);
-    const assets = referencedAssetPaths(markdown).map((path) => ({
-      path,
-      bytes: new Uint8Array(readFileSync(join(root, path))),
-      type: mimeFor(path),
-    }));
-    writeFileSync(out, packQuire(markdown, assets));
-    console.log(`wrote ${out}  (${assets.length} assets)`);
-    process.exit(0);
-  }
-  if (args[0] === 'unpack') {
-    const [, src, out] = args;
-    if (!src || !out) {
-      console.error('usage: node src/cli.js unpack <deck.quire> <directory>');
-      process.exit(2);
-    }
-    const packaged = unpackQuire(new Uint8Array(readFileSync(src)));
-    mkdirSync(out, { recursive: true });
-    writeFileSync(join(out, 'deck.md'), packaged.markdown);
-    for (const asset of packaged.assets) {
-      const target = join(out, asset.path);
-      mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, asset.bytes);
-    }
-    console.log(`wrote ${out}  (${packaged.assets.length} assets)`);
-    process.exit(0);
   }
   const noSource = args.includes('--no-source');
   const [out, src] = args.filter((a) => !a.startsWith('--'));
   if (!out || !src) {
     console.error(
-      'usage: node src/cli.js guide | pack <deck.md> <out.quire> | unpack <deck.quire> <directory> | [--no-source] <out.html> <deck.md|deck.quire>',
+      'usage: node src/cli.js guide | create|validate|inspect|metadata|slides|assets ... | [--no-source] <out.html> <deck.md|deck.quire>',
     );
     process.exit(2);
   }

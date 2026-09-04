@@ -6,9 +6,10 @@
     npm run check      # type gate, app build, conformance suite
     npm run serve      # http://localhost:8931/quire.html
 
-There is no build step for the source. `src/*.js` is plain JavaScript with
-`// @ts-check` and JSDoc, checked by `tsc --noEmit`. The runtime files stay
-directly readable and executable while still passing a strict type gate.
+There is no build step for the source. Runtime modules are plain JavaScript with
+`// @ts-check` and JSDoc, checked by `tsc --noEmit`. The canonical parser and
+native-deck CLI live in `skills/quire/` so an installed skill carries the same
+implementation as the app.
 
 `quire.html` **is** generated, by `tools/build-app.js`, and is committed
 because it is the deployable. `npm run check` rebuilds it, so commit the result
@@ -32,6 +33,11 @@ run in a browser:
 
     npm run serve
     # open http://localhost:8931/test/app-harness.html
+
+`test/quire-cli.js` copies the installed-skill files into an isolated temporary
+directory and exercises direct `.quire` creation and mutation, semantic
+validation, assets, inspection, and byte-for-byte rollback after rejected
+edits. It runs as part of `npm test`.
 
 ## The bar for a test
 
