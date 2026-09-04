@@ -6,14 +6,74 @@ import { fencedCodeRanges, htmlOpeningTags, splitHtmlAndCode } from './html.js';
 const SEP = /^-{3,}\s*$/;
 const META = /^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)$/;
 const SETTING_HEADING = /^#+\s*(eyebrow|layout|hidden|numbered|badge|image|image-alt|image-position|image-fit|caption|credit|chart|diagram|source|tone|align):\s*(.*)$/i;
-/** @type {Record<string, string>} */
+/** @type {Record<string, {replacement: string, consequence?: string}>} */
 const NATIVE_EQUIV = {
-  a: '[label](URL)',
-  b: '**bold**',
-  strong: '**bold**',
-  i: '*italic*',
-  em: '*italic*',
-  code: '`code`',
+  a: { replacement: '[label](URL)' },
+  b: { replacement: '**bold**' },
+  strong: { replacement: '**bold**' },
+  i: { replacement: '*italic*' },
+  em: { replacement: '*italic*' },
+  code: { replacement: '`code`' },
+  h1: {
+    replacement: '# Title heading',
+    consequence: 'raw headings do not create native title headings or affect layout selection',
+  },
+  h2: {
+    replacement: '## Slide heading',
+    consequence: 'raw headings do not create native slide headings or affect layout selection',
+  },
+  h3: {
+    replacement: '### Card heading',
+    consequence: 'raw headings do not create cards or affect layout selection',
+  },
+  ul: {
+    replacement: '- rows',
+    consequence: 'raw lists do not create rows or diagram nodes',
+  },
+  ol: {
+    replacement: '1. rows',
+    consequence: 'raw lists do not create rows or diagram nodes',
+  },
+  li: {
+    replacement: '- or 1. row syntax',
+    consequence: 'raw list items do not create rows or diagram nodes',
+  },
+  table: {
+    replacement: 'a pipe table',
+    consequence: 'raw tables do not create Quire tables or chart data',
+  },
+  thead: {
+    replacement: 'a pipe table',
+    consequence: 'raw table sections do not create Quire tables or chart data',
+  },
+  tbody: {
+    replacement: 'a pipe table',
+    consequence: 'raw table sections do not create Quire tables or chart data',
+  },
+  tr: {
+    replacement: 'a pipe table row',
+    consequence: 'raw table rows do not create Quire tables or chart data',
+  },
+  th: {
+    replacement: 'a pipe table header',
+    consequence: 'raw table headers do not create Quire tables or chart data',
+  },
+  td: {
+    replacement: 'a pipe table cell',
+    consequence: 'raw table cells do not create Quire tables or chart data',
+  },
+  blockquote: {
+    replacement: '> quote syntax',
+    consequence: 'raw blockquotes do not create pull quotes, notes, or kickers',
+  },
+  pre: {
+    replacement: 'a ``` fenced code block',
+    consequence: 'raw preformatted blocks do not create Quire code blocks',
+  },
+  img: {
+    replacement: 'an image: setting with assets add',
+    consequence: 'raw images bypass packaged assets and asset validation',
+  },
 };
 
 /** @param {string} value */
@@ -165,12 +225,13 @@ function nativeEquivalentHtmlErrors(source) {
     for (const segment of splitHtmlAndCode(text)) {
       if (segment.type === 'html') {
         for (const tag of htmlOpeningTags(segment.value)) {
-          const replacement = NATIVE_EQUIV[tag.name];
-          if (!replacement) continue;
+          const native = NATIVE_EQUIV[tag.name];
+          if (!native) continue;
           const absoluteIndex = offset + tag.index;
           const lineOffset = text.slice(0, absoluteIndex).split('\n').length - 1;
+          const consequence = native.consequence ? `\n  (${native.consequence})` : '';
           errors.push(
-            `slide ${index + 1}, line ${slide.line + lineOffset}: raw <${tag.name}> tag — use ${replacement} instead`,
+            `slide ${index + 1}, line ${slide.line + lineOffset}: raw <${tag.name}> tag — use ${native.replacement} instead${consequence}`,
           );
         }
       }

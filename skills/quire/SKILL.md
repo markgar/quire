@@ -286,20 +286,13 @@ adds a badge to a rows slide.
 `**bold**`, `*italic*`, `` `code` ``, and `[label](URL)` links are supported.
 Their delimiters may span legal raw HTML, so `**bold with <br> inside**` works.
 
-Raw HTML passes through unchanged and is executable content, but validation
-rejects tags that have native Quire equivalents:
-
-| Raw HTML | Use instead |
-|---|---|
-| `<a>` | `[label](URL)` |
-| `<b>`, `<strong>` | `**bold**` |
-| `<i>`, `<em>` | `*italic*` |
-| `<code>` | `` `code` `` |
-
-Validation reports every violation in the deck at once. Tag-shaped examples
-inside inline code spans or fenced code blocks are exempt. Raw `<br>`, `<span>`,
-`<sup>`, `<img>`, SVG, and other elements without native equivalents remain
-available for trusted decks.
+Raw HTML passes through unchanged and is executable content. Do not use raw
+HTML for links, emphasis, code, headings, lists, tables, blockquotes, or images:
+Quire owns those roles natively, and package writes reject their HTML tags.
+Validation reports every violation in the deck at once and names the native
+replacement. Tag-shaped examples inside inline code spans or fenced code blocks
+are exempt. Raw `<br>`, `<span>`, `<sup>`, SVG, and other elements without
+native equivalents remain available for trusted decks.
 
 When working inside the Quire repository, consult `SPEC.md` for the normative
 format and `test/fixtures/` for complete examples.
