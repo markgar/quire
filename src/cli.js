@@ -2,7 +2,7 @@
 /**
  * Build a deck from Quire source, or print the agent authoring guide.
  *
- * Usage: node src/cli.js <out.html> <deck.md|deck.quire>
+ * Usage: node src/cli.js <out.html> <deck.quire>
  *
  * This exists so decks can still be built headlessly while the runtime that
  * renders in the browser is being written. It is deliberately thin: all the
@@ -47,7 +47,7 @@ function main(args) {
     console.log(AUTHORING_GUIDE);
     return;
   }
-  if (new Set(['create', 'import', 'validate', 'inspect', 'fit', 'render', 'metadata', 'slides', 'assets']).has(args[0])) {
+  if (new Set(['create', 'validate', 'inspect', 'fit', 'render', 'metadata', 'slides', 'assets']).has(args[0])) {
     try {
       runDeckCli(args);
     } catch (error) {
@@ -60,21 +60,19 @@ function main(args) {
   const [out, src] = args.filter((a) => !a.startsWith('--'));
   if (!out || !src) {
     console.error(
-      'usage: node src/cli.js guide | create|import|validate|inspect|fit|render|metadata|slides|assets ... | [--no-source] <out.html> <deck.md|deck.quire>',
+      'usage: node src/cli.js guide | create|validate|inspect|fit|render|metadata|slides|assets ... | [--no-source] <out.html> <deck.quire>',
     );
     process.exitCode = 2;
     return;
   }
-  let markdown;
-  /** @type {Record<string, string> | undefined} */
-  let assets;
-  if (/\.quire$/i.test(src)) {
-    const packaged = unpackQuire(new Uint8Array(readFileSync(src)));
-    markdown = packaged.markdown;
-    assets = assetMap(packaged.assets);
-  } else {
-    markdown = readFileSync(src, 'utf8');
+  if (!/\.quire$/i.test(src)) {
+    console.error(`error: expected a .quire file: ${src}`);
+    process.exitCode = 1;
+    return;
   }
+  const packaged = unpackQuire(new Uint8Array(readFileSync(src)));
+  const markdown = packaged.markdown;
+  const assets = assetMap(packaged.assets);
   const html = buildHtml(markdown, { embedSource: !noSource, assetMap: assets });
 
   // A deck that cannot give its source back is not self-describing, so verify

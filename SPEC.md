@@ -44,8 +44,8 @@ contact-sheet PNG or one native-size slide PNG for local visual inspection.
 ## 1. Document
 
 The source document is one UTF-8 text file named `deck.md` inside a native
-`.quire` package. The viewer also accepts standalone `.md` source files for
-compatibility and development.
+`.quire` package. It is an internal package entry, not a standalone storage
+format or viewer input.
 
 An optional metadata block may open the file. It is delimited by `---` lines and
 must be the first non-blank content.
@@ -67,7 +67,7 @@ Recognised document keys:
 |---|---|
 | `title` | Document title. Defaults to `Presentation`. |
 | `theme` | Deck theme: `light` or `dark`. The viewer’s **T** shortcut is a temporary preview and does not edit this value. |
-| `format` | Advisory format identifier for tools inspecting `deck.md`. New native decks use `Quire presentation`. |
+| `format` | Advisory format identifier for tools inspecting the package source. New native decks use `Quire presentation`. |
 | `viewer` | Advisory URL for opening the deck. New native decks use `https://quiredeck.com`. |
 | `agent-instructions` | Consent-first guidance for agents handling an otherwise unknown `.quire` file. |
 
@@ -122,7 +122,7 @@ content.
 Within a `.quire` package, relative `image` paths resolve to ZIP entries with
 the same normalized path. Package writers must reject `..`, absolute paths, and
 URL-like paths as asset entries. A self-contained HTML build may replace those
-paths with embedded data URLs without changing `deck.md`.
+paths with embedded data URLs without changing the package source.
 
 This restriction is load-bearing. Absorbing unknown keys deletes them
 silently: a slide opening with `group: FIRST BAND` lost the entire band, and
@@ -259,9 +259,9 @@ violation in the deck. Inline code spans and fenced code blocks are exempt.
 ### 3.8 Images
 
 `image:` adds native media without requiring HTML. In a `.quire` package, a
-relative path refers to an asset entry at that normalized path. A same-origin
-path may also refer to an asset served beside a standalone deck. PNG, JPEG,
-GIF, WebP, AVIF, and SVG images may instead be embedded as base64 data URLs.
+relative path refers to an asset entry at that normalized path. A same-origin path may also refer to an asset served beside the viewer. PNG,
+JPEG, GIF, WebP, AVIF, and SVG images may instead be embedded as base64 data
+URLs.
 
 An image can accompany title, card, metric, table, row, chart, diagram, and
 pull-quote layouts. It does not replace those layouts or their content.
@@ -272,11 +272,6 @@ places a wide image band below the native content. `image-fit:` defaults to
 optional. An image's intrinsic aspect ratio never contributes to slide height;
 the selected frame constrains it, and `cover` or `contain` controls how it fits
 inside that frame.
-
-When the browser opens a standalone local `.md` through a file picker, it
-cannot read sibling image files. Package the source and assets as `.quire`, use
-embedded base64 image data, or serve the directory through a same-origin
-`?deck=` URL.
 
 ### 3.9 Charts, diagrams, and metrics
 

@@ -54,18 +54,6 @@ export function assetMap(assets) {
   );
 }
 
-/** @param {string} source */
-export function importedAssets(source) {
-  const markdown = readFileSync(source, 'utf8');
-  const root = dirname(resolve(source));
-  const assets = [...new Set(referencedAssetPaths(markdown))].map((path) => ({
-    path,
-    bytes: new Uint8Array(readFileSync(join(root, path))),
-    type: mimeFor(path),
-  }));
-  return { markdown, assets };
-}
-
 /**
  * @param {string} markdown
  * @param {NativeAsset[]} assets

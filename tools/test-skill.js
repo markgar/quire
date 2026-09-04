@@ -139,7 +139,7 @@ try {
   assert(chart.source?.includes('<a href='), 'slide 9 needs linked source attribution');
   assert(diagram?.layout === 'diagram' && diagram.diagram === 'process', 'slide 10 is not a process diagram');
   assert(diagram.items?.length === 3, 'slide 10 needs exactly three process steps');
-  assert(media?.layout === 'media' && media.imagePosition === 'right', 'slide 11 is not a right-positioned media slide');
+  assert(media?.image && media.imagePosition === 'right', 'slide 11 is not a right-positioned image slide');
   assert(media.cards?.length === 2 && media.imageAlt, 'slide 11 needs two cards and image alt text');
   const mediaPath = media?.image?.replace(/^\.\//, '');
   assert(mediaPath && packaged.assets.some((asset) => asset.path === mediaPath), 'slide 11 does not reference a packaged image asset');

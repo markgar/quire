@@ -127,6 +127,10 @@ async function writeOpfs(path, content) {
   return fh;
 }
 
+/** @param {string} path @param {string} source */
+const writeDeckOpfs = (path, source) =>
+  writeOpfs(path, new Blob([packQuire(source)], { type: 'application/vnd.quire+zip' }));
+
 async function clearState() {
   await new Promise((res) => {
     const req = indexedDB.deleteDatabase('quire');
@@ -261,7 +265,7 @@ const TESTS = [
       );
       assert(
         $(f, 'dropHint').textContent.includes(
-          '100% local. Agent-native presentations, written in Quire source Markdown, stored on your machine, and rendered locally in your browser.',
+          '100% local. Agent-native presentations, stored with their images in one .quire file and rendered locally in your browser.',
         ),
         'the blank app does not foreground local operation',
       );
@@ -304,7 +308,7 @@ const TESTS = [
     name: 'the browser promotes installation without blocking deck use',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('install-offer.md', deckOf(2));
+      const fh = await writeDeckOpfs('install-offer.quire', deckOf(2));
       const f = await loadApp(`
         localStorage.removeItem('quire:install-offer:v1');
         sessionStorage.removeItem('quire:install-banner:v1');
@@ -350,7 +354,7 @@ const TESTS = [
     name: 'the picker opens a deck',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('picked.md', deckOf(3));
+      const fh = await writeDeckOpfs('picked.quire', deckOf(3));
       const f = await loadApp();
       await openViaPicker(f, fh);
       assert(slideCount(f) === 3, `expected 3 slides, got ${slideCount(f)}`);
@@ -372,7 +376,7 @@ const TESTS = [
         '## Follow the evidence',
         '[Quire source](https://github.com/markgar/quire?tab=readme-ov-file#readme)',
       ].join('\n');
-      const fh = await writeOpfs('links.md', source);
+      const fh = await writeDeckOpfs('links.quire', source);
       const f = await loadApp();
       await openViaPicker(f, fh);
       const link = f.contentDocument.querySelector('#scaler .slide.active a');
@@ -395,6 +399,19 @@ const TESTS = [
     },
   },
   {
+    name: 'loose source files are rejected',
+    async fn() {
+      await clearState();
+      const fh = await writeOpfs('loose.md', deckOf(2));
+      const f = await loadApp();
+      f.contentWindow.showOpenFilePicker = async () => [fh];
+      $(f, 'openBtn').click();
+      await until(() => statusText(f) === 'Could not open that file', 4000);
+      assert(slideCount(f) === 0, 'a loose source file rendered');
+      return 'rejected a naked .md file';
+    },
+  },
+  {
     name: 'cancelling the picker leaves the blank app blank',
     async fn() {
       await clearState();
@@ -414,7 +431,7 @@ const TESTS = [
     async fn() {
       await clearState();
       const source = deckOf(1).replace('title: Harness', 'title: Harness\ntheme: dark');
-      const fh = await writeOpfs('themed.md', source);
+      const fh = await writeDeckOpfs('themed.quire', source);
       const f = await loadApp();
       await openViaPicker(f, fh);
       assert(
@@ -432,7 +449,7 @@ const TESTS = [
     name: 'the handle is persisted and reopens with no interaction',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('picked.md', deckOf(3));
+      const fh = await writeDeckOpfs('picked.quire', deckOf(3));
       const opener = await loadApp();
       await openViaPicker(opener, fh);
 
@@ -448,7 +465,7 @@ const TESTS = [
       });
       db.close();
       assert(stored, 'nothing was stored under "last"');
-      assert(stored.name === 'picked.md', `stored name was "${stored.name}"`);
+      assert(stored.name === 'picked.quire', `stored name was "${stored.name}"`);
       assert(
         (await stored.queryPermission({ mode: 'read' })) === 'granted',
         'the stored handle came back unreadable',
@@ -469,7 +486,7 @@ const TESTS = [
     name: 'permission is never requested unasked, and works on click',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('picked.md', deckOf(3));
+      const fh = await writeDeckOpfs('picked.quire', deckOf(3));
       const opener = await loadApp();
       await openViaPicker(opener, fh);
 
@@ -482,7 +499,7 @@ const TESTS = [
       assert(f.contentWindow.__asked === 0, 'requested permission on load, with no user gesture');
       assert(slideCount(f) === 0, 'rendered a deck before it had permission to read one');
       assert(
-        $(f, 'openBtn').textContent === 'Reopen picked.md',
+        $(f, 'openBtn').textContent === 'Reopen picked.quire',
         `button read "${$(f, 'openBtn').textContent}"`,
       );
       $(f, 'openBtn').click();
@@ -525,13 +542,22 @@ const TESTS = [
     name: 'an edit re-renders and keeps the reader in place',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('watch.md', deckOf(6));
+      const fh = await writeDeckOpfs('watch.quire', deckOf(6));
       const f = await loadApp();
       await openViaPicker(f, fh);
       f.contentWindow.quireNav.go(4); // fifth slide, mid-deck
       assert(f.contentWindow.quireNav.current() === 4, 'could not position the reader');
 
-      await writeOpfs('watch.md', deckOf(7));
+      const firstSlide = f.contentDocument.querySelector('#scaler .slide');
+      await wait(10);
+      await writeDeckOpfs('watch.quire', deckOf(6));
+      await wait(1200);
+      assert(
+        f.contentDocument.querySelector('#scaler .slide') === firstSlide,
+        'rewriting identical package bytes replaced the deck DOM',
+      );
+
+      await writeDeckOpfs('watch.quire', deckOf(7));
       assert(await until(() => slideCount(f) === 7, 4000), `expected 7 slides, got ${slideCount(f)}`);
       assert(
         f.contentWindow.quireNav.current() === 4,
@@ -546,7 +572,7 @@ const TESTS = [
       // The case that cannot be verified for real: FileSystemObserver attaching
       // to a local-disk handle and then silently not firing.
       await clearState();
-      const fh = await writeOpfs('dead.md', deckOf(2));
+      const fh = await writeDeckOpfs('dead.quire', deckOf(2));
       const f = await loadApp(`
         window.FileSystemObserver = function () {
           return { observe: async () => {}, disconnect: () => {} };
@@ -554,7 +580,7 @@ const TESTS = [
       `);
       await openViaPicker(f, fh);
       assert(slideCount(f) === 2, `expected 2 slides, got ${slideCount(f)}`);
-      await writeOpfs('dead.md', deckOf(4));
+      await writeDeckOpfs('dead.quire', deckOf(4));
       assert(
         await until(() => slideCount(f) === 4, 5000),
         `the deck never updated with a dead observer — stuck at ${slideCount(f)} slides`,
@@ -566,7 +592,7 @@ const TESTS = [
     name: 'a failed re-read keeps the last good render',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('vanish.md', deckOf(5));
+      const fh = await writeDeckOpfs('vanish.quire', deckOf(5));
       const f = await loadApp();
       await openViaPicker(f, fh);
       assert(slideCount(f) === 5, `expected 5 slides, got ${slideCount(f)}`);
@@ -588,7 +614,9 @@ const TESTS = [
       const f = await loadApp();
       const dt = new f.contentWindow.DataTransfer();
       dt.items.add(
-        new f.contentWindow.File([deckOf(4, 'Dropped')], 'dropped.md', { type: 'text/markdown' }),
+        new f.contentWindow.File([packQuire(deckOf(4, 'Dropped'))], 'dropped.quire', {
+          type: 'application/vnd.quire+zip',
+        }),
       );
 
       f.contentWindow.dispatchEvent(
@@ -663,7 +691,7 @@ const TESTS = [
     name: 'a drop carrying a handle is watched',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('drop-handle.md', deckOf(2, 'Dropped With Handle'));
+      const fh = await writeDeckOpfs('drop-handle.quire', deckOf(2, 'Dropped With Handle'));
       const f = await loadApp();
 
       // The item list returns a fresh wrapper on every index access, so a
@@ -677,7 +705,7 @@ const TESTS = [
       try {
         const dt = new f.contentWindow.DataTransfer();
         dt.items.add(
-          new f.contentWindow.File(['the handle should win'], 'ignored.md', { type: 'text/markdown' }),
+          new f.contentWindow.File(['the handle should win'], 'ignored.txt', { type: 'text/plain' }),
         );
         f.contentWindow.dispatchEvent(
           new f.contentWindow.DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }),
@@ -690,7 +718,7 @@ const TESTS = [
           /watching for changes/.test(statusText(f)),
           `a dropped handle can be watched, but status said "${statusText(f)}"`,
         );
-        await writeOpfs('drop-handle.md', deckOf(3, 'Dropped With Handle'));
+        await writeDeckOpfs('drop-handle.quire', deckOf(3, 'Dropped With Handle'));
         assert(
           await until(() => slideCount(f) === 3, 4000),
           'the dropped handle was not actually watched',
@@ -705,14 +733,14 @@ const TESTS = [
     name: 'overflow is reported, and clears when fixed',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('fit.md', tableDeck(3));
+      const fh = await writeDeckOpfs('fit.quire', tableDeck(3));
       const f = await loadApp();
       await openViaPicker(f, fh);
 
       assert(f.contentWindow.quireFit.overflowing().length === 0, 'a short table was reported as over');
       assert($(f, 'fitBtn').hidden, 'overflow badge shown for a deck that fits');
 
-      await writeOpfs('fit.md', tableDeck(30));
+      await writeDeckOpfs('fit.quire', tableDeck(30));
       assert(
         await until(() => f.contentWindow.quireFit.overflowing().length === 1, 4000),
         'overflow went unreported',
@@ -726,7 +754,7 @@ const TESTS = [
         'the panel did not mark the overflowing slide',
       );
 
-      await writeOpfs('fit.md', tableDeck(3));
+      await writeDeckOpfs('fit.quire', tableDeck(3));
       assert(
         await until(() => f.contentWindow.quireFit.overflowing().length === 0, 4000),
         'the overflow report did not clear',
@@ -763,7 +791,7 @@ const TESTS = [
         '## A short slide',
         'The square image should fit its frame without changing slide height.',
       ].join('\n');
-      const fh = await writeOpfs('image-fit.md', source);
+      const fh = await writeDeckOpfs('image-fit.quire', source);
       const f = await loadApp();
       await openViaPicker(f, fh);
       const image = f.contentDocument.querySelector('#scaler .slide:nth-child(2) img');
@@ -794,7 +822,7 @@ const TESTS = [
         '## Starts short',
         "Image load events must trigger Quire's own measurement.",
       ].join('\n');
-      const fh = await writeOpfs('image-settlement.md', source);
+      const fh = await writeDeckOpfs('image-settlement.quire', source);
       const f = await loadApp();
       await openViaPicker(f, fh);
       assert(f.contentWindow.quireFit.overflowing().length === 0, 'the starting fixture already overflowed');
@@ -822,7 +850,7 @@ const TESTS = [
       // every slide element, so the clearing branch is unreachable from an
       // edit-driven test however carefully it is written.
       await clearState();
-      const fh = await writeOpfs('remeasure.md', tableDeck(30));
+      const fh = await writeDeckOpfs('remeasure.quire', tableDeck(30));
       const f = await loadApp();
       await openViaPicker(f, fh);
       assert(
@@ -859,7 +887,7 @@ const TESTS = [
         'Body text for slide 5.',
         '[Quire source](https://github.com/markgar/quire)',
       );
-      const fh = await writeOpfs('exportme.md', source);
+      const fh = await writeDeckOpfs('exportme.quire', source);
       const f = await loadApp();
       await openViaPicker(f, fh);
       assert(!$(f, 'exportBtn').hidden, 'the export button is hidden for a deck that rendered');
@@ -951,7 +979,7 @@ const TESTS = [
       // The check must not be so blunt it breaks the authoring path it guards.
       await clearState();
       const f = await loadApp(`
-        history.replaceState(null, '', location.pathname + '?deck=fixtures/visual-language.md');
+        history.replaceState(null, '', location.pathname + '?deck=fixtures/visual-language.quire?raw=1#slide-2');
       `);
       assert(
         await until(() => slideCount(f) > 1, 5000),
@@ -965,6 +993,12 @@ const TESTS = [
         `the image beside the deck did not load from ${image.currentSrc}`,
       );
       assert(/polling for changes/.test(statusText(f)), `status was "${statusText(f)}"`);
+      const firstSlide = f.contentDocument.querySelector('#scaler .slide');
+      await wait(1200);
+      assert(
+        f.contentDocument.querySelector('#scaler .slide') === firstSlide,
+        'an unchanged URL package re-rendered during polling',
+      );
       return `${slideCount(f)} slides and a nearby image loaded from relative paths`;
     },
   },
@@ -972,7 +1006,7 @@ const TESTS = [
     name: 'a broken deck says so in the status, and recovers',
     async fn() {
       await clearState();
-      const fh = await writeOpfs('broken.md', '   \n\n\n');
+      const fh = await writeDeckOpfs('broken.quire', '   \n\n\n');
       const f = await loadApp();
       await openViaPicker(f, fh);
       assert(slideCount(f) > 0, 'the stage went blank instead of explaining itself');
@@ -990,7 +1024,7 @@ const TESTS = [
       assert($(f, 'fitBtn').hidden, 'reported fit for a generated error slide');
 
       // A deck being fixed must recover without being reopened.
-      await writeOpfs('broken.md', deckOf(2, 'Recovered'));
+      await writeDeckOpfs('broken.quire', deckOf(2, 'Recovered'));
       assert(await until(() => slideCount(f) === 2, 4000), 'did not recover when the file was fixed');
       assert($(f, 'status').dataset.kind === 'live', 'still reporting an error after recovery');
       return 'error shown and flagged, then recovered on fix';

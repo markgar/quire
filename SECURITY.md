@@ -9,7 +9,7 @@ The Quire source format allows raw HTML on purpose, because its built-in
 constructs are too blunt for every typographic need (`SPEC.md` §3.7). The viewer puts
 that HTML in the DOM. One consequence follows directly and is easy to miss:
 
-> Opening someone else's `.quire` or `.md` deck runs its JavaScript in the page.
+> Opening someone else's `.quire` deck runs its JavaScript in the page.
 
 That is not a defect to be fixed without changing the format, so it is
 documented rather than hidden. The app's policy blocks the quiet network
@@ -27,7 +27,7 @@ preventing deck script from running.
 
 **`?deck=` is same-origin only.** The parameter takes a relative path beside
 the app and nothing else — no absolute URL, no `//host`, no leading `/`.
-Without that check, a *link* was enough: `?deck=https://attacker/x.md` fetched
+Without that check, a *link* was enough: `?deck=https://attacker/x.quire` fetched
 attacker content (they set the CORS header on their own host), rendered it, and
 ran their script in the app's origin. From there it could read the file handle
 the app persists in IndexedDB — whose permission is granted silently on return
@@ -54,8 +54,8 @@ attachment. If you export a deck you did not write, you are forwarding its
 markup along with its slides.
 
 **Handle permission is not scoped inside a deck.** The app stores one handle for
-the last `.quire` or `.md` file opened. Anything running in the page can reach
-that complete file.
+the last `.quire` file opened. Anything running in the page can reach that
+complete file.
 
 **Top-level navigation is not blocked by CSP.** Deck script can assign
 `location.href` or open a new page with data in the URL. That is visible to the

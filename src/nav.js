@@ -25,9 +25,9 @@
   let focusedLink = null;
   let i = 0;
 
-  // Hidden state starts from the Markdown (data-hidden) and can be flipped
+  // Hidden state starts from Quire source (data-hidden) and can be flipped
   // for the current session from the panel. It is deliberately not persisted:
-  // the source of truth stays in the .md.
+  // the source of truth stays in the .quire package.
   function readSlides() {
     slides = Array.from(scaler.querySelectorAll(".slide"), (slide) => /** @type {HTMLElement} */ (slide));
     hidden = slides.map(s => s.dataset.hidden === "true");

@@ -1,11 +1,10 @@
 // @ts-check
 
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   assetMap,
-  importedAssets,
   mimeFor,
   readDeck,
   requireQuirePath,
@@ -70,17 +69,10 @@ try {
     'a rejected native write left a temporary package behind',
   );
 
-  const importSource = join(workspace, 'import.md');
-  const importImage = join(workspace, 'pixel.png');
-  writeFileSync(importSource, 'image: ./pixel.png\n\n# Imported\n');
-  writeFileSync(importImage, pixel);
-  const imported = importedAssets(importSource);
-  assert(imported.assets.length === 1 && imported.assets[0].type === 'image/png', 'import did not collect its image');
-
   assertThrows(() => validateDeck(markdown, [...assets, ...assets]), 'duplicate packaged asset');
   assertThrows(() => requireQuirePath(join(workspace, 'deck.md')), 'expected a .quire file');
 
-  console.log('PASS  native package  validation, import, round-trip, asset mapping, and rollback');
+  console.log('PASS  native package  validation, round-trip, asset mapping, and rollback');
 } catch (error) {
   console.error(`FAIL  native package  ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;

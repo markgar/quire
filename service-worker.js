@@ -1,5 +1,5 @@
 // Generated with a content version by tools/build-app.js.
-const CACHE = 'quire-app-3f7bb29b1f05';
+const CACHE = 'quire-app-ff8ea29d6118';
 const APP_SHELL = [
   '/',
   '/quire.html',

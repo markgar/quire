@@ -26,5 +26,5 @@ export function safeDeckUrl(
   } catch {
     return null;
   }
-  return url.origin === expectedOrigin ? url.href : null;
+  return url.origin === expectedOrigin && /\.quire$/i.test(url.pathname) ? url.href : null;
 }
