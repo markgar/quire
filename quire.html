@@ -3843,6 +3843,7 @@ const INSTALL_OFFER_KEY = 'quire:install-offer:v1';
 const INSTALL_BANNER_KEY = 'quire:install-banner:v1';
 const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000;
 const UPDATE_FOCUS_THROTTLE = 5 * 60 * 1000;
+const APP_DISPLAY_MODES = ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay'];
 const OPEN_DECK_CHANNEL = 'quire:open-decks:v1';
 const windowId = crypto.randomUUID();
 const deckChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(OPEN_DECK_CHANNEL) : null;
@@ -3880,7 +3881,7 @@ let lastAutomaticUpdateCheck = 0;
 
 function isStandalone() {
   return installedThisVisit ||
-    window.matchMedia('(display-mode: standalone)').matches ||
+    APP_DISPLAY_MODES.some((mode) => window.matchMedia(`(display-mode: ${mode})`).matches) ||
     /** @type {any} */ (navigator).standalone === true;
 }
 

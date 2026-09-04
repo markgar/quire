@@ -329,6 +329,24 @@ const TESTS = [
     },
   },
   {
+    name: 'installed app display modes hide browser installation promotion',
+    async fn() {
+      for (const mode of ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay']) {
+        const f = await loadApp(`
+          window.matchMedia = (query) => ({
+            matches: query === '(display-mode: ${mode})',
+            addEventListener: () => {},
+            removeEventListener: () => {},
+          });
+        `);
+        assert($(f, 'installBtn').hidden, `toolbar install action is visible in ${mode} mode`);
+        assert($(f, 'installBanner').hidden, `install banner is visible in ${mode} mode`);
+        assert(!$(f, 'installDialog').open, `install dialog opened in ${mode} mode`);
+      }
+      return 'standalone, minimal UI, fullscreen, and window-controls overlay stay promotion-free';
+    },
+  },
+  {
     name: 'the picker opens a deck',
     async fn() {
       await clearState();
