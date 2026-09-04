@@ -16,11 +16,12 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseQuire } from '../src/deck.js';
+import { inline, parseQuire } from '../src/deck.js';
 import { imageSource, renderSlides, page, readSource } from '../src/render.js';
 import { AUTHORING_GUIDE } from '../src/guide.js';
 import { safeDeckUrl } from '../src/deck-url.js';
 import { packQuire, referencedAssetPaths, unpackQuire } from '../skills/quire/package.js';
+import { validateQuireSource } from '../skills/quire/source.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtures = join(here, 'fixtures');
@@ -99,6 +100,108 @@ function lineDiff(expected, actual) {
 
 let failed = 0;
 let checked = 0;
+
+{
+  checked += 1;
+  const cases = [
+    ['**bold [md](/url) inside**', '<strong>bold <a href="/url">md</a> inside</strong>'],
+    ['**bold <a href="u">x</a> inside**', '<strong>bold <a href="u">x</a> inside</strong>'],
+    ['**bold <br> across**', '<strong>bold <br> across</strong>'],
+    ['*em <a>x</a>*', '<em>em <a>x</a></em>'],
+    ['`code <a>x</a>`', '<code>code <a>x</a></code>'],
+    ['`<b>`', '<code><b></code>'],
+    ['<b>inner **bold**</b>', '<b>inner **bold**</b>'],
+  ];
+  const problems = cases
+    .map(([input, expected]) => {
+      const actual = inline(input);
+      return actual === expected ? '' : `${JSON.stringify(input)}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
+    })
+    .filter(Boolean);
+  if (problems.length) {
+    failed += 1;
+    console.log('FAIL  inline markup across raw HTML');
+    for (const problem of problems) console.log(`   ${problem}`);
+  } else {
+    console.log('PASS  inline markup across raw HTML  emphasis, code, and links preserve raw elements');
+  }
+}
+
+{
+  checked += 1;
+  const invalid = [
+    '# Raw HTML',
+    '',
+    '<a href="one">one</a> and <strong>bold</strong>',
+    '<span><b>nested bold</b></span>',
+    '<span title="`"></span><em>visible violation</em><span title="`"></span>',
+    '<a',
+    ' href="two">multiline link</a>',
+    '<span',
+    ' title="```">safe</span><b>visible after attribute backticks</b>',
+    '',
+    '---',
+    '',
+    '## More raw HTML',
+    '',
+    '<i>italic</i> and <code>code</code>',
+    '`<b>inline code is exempt</b>`',
+    '',
+    '```html',
+    '<em>fenced code is exempt</em>',
+    '```',
+  ].join('\n');
+  const expected = [
+    'slide 1, line 3: raw <a> tag — use [label](URL) instead',
+    'slide 1, line 3: raw <strong> tag — use **bold** instead',
+    'slide 1, line 4: raw <b> tag — use **bold** instead',
+    'slide 1, line 5: raw <em> tag — use *italic* instead',
+    'slide 1, line 6: raw <a> tag — use [label](URL) instead',
+    'slide 1, line 9: raw <b> tag — use **bold** instead',
+    'slide 2, line 15: raw <i> tag — use *italic* instead',
+    'slide 2, line 15: raw <code> tag — use `code` instead',
+  ];
+  let message = '';
+  try {
+    validateQuireSource(invalid);
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+  const legal = [
+    '# Legal HTML',
+    '',
+    '**bold with <br> inside** <span title="<i>example</i>">span</span> <sup>2</sup> <img src="x"> <svg></svg>',
+    '<!--',
+    '<strong>comment example</strong>',
+    '-->',
+    '<span',
+    ' title="<i>attribute example</i>">span</span>',
+    '<script>',
+    'const example = "<b>";',
+    '</script>',
+    '````html',
+    '```',
+    '---',
+    '<b>inside a longer fence</b>',
+    '````',
+  ].join('\n');
+  let legalError = '';
+  try {
+    validateQuireSource(legal);
+  } catch (error) {
+    legalError = error instanceof Error ? error.message : String(error);
+  }
+  const missing = expected.filter((violation) => !message.includes(violation));
+  if (missing.length || legalError || message.split('\n').length !== expected.length + 1) {
+    failed += 1;
+    console.log('FAIL  raw HTML validation errors');
+    if (missing.length) console.log(`   missing ${JSON.stringify(missing)} from ${JSON.stringify(message)}`);
+    if (legalError) console.log(`   legal HTML failed validation: ${legalError}`);
+    if (message.split('\n').length !== expected.length + 1) console.log(`   unexpected error count: ${JSON.stringify(message)}`);
+  } else {
+    console.log('PASS  raw HTML validation errors  aggregate violations and exempt code and native-less tags');
+  }
+}
 
 {
   checked += 1;
