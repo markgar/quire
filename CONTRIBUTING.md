@@ -8,8 +8,11 @@
 
 There is no build step for the source. Runtime modules are plain JavaScript with
 `// @ts-check` and JSDoc, checked by `tsc --noEmit`. The canonical parser,
-renderer, shell, fit measurement, and native-deck CLI live in `skills/quire/`
-so an installed skill carries the same implementation as the app.
+renderer, shell, fit measurement, native package lifecycle, and CLI live in
+`skills/quire/` so an installed skill carries the same implementation as the
+app. `native.js` owns validated package reads, imports, and verified atomic
+writes; `quire-package.mjs` owns command dispatch plus isolated browser fit and
+render operations.
 
 `quire.html` **is** generated, by `tools/build-app.js`, and is committed
 because it is the deployable. `npm run check` rebuilds it, so commit the result
@@ -41,7 +44,10 @@ permission decay across a browser restart, or local-disk observer delivery:
 directory and exercises direct `.quire` creation and mutation, Markdown import,
 semantic validation, browser fit checks, contact-sheet and single-slide PNG
 rendering, assets, inspection, `EPIPE` handling, and byte-for-byte rollback
-after rejected edits. It runs as part of `npm test`.
+after rejected edits. `test/native-package.js` directly pins the package
+lifecycle boundary, including exact source and asset round trips, import,
+validation, temporary-file cleanup, and rollback. Both run as part of
+`npm test`.
 
 ## The bar for a test
 
