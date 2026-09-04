@@ -319,9 +319,10 @@ const TESTS = [
       const dialog = $(f, 'installDialog');
       assert(dialog.open, 'opening the first deck did not show the contextual install offer');
       assert(
-        /desktop Chrome or Edge/.test($(f, 'installDialogHelp').textContent),
+        /Install icon at the right of the address bar/.test($(f, 'installDialogHelp').textContent),
         'unsupported-browser install guidance is missing',
       );
+      assert($(f, 'installDialogBtn').hidden, 'an unavailable native install action is still shown');
       $(f, 'installDialogLater').click();
       assert(!dialog.open, 'the install offer could not be dismissed');
       return 'persistent action, benefit banner, contextual offer, and browser guidance';
