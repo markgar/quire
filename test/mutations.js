@@ -145,7 +145,7 @@ export const MUTATIONS = [
   {
     name: 'deck-url-not-origin-checked',
     catchers: ['a cross-origin ?deck= link is refused'],
-    why: 'the critical one, demonstrated end to end before it was fixed: fetch resolves absolute URLs, so a link alone fetched attacker markdown, ran its raw HTML in the app origin, read the granted handle from IndexedDB, and posted a local file away while the screen showed a plausible deck',
+    why: 'without the relative same-origin policy, ?deck= could load untrusted cross-origin deck content into the app instead of refusing the URL',
     find: '  const url = safeDeckUrl(name);\n  if (!url) {',
     replace: '  const url = name;\n  if (false) {',
   },
