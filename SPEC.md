@@ -294,12 +294,11 @@ the value and the card body is its meaning. Each value is measured after
 rendering and reduced from the standard display size only when needed to keep
 it within its card.
 
-Passing HTML through is a deliberate affordance and it has a security
-consequence that belongs in the format's definition rather than only in the
-viewer's: **a deck is executable content.** A renderer that puts deck output in
-a live document is running the deck author's markup, including event handlers.
-A conforming implementation should either sanitise deliberately or state, as
-this one does in `SECURITY.md`, that decks are to be treated like scripts.
+Passing HTML through is a deliberate affordance with a security consequence:
+attributes such as event handlers may execute JavaScript when a renderer puts
+the markup in a live document. Script elements may also execute when a
+standalone export is parsed. A conforming implementation should either
+sanitise raw HTML deliberately or document how active markup is handled.
 
 ---
 

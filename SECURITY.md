@@ -1,66 +1,58 @@
 # Security
 
-## The trust boundary, stated plainly
+## Deck content and raw HTML
 
-**A deck is executable content. Open decks the way you would open a script:
-only from someone you trust.**
+Ordinary Quire syntax is presentation data. Opening a deck does not
+automatically execute JavaScript supplied by its author.
 
-The Quire source format allows raw HTML on purpose, because its built-in
-constructs are too blunt for every typographic need (`SPEC.md` §3.7). The viewer puts
-that HTML in the DOM. One consequence follows directly and is easy to miss:
+Quire also supports raw HTML for styling and elements that have no native Quire
+equivalent. The renderer preserves that markup, including attributes. Active
+attributes such as event handlers can therefore execute JavaScript in the
+viewer.
 
-> Opening someone else's `.quire` deck runs its JavaScript in the page.
-
-That is not a defect to be fixed without changing the format, so it is
-documented rather than hidden. The app's policy blocks the quiet network
-channels available to embedded content, but cannot prevent top-level
-navigation.
+Script elements inserted during a live viewer update are not executed by the
+browser. Standalone HTML exports are different: their markup is parsed when the
+page loads, so script elements and event handlers may execute. Avoid active raw
+HTML unless you authored or reviewed it.
 
 ## What the app does about it
 
 **A Content-Security-Policy on the app shell.** `connect-src 'self'` blocks
 cross-origin `fetch`, XHR, and similar connections; `img-src 'self' data:`
 blocks remote image beacons; `form-action 'none'` blocks form submission; and
-`base-uri 'none'` prevents base-URL rewriting. `script-src` cannot be tightened
-while raw HTML is a feature, so the policy limits network channels rather than
-preventing deck script from running.
+`base-uri 'none'` prevents base-URL rewriting. The current single-file app uses
+inline scripts, so its policy also permits inline script and event handlers.
+The policy limits common network channels; it does not make active raw HTML
+safe.
 
 **`?deck=` is same-origin only.** The parameter takes a relative path beside
-the app and nothing else — no absolute URL, no `//host`, no leading `/`.
-Without that check, a *link* was enough: `?deck=https://attacker/x.quire` fetched
-attacker content (they set the CORS header on their own host), rendered it, and
-ran their script in the app's origin. From there it could read the file handle
-the app persists in IndexedDB — whose permission is granted silently on return
-by design — read the local file it pointed at, and post it away, while the
-screen showed a plausible deck. That chain was demonstrated end to end against
-a real local file before the check existed.
+the app and rejects absolute URLs, protocol-relative URLs, and paths beginning
+with `/`. A link cannot make Quire fetch and render a deck from another origin.
 
 **No deck content is transmitted.** The app has no telemetry, no analytics, no
 server, and no code path that sends deck text anywhere. This is a design
 constraint, not a setting.
 
-**CLI fit checks isolate network access.** `quire-package.mjs fit` executes the
-deck in a temporary headless browser because accurate overflow measurement
-requires layout. The browser is launched behind an unreachable proxy with host
-resolution disabled, and the temporary page restricts network-capable resource
-types. Raw deck scripts still execute locally, so the trusted-deck rule remains.
+**CLI browser checks isolate network access.** Fit and render operations use a
+temporary headless browser because accurate layout and screenshots require it.
+The browser runs behind an unreachable proxy with host resolution disabled,
+and the temporary page restricts network-capable resource types. Active raw
+HTML may still execute locally during these checks.
 
 ## What it does not do
 
 **Exported decks carry no CSP.** An export is a standalone file built for
-recipients without the app, and it inherits whatever HTML the deck contained.
-Opening an exported `.html` is exactly as trusted as opening any HTML
-attachment. If you export a deck you did not write, you are forwarding its
-markup along with its slides.
+recipients without the app. It includes the deck's raw HTML, and the browser
+parses that markup when the file opens. Treat an exported deck containing
+active raw HTML like any other HTML attachment.
 
-**Handle permission is not scoped inside a deck.** The app stores one handle for
-the last `.quire` file opened. Anything running in the page can reach that
-complete file.
+**File access belongs to the app origin.** The app stores a handle for the last
+`.quire` file opened. JavaScript executing in the app's origin may be able to
+request that handle through the same browser storage.
 
-**Top-level navigation is not blocked by CSP.** Deck script can assign
-`location.href` or open a new page with data in the URL. That is visible to the
-user, unlike a background request, but it means the policy is not a guarantee
-that hostile deck content cannot carry local data off the machine.
+**Top-level navigation is not blocked by CSP.** Active raw HTML can navigate
+the page or open another page. The network restrictions above are not a
+complete sandbox.
 
 **A host should send headers the meta policy cannot.** `frame-ancestors` is
 ignored in a `<meta>` element; a deployment that can set response headers
@@ -74,5 +66,4 @@ button under the repository's Security tab, which is private, rather than a
 public issue.
 
 Useful reports say what an attacker controls, what they get, and what a user
-had to do. A proof of concept is welcome; a working one against a local file is
-what turned the `?deck=` issue above from theoretical into a fix.
+had to do. A minimal proof of concept is welcome.

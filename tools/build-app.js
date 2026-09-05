@@ -602,9 +602,9 @@ const page = `<!DOCTYPE html>
 <link rel="icon" href="/quire-icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <!--
-  A deck may contain raw HTML by design, and the app puts it in the DOM, so a
-  deck is executable content. script-src therefore cannot be tightened without
-  changing the format.
+  A deck may contain raw HTML by design, and the app preserves its attributes.
+  Because this single-file app also uses inline scripts, its current
+  script-src policy permits inline script and event handlers.
 
   What *can* be shut are the quiet network channels. connect-src 'self' blocks
   cross-origin fetch and XHR, img-src 'self' data: blocks remote image beacons,
