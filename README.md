@@ -2,7 +2,7 @@
 
 **Agent-native presentations in one portable file.**
 
-[Open Quire](https://quiredeck.com) · [Format specification](SPEC.md) ·
+[Open Quire](https://quiredeck.com) · [Format reference](SPEC.md) ·
 [Contributing](CONTRIBUTING.md)
 
 Quire turns structured, Markdown-shaped source into polished slide decks. It is
@@ -113,7 +113,7 @@ Set `QUIRE_SKILL_TEST_KEEP=1` to keep its temporary project or
 | `skills/quire/` | Canonical parser, renderer, package tools, CLI, and Copilot skill |
 | `src/` | Browser app modules and CLI entry point |
 | `quire.html` | Generated, deployable app |
-| `SPEC.md` | Normative Quire format specification |
+| `SPEC.md` | Detailed format and viewer behavior reference |
 | `test/` | Conformance, browser, package, CLI, and visual regression tests |
 | `tools/` | Build, development server, and fixture utilities |
 
