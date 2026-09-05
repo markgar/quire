@@ -678,7 +678,7 @@ if (existsSync(appPath)) {
       'Start the next slide',
       'group: Label',
       '[!ASIDE]',
-      'executable content',
+      'event-handler attributes',
       'quire-package.mjs create',
       'quire-package.mjs fit',
       'quire-package.mjs render',
@@ -697,7 +697,7 @@ if (existsSync(appPath)) {
       failed += 1;
       console.log(`FAIL  authoring guide  missing: ${missing.join(', ')}`);
     } else {
-      console.log('PASS  authoring guide  native CLI, cards, slides, groups, closers, and trust boundary');
+      console.log('PASS  authoring guide  native CLI, cards, slides, groups, closers, and raw HTML guidance');
     }
   }
   if (!/id="scaler"/.test(app)) problems.push('no stage in quire.html');

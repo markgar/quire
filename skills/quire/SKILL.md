@@ -18,7 +18,7 @@ When creating or revising a deck:
 3. Keep one idea per slide and prefer readable cards, rows, or tables over dense prose.
 4. Keep the deliverable as one `.quire` file and add images through the CLI.
 5. Preserve existing metadata and legal, intentional raw HTML when editing a deck.
-6. Treat raw HTML as executable content and use it only in trusted decks.
+6. Avoid scripts and event-handler attributes in raw HTML.
 
 Deliver and maintain one native `.quire` deck. It is a ZIP package containing
 Quire source, normal image files, and a manifest, but those internals are owned
@@ -286,13 +286,14 @@ adds a badge to a rows slide.
 `**bold**`, `*italic*`, `` `code` ``, and `[label](URL)` links are supported.
 Their delimiters may span legal raw HTML, so `**bold with <br> inside**` works.
 
-Raw HTML passes through unchanged and is executable content. Do not use raw
-HTML for links, emphasis, code, headings, lists, tables, blockquotes, or images:
+Raw HTML passes through unchanged, including attributes that may execute
+JavaScript. Do not add scripts or event-handler attributes. Do not use raw HTML
+for links, emphasis, code, headings, lists, tables, blockquotes, or images:
 Quire owns those roles natively, and package writes reject their HTML tags.
 Validation reports every violation in the deck at once and names the native
 replacement. Tag-shaped examples inside inline code spans or fenced code blocks
 are exempt. Raw `<br>`, `<span>`, `<sup>`, SVG, and other elements without
-native equivalents remain available for trusted decks.
+native equivalents remain available.
 
 When working inside the Quire repository, consult `SPEC.md` for the normative
 format and `test/fixtures/` for complete examples.

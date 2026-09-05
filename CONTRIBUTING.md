@@ -92,5 +92,5 @@ something breaking, say what broke.
 
 ## Reporting a vulnerability
 
-See `SECURITY.md`. Note that decks are executable content by design, so read
-the stated trust boundary before filing.
+See `SECURITY.md` for the current raw HTML boundary and private reporting
+instructions.
